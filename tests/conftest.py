@@ -12,6 +12,7 @@ from mops.utils.logs import driver_wrapper_logs_settings
 from mops.visual_comparison import VisualComparison
 from tests.adata.drivers.driver_entities import DriverEntities
 from tests.adata.drivers.driver_factory import DriverFactory
+from tests.adata.pages.PopupsPage import PopupsPage
 from tests.adata.pages.colored_blocks_page import ColoredBlocksPage
 from tests.adata.pages.expected_condition_page import ExpectedConditionPage
 from tests.adata.pages.forms_page import FormsPage
@@ -164,6 +165,11 @@ def second_playground_page(driver_wrapper):
 @pytest.fixture
 def colored_blocks_page(driver_wrapper):
     return ColoredBlocksPage().open_page()
+
+
+@pytest.fixture
+def popups_page(driver_wrapper):
+    return PopupsPage().open_page()
 
 
 @pytest.fixture

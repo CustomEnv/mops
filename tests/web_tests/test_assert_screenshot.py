@@ -54,8 +54,8 @@ def test_screenshot_remove(colored_blocks_page):
 
 
 @pytest.mark.low
-def test_screenshot_popup_with_remove(colored_blocks_page, driver_wrapper):
-    overlay_popup = colored_blocks_page.open_popup()
+def test_screenshot_popup_with_remove(popups_page, driver_wrapper):
+    overlay_popup = popups_page.open_popup()
     overlay_popup.assert_screenshot(
         remove=[overlay_popup.popup_text],
     )
