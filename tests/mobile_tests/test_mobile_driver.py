@@ -1,11 +1,11 @@
 from mops.base.driver_wrapper import DriverWrapper
-from tests.adata.pages.mouse_event_page import MouseEventPage
+from tests.adata.pages.mouse_event_page import MouseEventPageV2
 from tests.adata.pages.pizza_order_page import PizzaOrderPage
 
 
 def test_second_driver_for_mobile_same_page(driver_wrapper, second_driver_wrapper):
-    mouse_page_mobile = MouseEventPage(driver_wrapper)  # mobile driver
-    mouse_page_desktop = MouseEventPage(second_driver_wrapper)  # desktop driver
+    mouse_page_mobile = MouseEventPageV2(driver_wrapper)  # mobile driver
+    mouse_page_desktop = MouseEventPageV2(second_driver_wrapper)  # desktop driver
     assert len(DriverWrapper.session.all_sessions) == 2
 
     mouse_page_mobile.open_page()
@@ -17,7 +17,7 @@ def test_second_driver_for_mobile_same_page(driver_wrapper, second_driver_wrappe
 
 def test_second_driver_for_mobile_different_page(driver_wrapper, second_driver_wrapper):
     pizza_page = PizzaOrderPage(driver_wrapper)  # mobile driver
-    mouse_page = MouseEventPage(second_driver_wrapper)  # desktop driver
+    mouse_page = MouseEventPageV2(second_driver_wrapper)  # desktop driver
     assert len(DriverWrapper.session.all_sessions) == 2
 
     mouse_page.open_page()

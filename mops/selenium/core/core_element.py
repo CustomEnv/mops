@@ -28,7 +28,7 @@ from mops.mixins.objects.location import Location
 from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes, scroll_into_view_blocks
 from mops.mixins.objects.size import Size
 from mops.shared_utils import cut_log_data, _scaled_screenshot
-from mops.utils.internal_utils import WAIT_EL, safe_call, get_dict, HALF_WAIT_EL, wait_condition, is_group
+from mops.utils.internal_utils import WAIT_EL, safe_call, get_dict, HALF_WAIT_EL, wait_condition, is_group, retry
 from mops.exceptions import (
     TimeoutException,
     InvalidSelectorException,
@@ -357,6 +357,7 @@ class CoreElement(ElementABC, ABC):
         return self.element.screenshot_as_png
 
     @property
+    @retry(SeleniumStaleElementReferenceException)
     def text(self) -> str:
         """
         Returns the text of the element.

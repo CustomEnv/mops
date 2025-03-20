@@ -27,6 +27,31 @@ all_tags = {'h1', 'h2', 'h3', 'h4', 'h5', 'head', 'body', 'input', 'section', 'b
             'li', 'form', 'footer', 'frame', 'area', 'span', 'video'}
 
 
+def retry(exceptions, timeout: int = HALF_WAIT_EL):
+    """
+    A decorator to retry a function when specified exceptions occur.
+
+    :param exceptions: Exception or tuple of exception classes to catch and retry on.
+    :param timeout: The maximum time (in seconds) to keep retrying before giving up.
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            timestamp = None
+
+            while True:
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as exc:
+                    if not timestamp:
+                        timestamp = time.time()
+
+                    if time.time() - timestamp >= timeout:
+                        raise exc
+        return wrapper
+    return decorator
+
+
 def get_dict(obj: Any):
     return obj.__dict__
 
@@ -315,14 +340,16 @@ def wait_condition(method: Callable):
         should_increase_delay = self.driver_wrapper.is_appium
         delay = WAIT_METHODS_DELAY
 
-        while time.time() - start_time < timeout and not result.execution_result:
-            time.sleep(delay)
+        while time.time() - start_time < timeout:
             result: Result = method(self, *args, **kwargs)
+
+            if result.execution_result:
+                return self
+
+            time.sleep(delay)
+
             if should_increase_delay:
                 delay = increase_delay(delay)
-
-        if result.execution_result:
-            return self
 
         result.exc._timeout = timeout  # noqa
         raise result.exc

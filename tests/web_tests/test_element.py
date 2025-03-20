@@ -45,13 +45,24 @@ def test_type_clear_text_get_value(pizza_order_page):
 
 
 @pytest.mark.xfail_platform('selenium-safari', reason='Fail in CI env')
-def test_hover(mouse_event_page):
-    initial_not_displayed = not mouse_event_page.dropdown.is_displayed()
-    mouse_event_page.choose_language_button.scroll_into_view(sleep=0.1).hover()
-    after_hover_displayed = mouse_event_page.dropdown.wait_visibility_without_error().is_displayed()
-    mouse_event_page.choose_language_button.hover_outside()
-    after_outside_hover_displayed = not mouse_event_page.dropdown.wait_hidden().is_displayed()
+def test_hover(mouse_event_page_v2):
+    initial_not_displayed = not mouse_event_page_v2.dropdown.is_displayed()
+    mouse_event_page_v2.choose_language_button.scroll_into_view(sleep=0.1).hover()
+    after_hover_displayed = mouse_event_page_v2.dropdown.wait_visibility_without_error().is_displayed()
+    mouse_event_page_v2.choose_language_button.hover_outside()
+    after_outside_hover_displayed = not mouse_event_page_v2.dropdown.wait_hidden().is_displayed()
     assert all((initial_not_displayed, after_hover_displayed, after_outside_hover_displayed))
+
+
+def test_wait_for_text_dynamic_element(mouse_event_page_v1):
+    """ Case: 102034539 """
+    for i in range(20):
+        assert mouse_event_page_v1.jump_button.wait_for_text(timeout=1)
+
+def test_get_text_dynamic_element(mouse_event_page_v1):
+    """ Case: 89391107 """
+    for i in range(20):
+        assert mouse_event_page_v1.jump_button.text in ('Container 1', 'Container 2')
 
 
 # Cases when parent is another element
@@ -113,7 +124,7 @@ def test_element_execute_script(forms_page, driver_wrapper):
     forms_page.controls_form.german_slider.execute_script('arguments[0].textContent = arguments[1];', new_text)
     assert forms_page.controls_form.german_slider.text == new_text
 
-def test_element_locator_check(mouse_event_page, driver_wrapper):
+def test_element_locator_check(mouse_event_page_v2, driver_wrapper):
     # Let's keep Elements here, for encapsulation purposes
     # Reformat test if any trouble occur
     locators = (
