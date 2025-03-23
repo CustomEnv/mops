@@ -35,8 +35,8 @@ from mops.utils.internal_utils import (
     set_parent_for_attr,
     is_page,
     QUARTER_WAIT_EL,
-    wait_condition,
 )
+from mops.utils.decorators import wait_condition
 
 if TYPE_CHECKING:
     from mops.base.group import Group

@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import sys
 import inspect
-import time
 from copy import copy
-from functools import lru_cache, wraps
+from functools import lru_cache
 from typing import Any, Union, Callable
 
 from mops.mixins.objects.size import Size
-from mops.mixins.objects.wait_result import Result
 from selenium.common.exceptions import StaleElementReferenceException as SeleniumStaleElementReferenceException
 
 from mops.exceptions import NoSuchElementException, InvalidSelectorException, TimeoutException, NoSuchParentException
@@ -296,36 +294,3 @@ def increase_delay(delay, max_delay: Union[int, float] = 1.5) -> Union[int, floa
     if delay < max_delay:
         return delay + delay
     return delay
-
-
-def wait_condition(method: Callable):
-
-    @wraps(method)
-    def wrapper(self, *args, timeout: Union[int, float] = WAIT_EL, silent: bool = False, **kwargs):
-        validate_timeout(timeout)
-        validate_silent(silent)
-
-        start_time = time.time()
-        result: Result = method(self, *args, **kwargs)
-
-        if not silent:
-            self.log(result.log)
-
-        should_increase_delay = self.driver_wrapper.is_appium
-        delay = WAIT_METHODS_DELAY
-
-        while time.time() - start_time < timeout:
-            result: Result = method(self, *args, **kwargs)
-
-            if result.execution_result:
-                return self
-
-            time.sleep(delay)
-
-            if should_increase_delay:
-                delay = increase_delay(delay)
-
-        result.exc._timeout = timeout  # noqa
-        raise result.exc
-
-    return wrapper

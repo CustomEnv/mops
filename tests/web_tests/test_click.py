@@ -31,6 +31,7 @@ def test_click_outside(mouse_event_page_v2, coordinates):
 
 
 @pytest.mark.low
+@pytest.mark.skip_platform('playwright', reason='selenium only')
 def test_click_on_covered_button_initial(expected_condition_page, caplog):
     assert expected_condition_page.cover_button.is_displayed()
 
@@ -43,18 +44,21 @@ def test_click_on_covered_button_initial(expected_condition_page, caplog):
 
 
 @pytest.mark.low
-def test_click_on_covered_button_positive(expected_condition_page, caplog):
+def test_click_on_covered_button_positive(expected_condition_page, caplog, platform):
     expected_condition_page.set_min_and_max_wait(3, 3)
 
     expected_condition_page.covered_trigger.click()
     expected_condition_page.covered_button.click()
 
-    assert caplog.messages.count('Caught ElementNotInteractableException, retrying...') >= 2
+    if platform == 'selenium':
+        assert caplog.messages.count('Caught ElementNotInteractableException, retrying...') >= 2
+
     assert not expected_condition_page.cover_button.is_displayed()
 
 
 
 @pytest.mark.low
+@pytest.mark.skip_platform('playwright', reason='selenium only')
 def test_click_on_covered_button_negative(expected_condition_page, caplog):
     expected_condition_page.set_min_and_max_wait(20, 20)
 

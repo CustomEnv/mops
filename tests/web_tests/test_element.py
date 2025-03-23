@@ -54,11 +54,13 @@ def test_hover(mouse_event_page_v2):
     assert all((initial_not_displayed, after_hover_displayed, after_outside_hover_displayed))
 
 
+@pytest.mark.low
 def test_wait_for_text_dynamic_element(mouse_event_page_v1):
     """ Case: 102034539 """
     for i in range(20):
         assert mouse_event_page_v1.jump_button.wait_for_text(timeout=1)
 
+@pytest.mark.low
 def test_get_text_dynamic_element(mouse_event_page_v1):
     """ Case: 89391107 """
     for i in range(20):
