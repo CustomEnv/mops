@@ -2,6 +2,9 @@ import time
 
 import pytest
 
+from mops.exceptions import ElementNotInteractableException
+from mops.utils.internal_utils import HALF_WAIT_EL, QUARTER_WAIT_EL
+
 
 def test_click_and_wait(pizza_order_page, platform):
     pizza_order_page.submit_button.click()
@@ -25,3 +28,42 @@ def test_click_into_center(mouse_event_page_v2):
 def test_click_outside(mouse_event_page_v2, coordinates):
     mouse_event_page_v2.mouse_click_card().click_area_parent.click_outside(*coordinates)
     assert not mouse_event_page_v2.mouse_click_card().is_click_proceeded()
+
+
+@pytest.mark.low
+def test_click_on_covered_button_initial(expected_condition_page, caplog):
+    assert expected_condition_page.cover_button.is_displayed()
+
+    try:
+        expected_condition_page.covered_button.click()
+    except ElementNotInteractableException:
+        pass
+    else:
+        raise AssertionError('Unexpected behaviour. Case not covered')
+
+
+@pytest.mark.low
+def test_click_on_covered_button_positive(expected_condition_page, caplog):
+    expected_condition_page.set_min_and_max_wait(3, 3)
+
+    expected_condition_page.covered_trigger.click()
+    expected_condition_page.covered_button.click()
+
+    assert caplog.messages.count('Caught ElementNotInteractableException, retrying...') >= 2
+    assert not expected_condition_page.cover_button.is_displayed()
+
+
+
+@pytest.mark.low
+def test_click_on_covered_button_negative(expected_condition_page, caplog):
+    expected_condition_page.set_min_and_max_wait(20, 20)
+
+    expected_condition_page.covered_trigger.click()
+
+    start = time.time()
+    try:  # The retry logic should be equal to 5 seconds from first exception + some time for first execution
+        expected_condition_page.covered_button.click()
+    except ElementNotInteractableException:
+        assert time.time() - start < HALF_WAIT_EL + QUARTER_WAIT_EL
+    else:
+        raise AssertionError('Unexpected behaviour. Case not covered')

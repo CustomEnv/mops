@@ -70,6 +70,9 @@ return appendElement(arguments[0]);
 """
 
 
+hide_caret_js_script = 'document.activeElement.blur();'
+
+
 add_driver_index_comment_js = """
 function addComment(driver_index) {
   comment = document.createComment(" " + driver_index + " ");

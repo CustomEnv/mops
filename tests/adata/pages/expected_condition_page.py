@@ -21,6 +21,10 @@ class ExpectedConditionPage(Page):
     alert_trigger = Element('alert_trigger', name='alert trigger')
     prompt_trigger = Element('prompt_trigger', name='prompt trigger')
 
+    covered_trigger = Element('covered_trigger', name='covered button trigger')
+    cover_button = Element('cover', name='cover button')
+    covered_button = Element('covered_button', name='covered button')
+
     alert_handled_badge = Element('alert_handled_badge', name='alert handled badge')
     confirm_badge = Element('confirm_ok_badge', name='confirm badge')
     canceled_badge = Element('confirm_cancelled_badge', name='cancelled badge')
@@ -29,8 +33,8 @@ class ExpectedConditionPage(Page):
     alert_cancel_button = Element(Locator('', ios='//XCUIElementTypeStaticText[@name="Cancel"]'), name='cancel alert button')
 
     def set_min_and_max_wait(self, min_wait=1, max_wait=1):
-        self.min_wait_input.set_text(min_wait)
-        self.max_wait_input.set_text(max_wait)
+        self.min_wait_input.set_text(str(min_wait))
+        self.max_wait_input.set_text(str(max_wait))
         return self
 
 

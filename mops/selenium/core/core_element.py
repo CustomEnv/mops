@@ -16,9 +16,8 @@ from selenium.common.exceptions import (
     InvalidArgumentException as SeleniumInvalidArgumentException,
     InvalidSelectorException as SeleniumInvalidSelectorException,
     NoSuchElementException as SeleniumNoSuchElementException,
-    ElementNotInteractableException as SeleniumElementNotInteractableException,
-    ElementClickInterceptedException as SeleniumElementClickInterceptedException,
     StaleElementReferenceException as SeleniumStaleElementReferenceException,
+    WebDriverException as SeleniumWebDriverException,
 )
 from mops.abstraction.element_abc import ElementABC
 from mops.selenium.sel_utils import ActionChains
@@ -28,7 +27,8 @@ from mops.mixins.objects.location import Location
 from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes, scroll_into_view_blocks
 from mops.mixins.objects.size import Size
 from mops.shared_utils import cut_log_data, _scaled_screenshot
-from mops.utils.internal_utils import WAIT_EL, safe_call, get_dict, HALF_WAIT_EL, wait_condition, is_group, retry
+from mops.utils.internal_utils import WAIT_EL, safe_call, get_dict, HALF_WAIT_EL, wait_condition, is_group
+from mops.utils.decorators import retry
 from mops.exceptions import (
     TimeoutException,
     InvalidSelectorException,
@@ -80,6 +80,7 @@ class CoreElement(ElementABC, ABC):
 
     # Element interaction
 
+    @retry(ElementNotInteractableException)
     def click(self, *, force_wait: bool = True, **kwargs) -> CoreElement:
         """
         Clicks on the element.
@@ -101,26 +102,17 @@ class CoreElement(ElementABC, ABC):
         """
         self.log(f'Click into "{self.name}"')
 
-        self.element = self._get_element(force_wait=force_wait)
+        if force_wait:
+            self.wait_visibility(silent=True)
 
-        selenium_exc_msg = None
-        start_time = time.time()
-        while time.time() - start_time < HALF_WAIT_EL:
-            try:
-                element = self.wait_enabled(silent=True).element
-                element.click()
-                return self
-            except (
-                    SeleniumElementNotInteractableException,
-                    SeleniumElementClickInterceptedException,
-                    SeleniumStaleElementReferenceException,
-            ) as exc:
-                selenium_exc_msg = exc.msg
-            finally:
-                self.element = None
+        try:
+            self.wait_enabled(silent=True).element.click()
+            return self
+        except SeleniumWebDriverException as exc:
+            selenium_exc_msg = exc.msg
 
         raise ElementNotInteractableException(
-            f'Element "{self.name}" not interactable after {HALF_WAIT_EL} seconds. {self.get_element_info()}. '
+            f'Element "{self.name}" not interactable. {self.get_element_info()}. '
             f'Original error: {selenium_exc_msg}'
         )
 
@@ -354,6 +346,8 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`bytes` - screenshot binary
         """
+        self.execute_script('document.activeElement.blur();')
+
         return self.element.screenshot_as_png
 
     @property

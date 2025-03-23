@@ -13,7 +13,6 @@ from selenium.common.exceptions import StaleElementReferenceException as Seleniu
 
 from mops.exceptions import NoSuchElementException, InvalidSelectorException, TimeoutException, NoSuchParentException
 
-
 WAIT_METHODS_DELAY = 0.1
 WAIT_UNIT = 1
 WAIT_EL = 10
@@ -25,31 +24,6 @@ WAIT_PAGE = 15
 all_tags = {'h1', 'h2', 'h3', 'h4', 'h5', 'head', 'body', 'input', 'section', 'button', 'a', 'link', 'header', 'div',
             'textarea', 'svg', 'circle', 'iframe', 'label', 'p', 'tr', 'th', 'table', 'tbody', 'td', 'select', 'nav',
             'li', 'form', 'footer', 'frame', 'area', 'span', 'video'}
-
-
-def retry(exceptions, timeout: int = HALF_WAIT_EL):
-    """
-    A decorator to retry a function when specified exceptions occur.
-
-    :param exceptions: Exception or tuple of exception classes to catch and retry on.
-    :param timeout: The maximum time (in seconds) to keep retrying before giving up.
-    """
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            timestamp = None
-
-            while True:
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as exc:
-                    if not timestamp:
-                        timestamp = time.time()
-
-                    if time.time() - timestamp >= timeout:
-                        raise exc
-        return wrapper
-    return decorator
 
 
 def get_dict(obj: Any):
