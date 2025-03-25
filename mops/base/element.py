@@ -36,7 +36,7 @@ from mops.utils.internal_utils import (
     is_page,
     QUARTER_WAIT_EL,
 )
-from mops.utils.decorators import wait_condition
+from mops.utils.decorators import wait_condition, wait_continuous
 
 if TYPE_CHECKING:
     from mops.base.group import Group
@@ -193,11 +193,61 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
 
     # Elements waits
 
-    def wait_visibility_without_error(self, *, timeout: Union[int, float] = QUARTER_WAIT_EL, silent: bool = False) -> Element:
+    @wait_continuous
+    @wait_condition
+    def wait_visibility(
+            self,
+            *,
+            timeout: int = WAIT_EL,
+            silent: bool = False,
+            continuous: Union[bool, int, float] = False,
+    ) -> Element:
+        """
+        Waits until the element becomes visible.
+         **Note:** The method requires the use of named arguments.
+
+        A continuous wait may be applied for the invisibility verification for given
+        or default amount of time after the first condition is met.
+
+        **Selenium:**
+
+        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
+          during the waiting process.
+
+        **Appium:**
+
+        - Applied :func:`wait_condition` decorator integrates an exponential delay
+          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
+          with each iteration during the waiting process.
+
+        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
+        :type timeout: int
+        :param silent: If :obj:`True`, suppresses logging.
+        :type silent: bool
+        :param continuous: If :obj:True, a continuous wait for the visibility state lasts 2.5 seconds.
+          An :obj:int or :obj:float modifies the continuous wait timeout.
+        :type continuous: typing.Union[int, float, bool]
+        :return: :class:`Element`
+        """
+        return Result(  # noqa
+            execution_result=self.is_displayed(silent=True),
+            log=f'Wait until "{self.name}" becomes visible',
+            exc=TimeoutException(f'"{self.name}" not visible', info=self)
+        )
+
+    def wait_visibility_without_error(
+            self,
+            *,
+            timeout: Union[int, float] = QUARTER_WAIT_EL,
+            silent: bool = False,
+            continuous: Union[bool, int, float] = False,
+    ) -> Element:
         """
         Wait for the element to become visible, without raising an error if it does not.
+         **Note:** The method requires the use of named arguments.
 
-        **Note:** The method requires the use of named arguments.
+        A continuous wait may be applied for the visibility verification for given
+        or default amount of time after the first condition is met.
 
         **Selenium & Playwright:**
 
@@ -214,28 +264,76 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
         :type timeout: typing.Union[int, float]
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
+        :param continuous: If :obj:True, a continuous wait for the visibility state lasts 2.5 seconds.
+          An :obj:int or :obj:float modifies the continuous wait timeout.
+        :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
         if not silent:
             self.log(f'Wait until "{self.name}" becomes visible without error exception')
 
         try:
-            self.wait_visibility(timeout=timeout, silent=True)
-        except (TimeoutException, WebDriverException) as exception:
+            self.wait_visibility(timeout=timeout, silent=True, continuous=continuous)
+        except (TimeoutException, WebDriverException, ContinuousWaitException) as exception:
             if not silent:
                 self.log(f'Ignored exception: "{exception.msg}"')
         return self
+
+    @wait_continuous
+    @wait_condition
+    def wait_hidden(
+            self,
+            *,
+            timeout: int = WAIT_EL,
+            silent: bool = False,
+            continuous: Union[bool, int, float] = False,
+    ) -> Element:
+        """
+        Waits until the element becomes hidden.
+         **Note:** The method requires the use of named arguments.
+
+        A continuous wait may be applied for the invisibility verification for given
+        or default amount of time after the first condition is met.
+
+        **Selenium:**
+
+        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
+          during the waiting process.
+
+        **Appium:**
+
+        - Applied :func:`wait_condition` decorator integrates an exponential delay
+          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
+          with each iteration during the waiting process.
+
+        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
+        :type timeout: int
+        :param silent: If :obj:`True`, suppresses logging.
+        :type silent: bool
+        :param continuous: If :obj:True, a continuous wait for the invisibility state lasts 2.5 seconds.
+          An :obj:int or :obj:float modifies the continuous wait timeout.
+        :type continuous: typing.Union[int, float, bool]
+        :return: :class:`Element`
+        """
+        return Result(  # noqa
+            execution_result=self.is_hidden(silent=True),
+            log=f'Wait until "{self.name}" becomes hidden',
+            exc=TimeoutException(f'"{self.name}" still visible', info=self),
+        )
 
     def wait_hidden_without_error(
             self,
             *,
             timeout: Union[int, float] = QUARTER_WAIT_EL,
-            silent: bool = False
+            silent: bool = False,
+            continuous: Union[bool, int, float] = False,
     ) -> Element:
         """
         Wait for the element to become hidden, without raising an error if it does not.
+         **Note:** The method requires the use of named arguments.
 
-        **Note:** The method requires the use of named arguments.
+        A continuous wait may be applied for the invisibility verification for given
+        or default amount of time after the first condition is met.
 
         **Selenium & Playwright:**
 
@@ -252,17 +350,49 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
         :type timeout: typing.Union[int, float]
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
+        :param continuous: If :obj:True, a continuous wait for the visibility state lasts 2.5 seconds.
+          An :obj:int or :obj:float modifies the continuous wait timeout.
+        :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
         if not silent:
             self.log(f'Wait until "{self.name}" becomes hidden without error exception')
 
         try:
-            self.wait_hidden(timeout=timeout, silent=True)
-        except (TimeoutException, WebDriverException) as exception:
+            self.wait_hidden(timeout=timeout, silent=True, continuous=continuous)
+        except (TimeoutException, WebDriverException, ContinuousWaitException) as exception:
             if not silent:
                 self.log(f'Ignored exception: "{exception.msg}"')
         return self
+
+    @wait_condition
+    def wait_availability(self, *, timeout: int = WAIT_EL, silent: bool = False) -> Element:
+        """
+        Waits until the element becomes available in DOM tree. \n
+         **Note:** The method requires the use of named arguments.
+
+        **Selenium:**
+
+        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
+          during the waiting process.
+
+        **Appium:**
+
+        - Applied :func:`wait_condition` decorator integrates an exponential delay
+          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
+          with each iteration during the waiting process.
+
+        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
+        :type timeout: int
+        :param silent: If :obj:`True`, suppresses logging.
+        :type silent: bool
+        :return: :class:`Element`
+        """
+        return Result(  # noqa
+            execution_result=self.is_available(),
+            log=f'Wait until presence of "{self.name}"',
+            exc=TimeoutException(f'"{self.name}" not available in DOM', info=self),
+        )
 
     @wait_condition
     def wait_for_text(

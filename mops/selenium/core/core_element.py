@@ -7,7 +7,6 @@ from typing import Union, List, Any, Callable, TYPE_CHECKING
 from PIL import Image
 
 from mops.mixins.internal_mixin import get_element_info
-from mops.mixins.objects.wait_result import Result
 from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
 from selenium.webdriver.remote.webelement import WebElement as SeleniumWebElement
 from appium.webdriver.webelement import WebElement as AppiumWebElement
@@ -28,9 +27,8 @@ from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes, scroll_into_view_
 from mops.mixins.objects.size import Size
 from mops.shared_utils import cut_log_data, _scaled_screenshot
 from mops.utils.internal_utils import WAIT_EL, safe_call, get_dict, is_group
-from mops.utils.decorators import retry, wait_condition
+from mops.utils.decorators import retry
 from mops.exceptions import (
-    TimeoutException,
     InvalidSelectorException,
     DriverWrapperException,
     NoSuchElementException,
@@ -203,95 +201,6 @@ class CoreElement(ElementABC, ABC):
 
         return self
 
-    # Element waits
-
-    @wait_condition
-    def wait_visibility(self, *, timeout: int = WAIT_EL, silent: bool = False) -> CoreElement:
-        """
-        Waits until the element becomes visible.
-        **Note:** The method requires the use of named arguments.
-
-        **Selenium:**
-
-        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
-          during the waiting process.
-
-        **Appium:**
-
-        - Applied :func:`wait_condition` decorator integrates an exponential delay
-          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
-          with each iteration during the waiting process.
-
-        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
-        :type timeout: int
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`CoreElement`
-        """
-        return Result(  # noqa
-            execution_result=self.is_displayed(silent=True),
-            log=f'Wait until "{self.name}" becomes visible',
-            exc=TimeoutException(f'"{self.name}" not visible', info=self)
-        )
-
-    @wait_condition
-    def wait_hidden(self, *, timeout: int = WAIT_EL, silent: bool = False) -> CoreElement:
-        """
-        Waits until the element becomes hidden.
-        **Note:** The method requires the use of named arguments.
-
-        **Selenium:**
-
-        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
-          during the waiting process.
-
-        **Appium:**
-
-        - Applied :func:`wait_condition` decorator integrates an exponential delay
-          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
-          with each iteration during the waiting process.
-
-        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
-        :type timeout: int
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`CoreElement`
-        """
-        return Result(  # noqa
-            execution_result=self.is_hidden(silent=True),
-            log=f'Wait until "{self.name}" becomes hidden',
-            exc=TimeoutException(f'"{self.name}" still visible', info=self),
-        )
-
-    @wait_condition
-    def wait_availability(self, *, timeout: int = WAIT_EL, silent: bool = False) -> CoreElement:
-        """
-        Waits until the element becomes available in DOM tree. \n
-        **Note:** The method requires the use of named arguments.
-
-        **Selenium:**
-
-        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
-          during the waiting process.
-
-        **Appium:**
-
-        - Applied :func:`wait_condition` decorator integrates an exponential delay
-          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
-          with each iteration during the waiting process.
-
-        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
-        :type timeout: int
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`CoreElement`
-        """
-        return Result(  # noqa
-            execution_result=self.is_available(),
-            log=f'Wait until presence of "{self.name}"',
-            exc=TimeoutException(f'"{self.name}" not available in DOM', info=self),
-        )
-
     # Element state
 
     def scroll_into_view(
@@ -405,13 +314,13 @@ class CoreElement(ElementABC, ABC):
         :type silent: bool
         :return: :class:`bool`
         """
-        if not silent:
-            self.log(f'Check displaying of "{self.name}"')
-
         is_displayed = self.is_available()
 
         if is_displayed:
             is_displayed = safe_call(self._cached_element.is_displayed)
+
+        if not silent:
+            self.log(f'Check displaying of "{self.name}" - {is_displayed}')
 
         return is_displayed
 
@@ -423,10 +332,12 @@ class CoreElement(ElementABC, ABC):
         :type silent: bool
         :return: :class:`bool`
         """
-        if not silent:
-            self.log(f'Check invisibility of "{self.name}"')
+        status = not self.is_displayed(silent=True)
 
-        return not self.is_displayed(silent=True)
+        if not silent:
+            self.log(f'Check invisibility of "{self.name}" - {status}')
+
+        return status
 
     def get_attribute(self, attribute: str, silent: bool = False) -> str:
         """

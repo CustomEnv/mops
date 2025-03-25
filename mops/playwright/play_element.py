@@ -243,67 +243,6 @@ class PlayElement(ElementABC, Logging, ABC):
 
     # Element waits
 
-    def wait_visibility(self, *, timeout: int = WAIT_EL, silent: bool = False) -> PlayElement:
-        """
-        Waits until the element becomes visible.
-        **Note:** The method requires the use of named arguments.
-
-        **Selenium:**
-
-        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
-          during the waiting process.
-
-        **Appium:**
-
-        - Applied :func:`wait_condition` decorator integrates an exponential delay
-          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
-          with each iteration during the waiting process.
-
-        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
-        :type timeout: int
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`PlayElement`
-        """
-        if not silent:
-            self.log(f'Wait until "{self.name}" becomes visible')
-
-        try:
-            self._first_element.wait_for(state='visible', timeout=get_timeout_in_ms(timeout))
-        except PlayTimeoutError:
-            raise TimeoutException(f'"{self.name}" not visible', timeout=timeout, info=self)
-        return self
-
-    def wait_hidden(self, *, timeout: int = WAIT_EL, silent: bool = False) -> PlayElement:
-        """
-        Waits until the element becomes hidden.
-        **Note:** The method requires the use of named arguments.
-
-        **Selenium:**
-
-        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
-          during the waiting process.
-
-        **Appium:**
-
-        - Applied :func:`wait_condition` decorator integrates an exponential delay
-          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
-          with each iteration during the waiting process.
-
-        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
-        :type timeout: int
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`PlayElement`
-        """
-        if not silent:
-            self.log(f'Wait until "{self.name}" becomes hidden')
-        try:
-            self._first_element.wait_for(state='hidden', timeout=get_timeout_in_ms(timeout))
-        except PlayTimeoutError:
-            raise TimeoutException(f'"{self.name}" still visible', timeout=timeout, info=self)
-        return self
-
     def wait_availability(self, *, timeout: int = WAIT_EL, silent: bool = False) -> PlayElement:
         """
         Waits until the element becomes available in DOM tree. \n

@@ -143,10 +143,19 @@ class ElementABC(MixinABC, ABC):
         """
         raise NotImplementedError()
 
-    def wait_visibility(self, *, timeout: int = WAIT_EL, silent: bool = False) -> Element:
+    def wait_visibility(
+            self,
+            *,
+            timeout: int = WAIT_EL,
+            silent: bool = False,
+            continuous: Union[bool, int, float] = False,
+    ) -> Element:
         """
         Waits until the element becomes visible.
-        **Note:** The method requires the use of named arguments.
+         **Note:** The method requires the use of named arguments.
+
+        A continuous wait may be applied for the invisibility verification for given
+        or default amount of time after the first condition is met.
 
         **Selenium:**
 
@@ -163,14 +172,26 @@ class ElementABC(MixinABC, ABC):
         :type timeout: int
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
+        :param continuous: If :obj:True, a continuous wait for the visibility state lasts 2.5 seconds.
+          An :obj:int or :obj:float modifies the continuous wait timeout.
+        :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
         raise NotImplementedError()
 
-    def wait_hidden(self, *, timeout: int = WAIT_EL, silent: bool = False) -> Element:
+    def wait_hidden(
+            self,
+            *,
+            timeout: int = WAIT_EL,
+            silent: bool = False,
+            continuous: Union[bool, int, float] = False,
+    ) -> Element:
         """
         Waits until the element becomes hidden.
-        **Note:** The method requires the use of named arguments.
+         **Note:** The method requires the use of named arguments.
+
+        A continuous wait may be applied for the invisibility verification for given
+        or default amount of time after the first condition is met.
 
         **Selenium:**
 
@@ -187,6 +208,9 @@ class ElementABC(MixinABC, ABC):
         :type timeout: int
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
+        :param continuous: If :obj:True, a continuous wait for the invisibility state lasts 2.5 seconds.
+          An :obj:int or :obj:float modifies the continuous wait timeout.
+        :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
         raise NotImplementedError()
@@ -194,7 +218,7 @@ class ElementABC(MixinABC, ABC):
     def wait_availability(self, *, timeout: int = WAIT_EL, silent: bool = False) -> Element:
         """
         Waits until the element becomes available in DOM tree. \n
-        **Note:** The method requires the use of named arguments.
+         **Note:** The method requires the use of named arguments.
 
         **Selenium:**
 
@@ -574,12 +598,15 @@ class ElementABC(MixinABC, ABC):
             self,
             *,
             timeout: Union[int, float] = QUARTER_WAIT_EL,
-            silent: bool = False
+            silent: bool = False,
+            continuous: Union[bool, int, float] = False,
     ) -> Element:
         """
         Wait for the element to become visible, without raising an error if it does not.
+         **Note:** The method requires the use of named arguments.
 
-        **Note:** The method requires the use of named arguments.
+        A continuous wait may be applied for the visibility verification for given
+        or default amount of time after the first condition is met.
 
         **Selenium & Playwright:**
 
@@ -596,6 +623,9 @@ class ElementABC(MixinABC, ABC):
         :type timeout: typing.Union[int, float]
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
+        :param continuous: If :obj:True, a continuous wait for the visibility state lasts 2.5 seconds.
+          An :obj:int or :obj:float modifies the continuous wait timeout.
+        :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
         raise NotImplementedError()
@@ -604,12 +634,15 @@ class ElementABC(MixinABC, ABC):
             self,
             *,
             timeout: Union[int, float] = QUARTER_WAIT_EL,
-            silent: bool = False
+            silent: bool = False,
+            continuous: Union[bool, int, float] = False,
     ) -> Element:
         """
         Wait for the element to become hidden, without raising an error if it does not.
+         **Note:** The method requires the use of named arguments.
 
-        **Note:** The method requires the use of named arguments.
+        A continuous wait may be applied for the invisibility verification for given
+        or default amount of time after the first condition is met.
 
         **Selenium & Playwright:**
 
@@ -626,6 +659,9 @@ class ElementABC(MixinABC, ABC):
         :type timeout: typing.Union[int, float]
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
+        :param continuous: If :obj:True, a continuous wait for the visibility state lasts 2.5 seconds.
+          An :obj:int or :obj:float modifies the continuous wait timeout.
+        :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
         raise NotImplementedError()

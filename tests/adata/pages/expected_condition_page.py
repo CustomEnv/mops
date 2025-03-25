@@ -9,7 +9,9 @@ class ExpectedConditionPage(Page):
     def __init__(self):
         self.url = f'{domain_name}/{automation_playground_repo_name}/expected_conditions.html'
         self.value_card = WaitValueCard()
-        self.element_card = WaitElementCard()
+        self.wait_visibility_card = WaitVisibilityCard()
+        self.wait_hidden_card = WaitHiddenCard()
+        self.blinking_card = BlinkingCard()
         self.frame_card = WaitFrameCard()
         self.test_driver = self.driver_wrapper
         super().__init__('//*[contains(@class, "card") and contains(., "wait")]', name='Expected condition page')
@@ -47,13 +49,36 @@ class WaitValueCard(Group):
     trigger_button = Element('text_value_trigger', name='trigger wait button')
 
 
-class WaitElementCard(Group):
+class WaitVisibilityCard(Group):
     def __init__(self):
         super().__init__('//*[contains(@class, "card") and contains(., "Wait for element to be visible")]',
-                         name='element card')
+                         name='element visible card')
 
     trigger_button = Element('visibility_trigger', name='trigger button')
     target_button = Element('visibility_target', name='target button')
+
+
+class WaitHiddenCard(Group):
+    def __init__(self):
+        super().__init__('//*[contains(@class, "card") and contains(., "Wait for element to be Invisible")]',
+                         name='element hidden card')
+
+    trigger_button = Element('invisibility_trigger', name='trigger button')
+    target_spinner = Element('invisibility_target', name='target spinner')
+
+
+class BlinkingCard(Group):
+    def __init__(self):
+        super().__init__('//*[contains(@class, "card") and contains(., "Wait for blinking panel")]',
+                         name='blinking card')
+
+    interval_input = Element('interval-input', name='interval input')
+    interval_button = Element('interval-button', name='interval button')
+    blinking_panel = Element('blinking-panel', name='blinking panel')
+
+    def set_interval(self):
+        self.interval_input.set_text('400')
+        self.interval_button.click()
 
 
 class WaitFrameCard(Group):
