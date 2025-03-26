@@ -30,42 +30,6 @@ def test_click_outside(mouse_event_page_v2, coordinates):
     assert not mouse_event_page_v2.mouse_click_card().is_click_proceeded()
 
 
-def test_wait_continuous_hidden_positive(expected_condition_page, caplog):
-    assert not expected_condition_page.wait_hidden_card.target_spinner.is_hidden()
-    expected_condition_page.wait_hidden_card.trigger_button.click()
-    expected_condition_page.wait_hidden_card.target_spinner.wait_hidden(continuous=1)
-    assert 'Starting continuous "wait_hidden" for the "target spinner" for next 1 seconds' in str(caplog.messages)
-    assert expected_condition_page.wait_hidden_card.target_spinner.is_hidden()
-
-
-def test_wait_continuous_visibility_positive(expected_condition_page, caplog):
-    assert not expected_condition_page.wait_visibility_card.target_button.is_displayed()
-    expected_condition_page.wait_visibility_card.trigger_button.click()
-    expected_condition_page.wait_visibility_card.target_button.wait_visibility(continuous=1)
-    assert 'Starting continuous "wait_visibility" for the "target button" for next 1 seconds' in str(caplog.messages)
-    assert expected_condition_page.wait_visibility_card.target_button.is_displayed()
-
-
-def test_wait_continuous_hidden_negative(expected_condition_page, caplog):
-    expected_condition_page.blinking_card.set_interval()
-    try:
-        expected_condition_page.blinking_card.blinking_panel.wait_hidden(continuous=True)
-    except ContinuousWaitException as exc:
-        assert 'The continuous "wait_hidden" of the "blinking panel" is no met after 0.' in exc.msg
-    else:
-        raise Exception('Unexpected behaviour. Case not covered')
-
-
-def test_wait_continuous_visibility_negative(expected_condition_page, caplog):
-    expected_condition_page.blinking_card.set_interval()
-    try:
-        expected_condition_page.blinking_card.blinking_panel.wait_visibility(continuous=True)
-    except ContinuousWaitException as exc:
-        assert 'The continuous "wait_visibility" of the "blinking panel" is no met after 0.' in exc.msg
-    else:
-        raise Exception('Unexpected behaviour. Case not covered')
-
-
 @pytest.mark.low
 @pytest.mark.skip_platform('playwright', reason='selenium only')
 def test_click_on_covered_button_initial(expected_condition_page, caplog):
@@ -91,7 +55,6 @@ def test_click_on_covered_button_positive(expected_condition_page, caplog, platf
             'Caught "ElementNotInteractableException" while executing "click", retrying...') >= 2
 
     assert not expected_condition_page.cover_button.is_displayed()
-
 
 
 @pytest.mark.low

@@ -135,6 +135,6 @@ class InvalidLocatorException(DriverWrapperException):
 
 class ContinuousWaitException(DriverWrapperException):
     """
-    Thrown when polling is failed
+    Thrown when continuous wait is failed
     """
     pass

@@ -270,7 +270,8 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
         :return: :class:`Element`
         """
         if not silent:
-            self.log(f'Wait until "{self.name}" becomes visible without error exception')
+            strategy = 'continuous visible' if continuous else 'hidden'
+            self.log(f'Wait until "{self.name}" becomes {strategy} without error exception')
 
         try:
             self.wait_visibility(timeout=timeout, silent=True, continuous=continuous)
@@ -356,10 +357,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
         :return: :class:`Element`
         """
         if not silent:
-            self.log(f'Wait until "{self.name}" becomes hidden without error exception')
+            strategy = 'continuous hidden' if continuous else 'hidden'
+            self.log(f'Wait until "{self.name}" becomes {strategy} without error exception')
 
         try:
-            self.wait_hidden(timeout=timeout, silent=True, continuous=continuous)
+            self.wait_hidden(timeout=timeout, silent=silent, continuous=continuous)
         except (TimeoutException, WebDriverException, ContinuousWaitException) as exception:
             if not silent:
                 self.log(f'Ignored exception: "{exception.msg}"')
