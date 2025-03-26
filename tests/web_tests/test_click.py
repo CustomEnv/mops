@@ -88,7 +88,7 @@ def test_click_on_covered_button_positive(expected_condition_page, caplog, platf
 
     if platform == 'selenium':
         assert caplog.messages.count(
-            'Caught "ElementNotInteractableException", while executing "click" retrying...') >= 2
+            'Caught "ElementNotInteractableException" while executing "click", retrying...') >= 2
 
     assert not expected_condition_page.cover_button.is_displayed()
 

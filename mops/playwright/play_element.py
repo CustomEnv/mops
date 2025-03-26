@@ -241,39 +241,6 @@ class PlayElement(ElementABC, Logging, ABC):
 
         return self
 
-    # Element waits
-
-    def wait_availability(self, *, timeout: int = WAIT_EL, silent: bool = False) -> PlayElement:
-        """
-        Waits until the element becomes available in DOM tree. \n
-        **Note:** The method requires the use of named arguments.
-
-        **Selenium:**
-
-        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
-          during the waiting process.
-
-        **Appium:**
-
-        - Applied :func:`wait_condition` decorator integrates an exponential delay
-          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
-          with each iteration during the waiting process.
-
-        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
-        :type timeout: int
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`PlayElement`
-        """
-        if not silent:
-            self.log(f'Wait until presence of "{self.name}"')
-
-        try:
-            self._first_element.wait_for(state='attached', timeout=get_timeout_in_ms(timeout))
-        except PlayTimeoutError:
-            raise TimeoutException(f'"{self.name}" not available in DOM', timeout=timeout, info=self)
-        return self
-
     # Element state
 
     def scroll_into_view(
