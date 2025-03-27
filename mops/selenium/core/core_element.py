@@ -20,7 +20,7 @@ from selenium.common.exceptions import (
 )
 from mops.abstraction.element_abc import ElementABC
 from mops.selenium.sel_utils import ActionChains
-from mops.js_scripts import get_element_size_js, get_element_position_on_screen_js
+from mops.js_scripts import get_element_size_js, get_element_position_on_screen_js, hide_caret_js_script
 from mops.keyboard_keys import KeyboardKeys
 from mops.mixins.objects.location import Location
 from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes, scroll_into_view_blocks
@@ -114,6 +114,7 @@ class CoreElement(ElementABC, ABC):
             f'Original error: {selenium_exc_msg}'
         )
 
+    @retry(SeleniumStaleElementReferenceException)
     def type_text(self, text: Union[str, KeyboardKeys], silent: bool = False) -> CoreElement:
         """
         Types text into the element.
@@ -130,8 +131,10 @@ class CoreElement(ElementABC, ABC):
             self.log(f'Type text "{cut_log_data(text)}" into "{self.name}"')
 
         self.element.send_keys(text)
+
         return self
 
+    @retry(SeleniumStaleElementReferenceException)
     def type_slowly(self, text: str, sleep_gap: float = 0.05, silent: bool = False) -> CoreElement:
         """
         Types text into the element slowly with a delay between keystrokes.
@@ -153,8 +156,10 @@ class CoreElement(ElementABC, ABC):
         for letter in str(text):
             element.send_keys(letter)
             time.sleep(sleep_gap)
+
         return self
 
+    @retry(SeleniumStaleElementReferenceException)
     def clear_text(self, silent: bool = False) -> CoreElement:
         """
         Clears the text of the element.
@@ -167,6 +172,7 @@ class CoreElement(ElementABC, ABC):
             self.log(f'Clear text in "{self.name}"')
 
         self.element.clear()
+
         return self
 
     def check(self) -> CoreElement:
@@ -249,13 +255,14 @@ class CoreElement(ElementABC, ABC):
         return _scaled_screenshot(screenshot_base, self.size.width)
 
     @property
+    @retry(SeleniumStaleElementReferenceException)
     def screenshot_base(self) -> bytes:
         """
         Returns the binary screenshot data of the element.
 
         :return: :class:`bytes` - screenshot binary
         """
-        self.execute_script('document.activeElement.blur();')
+        self.execute_script(hide_caret_js_script)
 
         return self.element.screenshot_as_png
 
@@ -339,6 +346,7 @@ class CoreElement(ElementABC, ABC):
 
         return status
 
+    @retry(SeleniumStaleElementReferenceException)
     def get_attribute(self, attribute: str, silent: bool = False) -> str:
         """
         Retrieve a specific attribute from the current element.
@@ -366,6 +374,7 @@ class CoreElement(ElementABC, ABC):
             self.log(f'Get all texts from "{self.name}"')
 
         self.wait_visibility(silent=True)
+
         return list(element_item.text for element_item in self.all_elements)
 
     def get_elements_count(self, silent: bool = False) -> int:
@@ -391,6 +400,7 @@ class CoreElement(ElementABC, ABC):
         return dict(sorted_items)
 
     @property
+    @retry(SeleniumStaleElementReferenceException)
     def size(self) -> Size:
         """
         Get the size of the current element, including width and height.
@@ -400,6 +410,7 @@ class CoreElement(ElementABC, ABC):
         return Size(**self.execute_script(get_element_size_js))
 
     @property
+    @retry(SeleniumStaleElementReferenceException)
     def location(self) -> Location:
         """
         Get the location of the current element, including the x and y coordinates.
@@ -408,6 +419,7 @@ class CoreElement(ElementABC, ABC):
         """
         return Location(**self.execute_script(get_element_position_on_screen_js))
 
+    @retry(SeleniumStaleElementReferenceException)
     def is_enabled(self, silent: bool = False) -> bool:
         """
         Check if the current element is enabled.

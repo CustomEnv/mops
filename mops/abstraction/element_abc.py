@@ -154,7 +154,7 @@ class ElementABC(MixinABC, ABC):
         Waits until the element becomes visible.
          **Note:** The method requires the use of named arguments.
 
-        A continuous wait may be applied for the invisibility verification for given
+        A continuous visibility verification may be applied for given
         or default amount of time after the first condition is met.
 
         **Selenium:**
@@ -172,8 +172,8 @@ class ElementABC(MixinABC, ABC):
         :type timeout: int
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
-        :param continuous: If :obj:True, a continuous wait for the visibility state lasts 2.5 seconds.
-          An :obj:int or :obj:float modifies the continuous wait timeout.
+        :param continuous: If :obj:`True`, a continuous visibility verification applied for another 2.5 seconds.
+          An :obj:`int` or :obj:`float` modifies the continuous wait timeout.
         :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
@@ -190,7 +190,7 @@ class ElementABC(MixinABC, ABC):
         Waits until the element becomes hidden.
          **Note:** The method requires the use of named arguments.
 
-        A continuous wait may be applied for the invisibility verification for given
+        A continuous invisibility verification may be applied for given
         or default amount of time after the first condition is met.
 
         **Selenium:**
@@ -208,8 +208,8 @@ class ElementABC(MixinABC, ABC):
         :type timeout: int
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
-        :param continuous: If :obj:True, a continuous wait for the invisibility state lasts 2.5 seconds.
-          An :obj:int or :obj:float modifies the continuous wait timeout.
+        :param continuous: If :obj:`True`, a continuous invisibility verification applied for another 2.5 seconds.
+          An :obj:`int` or :obj:`float` modifies the continuous wait timeout.
         :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
@@ -605,7 +605,7 @@ class ElementABC(MixinABC, ABC):
         Wait for the element to become visible, without raising an error if it does not.
          **Note:** The method requires the use of named arguments.
 
-        A continuous wait may be applied for the visibility verification for given
+        A continuous visibility verification may be applied for given
         or default amount of time after the first condition is met.
 
         **Selenium & Playwright:**
@@ -623,8 +623,8 @@ class ElementABC(MixinABC, ABC):
         :type timeout: typing.Union[int, float]
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
-        :param continuous: If :obj:True, a continuous wait for the visibility state lasts 2.5 seconds.
-          An :obj:int or :obj:float modifies the continuous wait timeout.
+        :param continuous: If :obj:`True`, a continuous visibility verification applied for another 2.5 seconds.
+          An :obj:`int` or :obj:`float` modifies the continuous wait timeout.
         :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
@@ -641,7 +641,7 @@ class ElementABC(MixinABC, ABC):
         Wait for the element to become hidden, without raising an error if it does not.
          **Note:** The method requires the use of named arguments.
 
-        A continuous wait may be applied for the invisibility verification for given
+        A continuous invisibility verification may be applied for given
         or default amount of time after the first condition is met.
 
         **Selenium & Playwright:**
@@ -659,8 +659,8 @@ class ElementABC(MixinABC, ABC):
         :type timeout: typing.Union[int, float]
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
-        :param continuous: If :obj:True, a continuous wait for the visibility state lasts 2.5 seconds.
-          An :obj:int or :obj:float modifies the continuous wait timeout.
+        :param continuous: If :obj:`True`, a continuous invisibility verification applied for another 2.5 seconds.
+          An :obj:`int` or :obj:`float` modifies the continuous wait timeout.
         :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
