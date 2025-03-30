@@ -3,6 +3,7 @@ import pytest
 from mops.exceptions import ContinuousWaitException, TimeoutException
 
 
+@pytest.mark.low
 def test_get_rect_dynamic_element(mouse_event_page_v1):
     for i in range(20):
         assert all(mouse_event_page_v1.jump_button.get_rect().values())

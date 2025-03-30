@@ -2,6 +2,24 @@
 
 <br>
 
+## v3.2.0
+*Release date: 2025-03-31*
+
+### Added
+- Continuous verification waits for `Element.wait_visibility` and `Element.wait_hidden`
+- `ContinuousWaitException` for continuous verification errors in wait methods
+- Caret hiding for screenshots in Selenium / Appium
+- `is_displayed` / `is_hidden` execution results logged
+- Retry decorator for Selenium / Appium methods to handle `StaleElementReferenceException`
+
+### Changed
+- Playwright's `wait_visibility`, `wait_hidden`, and `wait_availability` logic moved to MOPS methods
+
+### Fixed
+- Small bug in the documentation example
+- Bug in the `assert_screenshot` method with the `remove` argument for certain popups
+- `StaleElementReferenceException` handler during wait/gathering of `Element.text`
+
 ## v3.1.0
 *Release date: 2025-01-29*
 
