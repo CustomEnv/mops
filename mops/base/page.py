@@ -1,30 +1,32 @@
 from __future__ import annotations
 
-from typing import Union, Any, List, Type
+from typing import TYPE_CHECKING, Any, List, Type, Union
 
-from playwright.sync_api import Page as PlaywrightDriver
 from appium.webdriver.webdriver import WebDriver as AppiumDriver
+from playwright.sync_api import Page as PlaywrightDriver
 from selenium.webdriver.remote.webdriver import WebDriver as SeleniumDriver
 
 from mops.abstraction.page_abc import PageABC
-from mops.base.driver_wrapper import DriverWrapper
 from mops.base.element import Element
+from mops.exceptions import DriverWrapperException
+from mops.mixins.driver_mixin import DriverMixin, get_driver_wrapper_from_object
+from mops.mixins.internal_mixin import InternalMixin
 from mops.playwright.play_page import PlayPage
 from mops.selenium.pages.mobile_page import MobilePage
 from mops.selenium.pages.web_page import WebPage
-from mops.exceptions import DriverWrapperException
-from mops.mixins.driver_mixin import get_driver_wrapper_from_object, DriverMixin
-from mops.mixins.internal_mixin import InternalMixin
-from mops.mixins.objects.locator import Locator
-from mops.utils.logs import Logging
-from mops.utils.previous_object_driver import PreviousObjectDriver, set_instance_frame
 from mops.utils.internal_utils import (
     WAIT_PAGE,
-    initialize_objects,
-    get_child_elements_with_names,
     get_child_elements,
+    get_child_elements_with_names,
+    initialize_objects,
     is_element_instance,
 )
+from mops.utils.logs import Logging
+from mops.utils.previous_object_driver import PreviousObjectDriver, set_instance_frame
+
+if TYPE_CHECKING:
+    from mops.base.driver_wrapper import DriverWrapper
+    from mops.mixins.objects.locator import Locator
 
 
 class Page(DriverMixin, InternalMixin, Logging, PageABC):
@@ -46,7 +48,7 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
     anchor: Element
 
     def __new__(cls, *args, **kwargs):
-        instance = super(Page, cls).__new__(cls)
+        instance = super().__new__(cls)
         set_instance_frame(instance)
         return instance
 
@@ -57,7 +59,7 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
             self,
             locator: Union[Locator, str] = '',
             name: str = '',
-            driver_wrapper: Union[DriverWrapper, Any] = None
+            driver_wrapper: Union[DriverWrapper, Any] = None,
     ):
         """
         Initializes a Page based on the current driver.
@@ -73,7 +75,7 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
         self._validate_inheritance()
 
         self.driver_wrapper = get_driver_wrapper_from_object(driver_wrapper)
-        
+
         self.anchor = Element(locator, name=name, driver_wrapper=self.driver_wrapper)
         self.locator = self.anchor.locator
         self.locator_type = self.anchor.locator_type
@@ -93,7 +95,7 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
 
     def __init_base_class__(self) -> None:
         """
-        Initialise base class according to current driver, and set his methods
+        Initialise base class according to current driver, and set his methods.
 
         :return: None
         """
@@ -104,7 +106,8 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
         elif isinstance(self.driver, SeleniumDriver):
             self._base_cls = WebPage
         else:
-            raise DriverWrapperException(f'Cant specify {Page.__name__}')
+            msg = f'Cant specify {Page.__name__}'
+            raise DriverWrapperException(msg)
 
         self._set_static(self._base_cls)
         self._base_cls.__init__(self)
@@ -136,12 +139,12 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
         :type url: str
         :return: :obj:`Page` - The current instance of the page object.
         """
-        url = self.url if not url else url
+        url = url if url else self.url
         self.driver_wrapper.get(url)
         self.wait_page_loaded()
         return self
 
-    def wait_page_loaded(self, silent: bool = False, timeout: Union[int, float] = WAIT_PAGE) -> Page:
+    def wait_page_loaded(self, silent: bool = False, timeout: float = WAIT_PAGE) -> Page:
         """
         Wait until the page is fully loaded by checking the visibility of the anchor element and other page elements.
 
@@ -160,9 +163,9 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
         self.anchor.wait_visibility(timeout=timeout, silent=True)
 
         for element in self.page_elements:
-            if getattr(element, 'wait') is False:
+            if element.wait is False:
                 element.wait_hidden(timeout=timeout, silent=True)
-            elif getattr(element, 'wait') is True:
+            elif element.wait is True:
                 element.wait_visibility(timeout=timeout, silent=True)
         return self
 
@@ -180,7 +183,7 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
 
         if with_elements:
             for element in self.page_elements:
-                if getattr(element, 'wait'):
+                if element.wait:
                     result &= element.is_displayed(silent=True)
                     if not result:
                         self.log(f'Element "{element.name}" is not displayed', level='debug')
@@ -192,26 +195,27 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
 
         return result
 
-    def _modify_children(self):
+    def _modify_children(self) -> None:
         """
         Initializing of attributes with type == Element.
         Required for classes with base == Page.
         """
         initialize_objects(self, get_child_elements_with_names(self, Element), Element)
 
-    def _modify_page_driver_wrapper(self, driver_wrapper: Any):
+    def _modify_page_driver_wrapper(self, driver_wrapper: Any) -> None:
         """
         Modify current object if driver_wrapper is not given. Required for Page that placed into functions:
-        - sets driver from previous object
+        - sets driver from previous object.
         """
         if not driver_wrapper:
             PreviousObjectDriver().set_driver_from_previous_object(self)
 
-    def _validate_inheritance(self):
+    def _validate_inheritance(self) -> None:
         cls = self.__class__
         mro = cls.__mro__
 
         for item in mro:
             if is_element_instance(item):
+                msg = f'You cannot make an inheritance for {cls.__name__} from both Page and Group/Element objects'
                 raise TypeError(
-                    f"You cannot make an inheritance for {cls.__name__} from both Page and Group/Element objects")
+                    msg)

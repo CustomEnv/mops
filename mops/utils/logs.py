@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import logging
-import sys
 from functools import lru_cache
+import logging
 from os.path import basename
+import sys
 from typing import Any
 
 from mops.utils.internal_utils import get_frame, is_driver_wrapper
-
 
 logger = logging.getLogger('mops')
 
@@ -22,7 +21,7 @@ class LogLevel:
 
 def driver_wrapper_logs_settings(level: str = LogLevel.INFO) -> None:
     """
-    Sets driver wrapper log format(unchangeable) and log level (can be changed)
+    Set driver wrapper log format(unchangeable) and log level (can be changed).
 
     :param level: log level to be captured. Example: DEBUG - all, CRITICAL - only highest level priority level
     :return: None
@@ -33,14 +32,14 @@ def driver_wrapper_logs_settings(level: str = LogLevel.INFO) -> None:
     handler.setLevel(level)
     handler.setFormatter(logging.Formatter(
         fmt='[%(asctime)s.%(msecs)03d][%(levelname).1s]%(message)s',
-        datefmt="%h %d][%H:%M:%S"
+        datefmt='%h %d][%H:%M:%S',
     ))
     logger.addHandler(handler)
 
 
 def autolog(message: Any, level: str = LogLevel.INFO) -> None:
     """
-    Logs a message with detailed context in the following format:
+    Log a message with detailed context in the following format:
 
     .. code-block:: text
 
@@ -62,7 +61,7 @@ class Logging:
 
     def log(self: Any, message: str, level: str = LogLevel.INFO) -> None:
         """
-        Logs a message with detailed context in the following format:
+        Log a message with detailed context in the following format:
 
         .. code-block:: text
 
@@ -77,17 +76,13 @@ class Logging:
         :type level: str
         :return: :obj:`None`
         """
-        if is_driver_wrapper(self):
-            label = self.label
-        else:
-            label = self.driver_wrapper.label
+        label = self.label if is_driver_wrapper(self) else self.driver_wrapper.label
 
         _send_log_message(f'[{label}]{self._get_code_info()} {message}', level)
-        return None
 
     def _get_code_info(self) -> str:
         """
-        Get executed code info: filename/function name/line
+        Get executed code info: filename/function name/line.
 
         :return: log message
         """
@@ -97,7 +92,7 @@ class Logging:
 
 def _send_log_message(log_message: str, level: str) -> None:
     """
-    Send log message
+    Send log message.
 
     :param level: log level
     :param log_message: custom message
@@ -109,7 +104,7 @@ def _send_log_message(log_message: str, level: str) -> None:
 @lru_cache(maxsize=None)
 def _get_log_level(level: str) -> int:
     """
-    Get log level from string. Moved to a different function for using @lru_cache
+    Get log level from string. Moved to a different function for using @lru_cache.
 
     :param level: string level ~ INFO, DEBUG etc.
     :return: log level in int format

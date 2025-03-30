@@ -22,6 +22,7 @@ class LocatorType:
 
         - :obj:`Element(f'{LocatorType.XPATH}=//*[@class="class-name"]')`
     """
+
     CSS: str = 'css'
     XPATH: str = 'xpath'
     ID: str = 'id'

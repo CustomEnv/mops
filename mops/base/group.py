@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from typing import Any, Union, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
-from mops.base.driver_wrapper import DriverWrapper
 from mops.base.element import Element
-from mops.mixins.objects.locator import Locator
 from mops.utils.internal_utils import (
-    set_parent_for_attr,
     get_child_elements,
+    get_child_elements_with_names,
     initialize_objects,
-    get_child_elements_with_names
+    set_parent_for_attr,
 )
+
+if TYPE_CHECKING:
+    from mops.base.driver_wrapper import DriverWrapper
+    from mops.mixins.objects.locator import Locator
 
 
 class Group(Element):
@@ -42,7 +44,7 @@ class Group(Element):
             driver_wrapper: Union[DriverWrapper, Any] = None,
     ):
         """
-        Initializes a group of elements based on the current driver.
+        Initialize a group of elements based on the current driver.
 
         If no driver is provided, the initialization will be skipped until
          handled by a :class:`.Page` or :class:`.Group` class.
@@ -74,7 +76,7 @@ class Group(Element):
 
     def _modify_children(self) -> None:
         """
-        Initializing of attributes with type == Group/Element.
+        Initialize of attributes with type == Group/Element.
         Required for classes with base == Group.
         """
         initialize_objects(self, get_child_elements_with_names(self, Element), Element)

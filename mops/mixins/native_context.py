@@ -31,7 +31,7 @@ class NativeSafari:
         self.top_bar = Element(
             Locator(mobile=self.ios_mobile_top_bar_locator, tablet=self.ios_tablet_top_bar_locator),
             name='safari top bar',
-            driver_wrapper=driver_wrapper
+            driver_wrapper=driver_wrapper,
         )
 
         self.bottom_bar = Element(self.ios_mobile_small_bottom_bar_locator, name='safari bottom bar',
@@ -41,7 +41,7 @@ class NativeSafari:
 
     def get_bottom_bar_height(self) -> int:
         """
-        Get iOS/iPadOS bottom bar height
+        Get iOS/iPadOS bottom bar height.
 
         :return: int
         """

@@ -1,16 +1,9 @@
 from __future__ import annotations
 
-import time
 from abc import ABC
-from typing import Union, List, Any, Callable, TYPE_CHECKING
+import time
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 
-from PIL import Image
-
-from mops.mixins.internal_mixin import get_element_info
-from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
-from selenium.webdriver.remote.webelement import WebElement as SeleniumWebElement
-from appium.webdriver.webelement import WebElement as AppiumWebElement
-from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import (
     InvalidArgumentException as SeleniumInvalidArgumentException,
     InvalidSelectorException as SeleniumInvalidSelectorException,
@@ -18,26 +11,34 @@ from selenium.common.exceptions import (
     StaleElementReferenceException as SeleniumStaleElementReferenceException,
     WebDriverException as SeleniumWebDriverException,
 )
+from selenium.webdriver.support.wait import WebDriverWait
+
 from mops.abstraction.element_abc import ElementABC
-from mops.selenium.sel_utils import ActionChains
-from mops.js_scripts import get_element_size_js, get_element_position_on_screen_js, hide_caret_js_script
-from mops.keyboard_keys import KeyboardKeys
+from mops.exceptions import (
+    DriverWrapperException,
+    ElementNotInteractableException,
+    InvalidSelectorException,
+    NoSuchElementException,
+    NoSuchParentException,
+)
+from mops.js_scripts import get_element_position_on_screen_js, get_element_size_js, hide_caret_js_script
+from mops.mixins.internal_mixin import get_element_info
 from mops.mixins.objects.location import Location
 from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes, scroll_into_view_blocks
 from mops.mixins.objects.size import Size
-from mops.shared_utils import cut_log_data, _scaled_screenshot
-from mops.utils.internal_utils import WAIT_EL, safe_call, get_dict, is_group
+from mops.selenium.sel_utils import ActionChains
+from mops.shared_utils import _scaled_screenshot, cut_log_data
 from mops.utils.decorators import retry
-from mops.exceptions import (
-    InvalidSelectorException,
-    DriverWrapperException,
-    NoSuchElementException,
-    ElementNotInteractableException,
-    NoSuchParentException,
-)
+from mops.utils.internal_utils import WAIT_EL, get_dict, is_group, safe_call
 
 if TYPE_CHECKING:
+    from appium.webdriver.webelement import WebElement as AppiumWebElement
+    from PIL import Image
+    from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
+    from selenium.webdriver.remote.webelement import WebElement as SeleniumWebElement
+
     from mops.base.element import Element
+    from mops.keyboard_keys import KeyboardKeys
 
 
 class CoreElement(ElementABC, ABC):
@@ -52,16 +53,16 @@ class CoreElement(ElementABC, ABC):
     @property
     def element(self) -> SeleniumWebElement:
         """
-        Get selenium WebElement object
+        Get selenium WebElement object.
 
         :return: SeleniumWebElement
         """
         return self._get_element()
 
     @element.setter
-    def element(self, base_element: Union[SeleniumWebElement, AppiumWebElement]):
+    def element(self, base_element: Union[SeleniumWebElement, AppiumWebElement]) -> None:
         """
-        Core element setter. Try to avoid usage of this function
+        Core element setter. Try to avoid usage of this function.
 
         :param base_element: selenium WebElement or appium WebElement
         """
@@ -109,9 +110,12 @@ class CoreElement(ElementABC, ABC):
         except SeleniumWebDriverException as exc:
             selenium_exc_msg = exc.msg
 
-        raise ElementNotInteractableException(
+        msg = (
             f'Element "{self.name}" not interactable. {self.get_element_info()}. '
             f'Original error: {selenium_exc_msg}'
+        )
+        raise ElementNotInteractableException(
+            msg,
         )
 
     def type_text(self, text: Union[str, KeyboardKeys], silent: bool = False) -> CoreElement:
@@ -210,7 +214,7 @@ class CoreElement(ElementABC, ABC):
             self,
             block: ScrollTo = ScrollTo.CENTER,
             behavior: ScrollTypes = ScrollTypes.INSTANT,
-            sleep: Union[int, float] = 0,
+            sleep: float = 0,
             silent: bool = False,
     ) -> CoreElement:
         """
@@ -238,10 +242,10 @@ class CoreElement(ElementABC, ABC):
 
         return self
 
-    def screenshot_image(self, screenshot_base: bytes = None) -> Image:
+    def screenshot_image(self, screenshot_base: Optional[bytes] = None) -> Image:
         """
         Returns a :class:`PIL.Image.Image` object representing the screenshot of the web element.
-        Appium iOS: Take driver screenshot and crop manually element from it
+        Appium iOS: Take driver screenshot and crop manually element from it.
 
         :param screenshot_base: Screenshot binary data (optional).
           If :obj:`None` is provided then takes a new screenshot
@@ -371,7 +375,7 @@ class CoreElement(ElementABC, ABC):
 
         self.wait_visibility(silent=True)
 
-        return list(element_item.text for element_item in self.all_elements)
+        return [element_item.text for element_item in self.all_elements]
 
     def get_elements_count(self, silent: bool = False) -> int:
         """
@@ -440,7 +444,7 @@ class CoreElement(ElementABC, ABC):
 
     def _get_wait(self, timeout: int = WAIT_EL) -> WebDriverWait:
         """
-        Get wait with depends on parent element if available
+        Get wait with depends on parent element if available.
 
         :return: driver
         """
@@ -449,7 +453,7 @@ class CoreElement(ElementABC, ABC):
     @property
     def _action_chains(self) -> ActionChains:
         """
-        Get action chains with depends on parent element if available
+        Get action chains with depends on parent element if available.
 
         :return: ActionChains
         """
@@ -457,7 +461,7 @@ class CoreElement(ElementABC, ABC):
 
     def _get_element(self, wait: Union[bool, Callable] = True, force_wait: bool = False) -> SeleniumWebElement:
         """
-        Get selenium element from driver or parent element
+        Get selenium element from driver or parent element.
 
         :param wait: wait strategy for element and/or element parent before grab
         :param force_wait: force wait for some element
@@ -481,33 +485,39 @@ class CoreElement(ElementABC, ABC):
         if not element:
             element_info = f'"{self.name}" {self.__class__.__name__}'
             if self.parent and not self._get_cached_element(self.parent):
-                raise NoSuchParentException(
+                msg = (
                     f'{self._get_container_info()} container not found while accessing {element_info}. '
                     f'{get_element_info(self.parent, "Container Selector=")}'
                 )
+                raise NoSuchParentException(
+                    msg,
+                )
 
-            raise NoSuchElementException(
+            msg = (
                 f'Unable to locate the {element_info}. '
                 f'{self.get_element_info()}'
                 f'{self._ensure_unique_parent()}'
+            )
+            raise NoSuchElementException(
+                msg,
             )
 
         return element
 
     def _get_base(self, wait: Union[bool, Callable] = True) -> Union[SeleniumWebDriver, SeleniumWebElement]:
         """
-        Get driver with depends on parent element if available
+        Get driver with depends on parent element if available.
 
         :return: driver
         """
         base = self.driver
 
         if not base:
-            raise DriverWrapperException("Can't find driver")
+            msg = "Can't find driver"
+            raise DriverWrapperException(msg)
 
-        if self.driver_wrapper.is_appium:
-            if self.driver_wrapper.is_native_context:
-                return base
+        if self.driver_wrapper.is_appium and self.driver_wrapper.is_native_context:
+            return base
 
         if self.parent:
             base = self.parent._get_element(wait=wait)
@@ -516,7 +526,7 @@ class CoreElement(ElementABC, ABC):
 
     def _find_element(self, wait_parent: bool = False) -> Union[SeleniumWebElement, AppiumWebElement]:
         """
-        Find selenium/appium element
+        Find selenium/appium element.
 
         :param wait_parent: wait for base(parent) element
         :return: SeleniumWebElement or AppiumWebElement
@@ -535,7 +545,7 @@ class CoreElement(ElementABC, ABC):
 
     def _find_elements(self, wait_parent: bool = False) -> List[Union[SeleniumWebElement, AppiumWebElement]]:
         """
-        Find all selenium/appium elements
+        Find all selenium/appium elements.
 
         :param wait_parent: wait for base(parent) element
         :return: list of SeleniumWebElement or AppiumWebElement
@@ -555,7 +565,7 @@ class CoreElement(ElementABC, ABC):
 
     def _raise_invalid_selector_exception(self, exc: Any) -> None:
         """
-        Raises InvalidSelectorException if specific keywords in exception message
+        Raises InvalidSelectorException if specific keywords in exception message.
 
         :param exc: original exc object
         :return: None
@@ -563,8 +573,7 @@ class CoreElement(ElementABC, ABC):
         if 'invalid locator' in exc.msg or 'is not a valid' in exc.msg:
             msg = f'Selector for "{self.name}" is invalid. {self.get_element_info()}'
             raise InvalidSelectorException(msg)
-        else:
-            raise exc
+        raise exc
 
     def _get_container_info(self) -> str:
         container_info = f'"{self.parent.name}"'
@@ -575,7 +584,7 @@ class CoreElement(ElementABC, ABC):
 
     def _ensure_unique_parent(self) -> str:
         """
-        Ensure that parent is unique and give information if it isn't
+        Ensure that parent is unique and give information if it isn't.
 
         :return: empty string or warning info
         """
@@ -589,7 +598,7 @@ class CoreElement(ElementABC, ABC):
 
     def _get_cached_element(self, obj: Union[CoreElement, Element]) -> Union[None, SeleniumWebElement, AppiumWebElement]:
         """
-        Get cached element from given object
+        Get cached element from given object.
 
         :param obj: CoreElement object
         :return: None, SeleniumWebElement, AppiumWebElement

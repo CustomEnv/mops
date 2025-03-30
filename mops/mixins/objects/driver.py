@@ -2,12 +2,12 @@ from dataclasses import dataclass
 from typing import Union
 
 from appium.webdriver.webdriver import WebDriver as AppiumDriver
-from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
 from playwright.sync_api import (
     Browser as PlaywrightBrowser,
     BrowserContext as PlaywrightContext,
     Page as PlaywrightDriver,
 )
+from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
 
 
 @dataclass

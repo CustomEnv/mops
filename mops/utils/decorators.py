@@ -1,18 +1,24 @@
 from __future__ import annotations
 
-import time
 from functools import wraps
-from typing import Callable, Union, Any, TYPE_CHECKING
+import time
+from typing import TYPE_CHECKING, Any, Callable, Union
 
 from mops.exceptions import ContinuousWaitException
-from mops.mixins.objects.wait_result import Result
-from mops.utils.internal_utils import HALF_WAIT_EL, WAIT_EL, validate_timeout, validate_silent, WAIT_METHODS_DELAY, \
-    increase_delay, QUARTER_WAIT_EL
-from mops.utils.logs import autolog, LogLevel
-
+from mops.utils.internal_utils import (
+    HALF_WAIT_EL,
+    QUARTER_WAIT_EL,
+    WAIT_EL,
+    WAIT_METHODS_DELAY,
+    increase_delay,
+    validate_silent,
+    validate_timeout,
+)
+from mops.utils.logs import LogLevel, autolog
 
 if TYPE_CHECKING:
     from mops.base.element import Element
+    from mops.mixins.objects.wait_result import Result
 
 
 def retry(exceptions, timeout: int = HALF_WAIT_EL):
@@ -34,10 +40,10 @@ def retry(exceptions, timeout: int = HALF_WAIT_EL):
                     if not timestamp:
                         timestamp = time.time()
                     elif time.time() - timestamp >= timeout:
-                        raise exc
+                        raise
                     autolog(
                         f'Caught "{exc.__class__.__name__}" while executing "{func.__name__}", retrying...',
-                        level=LogLevel.WARNING
+                        level=LogLevel.WARNING,
                     )
         return wrapper
     return decorator
@@ -49,7 +55,7 @@ def wait_condition(method: Callable):
     def wrapper(
         self: Element,
         *args: Any,
-        timeout: Union[int, float] = WAIT_EL,
+        timeout: float = WAIT_EL,
         silent: bool = False,
         continuous: bool = False,
         **kwargs: Any,
@@ -93,8 +99,8 @@ def wait_continuous(method: Callable):
         self: Element,
         *args: Any,
         silent: bool = False,
-        continuous: Union[int, float, bool] = False,
-        **kwargs: Any
+        continuous: Union[float, bool] = False,
+        **kwargs: Any,
     ):
         result: Element = method(self, *args, silent=silent, continuous=False, **kwargs)  # Wait for initial condition
 
@@ -115,9 +121,12 @@ def wait_continuous(method: Callable):
                 is_log_needed = False
 
             if not result.execution_result:
-                raise ContinuousWaitException(
-                    f'The continuous "{method.__name__}" of the "{self.name}" is no met ' 
+                msg = (
+                    f'The continuous "{method.__name__}" of the "{self.name}" is no met '
                     f'after {(time.time() - start_time):.2f} seconds'
+                )
+                raise ContinuousWaitException(
+                    msg,
                 )
 
             time.sleep(delay)
