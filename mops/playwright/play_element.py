@@ -13,6 +13,7 @@ from playwright.sync_api import Locator, Page, Browser, BrowserContext
 
 from mops.mixins.objects.size import Size
 from mops.mixins.objects.location import Location
+from mops.utils.decorators import retry
 from mops.utils.selector_synchronizer import get_platform_locator, set_playwright_locator
 from mops.abstraction.element_abc import ElementABC
 from mops.exceptions import TimeoutException, InvalidSelectorException
@@ -401,6 +402,7 @@ class PlayElement(ElementABC, Logging, ABC):
 
         return len(self.all_elements)
 
+    @retry(AttributeError)
     def get_rect(self) -> dict:
         """
         Retrieve the size and position of the element as a dictionary.
@@ -411,6 +413,7 @@ class PlayElement(ElementABC, Logging, ABC):
         return dict(sorted_items)
 
     @property
+    @retry(TypeError)
     def size(self) -> Size:
         """
         Get the size of the current element, including width and height.
@@ -421,6 +424,7 @@ class PlayElement(ElementABC, Logging, ABC):
         return Size(width=box['width'], height=box['height'])
 
     @property
+    @retry(TypeError)
     def location(self) -> Location:
         """
         Get the location of the current element, including the x and y coordinates.

@@ -6,6 +6,8 @@ from mops.exceptions import ContinuousWaitException, TimeoutException
 def test_get_rect_dynamic_element(mouse_event_page_v1):
     for i in range(20):
         assert all(mouse_event_page_v1.jump_button.get_rect().values())
+        assert mouse_event_page_v1.jump_button.location
+        assert mouse_event_page_v1.jump_button.size
 
 
 def test_wait_elements_count_v1(forms_page):
