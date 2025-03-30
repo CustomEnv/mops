@@ -114,7 +114,6 @@ class CoreElement(ElementABC, ABC):
             f'Original error: {selenium_exc_msg}'
         )
 
-    @retry(SeleniumStaleElementReferenceException)
     def type_text(self, text: Union[str, KeyboardKeys], silent: bool = False) -> CoreElement:
         """
         Types text into the element.
@@ -134,7 +133,6 @@ class CoreElement(ElementABC, ABC):
 
         return self
 
-    @retry(SeleniumStaleElementReferenceException)
     def type_slowly(self, text: str, sleep_gap: float = 0.05, silent: bool = False) -> CoreElement:
         """
         Types text into the element slowly with a delay between keystrokes.
@@ -159,7 +157,6 @@ class CoreElement(ElementABC, ABC):
 
         return self
 
-    @retry(SeleniumStaleElementReferenceException)
     def clear_text(self, silent: bool = False) -> CoreElement:
         """
         Clears the text of the element.
@@ -255,7 +252,6 @@ class CoreElement(ElementABC, ABC):
         return _scaled_screenshot(screenshot_base, self.size.width)
 
     @property
-    @retry(SeleniumStaleElementReferenceException)
     def screenshot_base(self) -> bytes:
         """
         Returns the binary screenshot data of the element.
@@ -419,7 +415,6 @@ class CoreElement(ElementABC, ABC):
         """
         return Location(**self.execute_script(get_element_position_on_screen_js))
 
-    @retry(SeleniumStaleElementReferenceException)
     def is_enabled(self, silent: bool = False) -> bool:
         """
         Check if the current element is enabled.
