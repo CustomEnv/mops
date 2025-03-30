@@ -1,15 +1,13 @@
 from __future__ import annotations
 
+from mops.base.driver_wrapper import DriverWrapper
 from mops.base.element import Element
 from mops.base.group import Group
 from mops.base.page import Page
 from tests.settings import domain_name, automation_playground_repo_name
 
 
-class MouseEventPage(Page):
-    def __init__(self, driver_wrapper=None):
-        self.url = f'{domain_name}/{automation_playground_repo_name}/mouse_events_v2.html'
-        super().__init__('//h2[.="Mouse Click Actions"]', name='Mouse events page', driver_wrapper=driver_wrapper)
+class MouseEventPageMixin:
 
     choose_language_button = Element('button.dropbtn', name='"Choose language" button', wait=True)
     dropdown = Element('div.dropdown-content', name='dropdown with languages')
@@ -24,8 +22,23 @@ class MouseEventPage(Page):
     def drag_n_drop(self):
         return DragAndDrop()
 
+class MouseEventPageV1(Page, MouseEventPageMixin):
+    url = f'{domain_name}/{automation_playground_repo_name}/mouse_events.html'
 
-class MouseEventPageWithUnexpectedWait(MouseEventPage):
+    def __init__(self, driver_wrapper: DriverWrapper = None):
+        super().__init__('//h2[.="Mouse Click Actions"]', name='Mouse events page V1', driver_wrapper=driver_wrapper)
+
+    jump_button = Element('jump-button', name='jumping button')
+
+
+class MouseEventPageV2(Page, MouseEventPageMixin):
+    url = f'{domain_name}/{automation_playground_repo_name}/mouse_events_v2.html'
+
+    def __init__(self, driver_wrapper: DriverWrapper = None):
+        super().__init__('//h2[.="Mouse Click Actions"]', name='Mouse events page V2', driver_wrapper=driver_wrapper)
+
+
+class MouseEventPageWithUnexpectedWait(MouseEventPageV2):
     dropdown = Element('div.dropdown-content', name='dropdown with languages and wait', wait=True)
 
 

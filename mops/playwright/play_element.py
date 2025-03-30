@@ -13,6 +13,7 @@ from playwright.sync_api import Locator, Page, Browser, BrowserContext
 
 from mops.mixins.objects.size import Size
 from mops.mixins.objects.location import Location
+from mops.utils.decorators import retry
 from mops.utils.selector_synchronizer import get_platform_locator, set_playwright_locator
 from mops.abstraction.element_abc import ElementABC
 from mops.exceptions import TimeoutException, InvalidSelectorException
@@ -241,100 +242,6 @@ class PlayElement(ElementABC, Logging, ABC):
 
         return self
 
-    # Element waits
-
-    def wait_visibility(self, *, timeout: int = WAIT_EL, silent: bool = False) -> PlayElement:
-        """
-        Waits until the element becomes visible.
-        **Note:** The method requires the use of named arguments.
-
-        **Selenium:**
-
-        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
-          during the waiting process.
-
-        **Appium:**
-
-        - Applied :func:`wait_condition` decorator integrates an exponential delay
-          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
-          with each iteration during the waiting process.
-
-        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
-        :type timeout: int
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`PlayElement`
-        """
-        if not silent:
-            self.log(f'Wait until "{self.name}" becomes visible')
-
-        try:
-            self._first_element.wait_for(state='visible', timeout=get_timeout_in_ms(timeout))
-        except PlayTimeoutError:
-            raise TimeoutException(f'"{self.name}" not visible', timeout=timeout, info=self)
-        return self
-
-    def wait_hidden(self, *, timeout: int = WAIT_EL, silent: bool = False) -> PlayElement:
-        """
-        Waits until the element becomes hidden.
-        **Note:** The method requires the use of named arguments.
-
-        **Selenium:**
-
-        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
-          during the waiting process.
-
-        **Appium:**
-
-        - Applied :func:`wait_condition` decorator integrates an exponential delay
-          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
-          with each iteration during the waiting process.
-
-        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
-        :type timeout: int
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`PlayElement`
-        """
-        if not silent:
-            self.log(f'Wait until "{self.name}" becomes hidden')
-        try:
-            self._first_element.wait_for(state='hidden', timeout=get_timeout_in_ms(timeout))
-        except PlayTimeoutError:
-            raise TimeoutException(f'"{self.name}" still visible', timeout=timeout, info=self)
-        return self
-
-    def wait_availability(self, *, timeout: int = WAIT_EL, silent: bool = False) -> PlayElement:
-        """
-        Waits until the element becomes available in DOM tree. \n
-        **Note:** The method requires the use of named arguments.
-
-        **Selenium:**
-
-        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
-          during the waiting process.
-
-        **Appium:**
-
-        - Applied :func:`wait_condition` decorator integrates an exponential delay
-          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
-          with each iteration during the waiting process.
-
-        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
-        :type timeout: int
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`PlayElement`
-        """
-        if not silent:
-            self.log(f'Wait until presence of "{self.name}"')
-
-        try:
-            self._first_element.wait_for(state='attached', timeout=get_timeout_in_ms(timeout))
-        except PlayTimeoutError:
-            raise TimeoutException(f'"{self.name}" not available in DOM', timeout=timeout, info=self)
-        return self
-
     # Element state
 
     def scroll_into_view(
@@ -495,6 +402,7 @@ class PlayElement(ElementABC, Logging, ABC):
 
         return len(self.all_elements)
 
+    @retry(AttributeError)
     def get_rect(self) -> dict:
         """
         Retrieve the size and position of the element as a dictionary.
@@ -505,6 +413,7 @@ class PlayElement(ElementABC, Logging, ABC):
         return dict(sorted_items)
 
     @property
+    @retry(TypeError)
     def size(self) -> Size:
         """
         Get the size of the current element, including width and height.
@@ -515,6 +424,7 @@ class PlayElement(ElementABC, Logging, ABC):
         return Size(width=box['width'], height=box['height'])
 
     @property
+    @retry(TypeError)
     def location(self) -> Location:
         """
         Get the location of the current element, including the x and y coordinates.

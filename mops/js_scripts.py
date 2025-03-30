@@ -42,25 +42,35 @@ for (var i=0, max=elements.length; i < max; i++) {
 
 add_element_over_js = """
 function appendElement(given_obj) {
-    given_obj = given_obj.getBoundingClientRect();
-    driver_wrapper_obj = document.createElement("div");
+    const rect = given_obj.getBoundingClientRect();
+    const driverWrapperObj = document.createElement("div");
 
-    driver_wrapper_obj.style.zIndex=9999999;
-    driver_wrapper_obj.setAttribute("class","driver-wrapper-comparison-support-element");
+    driverWrapperObj.style.zIndex = 9999999;
+    driverWrapperObj.setAttribute("class", "driver-wrapper-comparison-support-element");
+    driverWrapperObj.style.backgroundColor = "#000";
 
-    driver_wrapper_obj.style.position = "absolute";
-    driver_wrapper_obj.style.backgroundColor = "#000";
+    // Determine position type based on scroll position
+    if (window.scrollY === 0) {
+        driverWrapperObj.style.position = "fixed";
+        driverWrapperObj.style.top = rect.top + "px";
+        driverWrapperObj.style.left = rect.left + "px";
+    } else {
+        driverWrapperObj.style.position = "absolute";
+        driverWrapperObj.style.top = (rect.top + window.scrollY) + "px";
+        driverWrapperObj.style.left = (rect.left + window.scrollX) + "px";
+    }
 
-    driver_wrapper_obj.style.width = given_obj.width + "px";
-    driver_wrapper_obj.style.height = given_obj.height + "px";
-    driver_wrapper_obj.style.top = (given_obj.top + window.scrollY) + "px";
-    driver_wrapper_obj.style.left = (given_obj.left + window.scrollX) + "px";
-    
-    document.body.appendChild(driver_wrapper_obj);
-};
+    driverWrapperObj.style.width = rect.width + "px";
+    driverWrapperObj.style.height = rect.height + "px";
+
+    document.body.appendChild(driverWrapperObj);
+}
 
 return appendElement(arguments[0]);
 """
+
+
+hide_caret_js_script = 'document.activeElement.blur();'
 
 
 add_driver_index_comment_js = """

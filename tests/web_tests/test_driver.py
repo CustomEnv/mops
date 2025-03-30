@@ -1,7 +1,7 @@
 import pytest
 
 from mops.base.driver_wrapper import DriverWrapper
-from tests.adata.pages.mouse_event_page import MouseEventPage
+from tests.adata.pages.mouse_event_page import MouseEventPageV2
 from tests.adata.pages.pizza_order_page import PizzaOrderPage
 from tests.adata.pages.playground_main_page import SecondPlaygroundMainPage
 from tests.conftest import DESKTOP_WINDOW_SIZE
@@ -28,7 +28,7 @@ def test_is_firefox_driver(driver_wrapper):
     assert not driver_wrapper.is_chrome
 
 
-def test_driver_cookies(driver_wrapper, mouse_event_page):
+def test_driver_cookies(driver_wrapper, mouse_event_page_v2):
     driver_wrapper.set_cookie(
         [
             {'name': 'sample_cookie', 'value': '123', 'path': '/', 'domain': '.customenv.github.io'}
@@ -42,7 +42,7 @@ def test_driver_cookies(driver_wrapper, mouse_event_page):
     assert all((actual_cookies_after_set, not actual_cookies_after_clear))
 
 
-def test_driver_delete_cookie(driver_wrapper, mouse_event_page):
+def test_driver_delete_cookie(driver_wrapper, mouse_event_page_v2):
     cookie_name_1 = 'sample_cookie'
     cookie_name_2 = 'another_cookie'
     driver_wrapper.set_cookie(
@@ -60,25 +60,25 @@ def test_driver_delete_cookie(driver_wrapper, mouse_event_page):
     assert actual_cookies_after_clear[0]['name'] == cookie_name_1
 
 
-def test_driver_execute_script_set_and_get(driver_wrapper, mouse_event_page):
+def test_driver_execute_script_set_and_get(driver_wrapper, mouse_event_page_v2):
     driver_wrapper.execute_script('sessionStorage.setItem("foo", "bar")')
     assert driver_wrapper.execute_script('return sessionStorage.getItem("foo")') == 'bar'
 
 
-def test_driver_execute_script_return_value(driver_wrapper, mouse_event_page):
+def test_driver_execute_script_return_value(driver_wrapper, mouse_event_page_v2):
     assert driver_wrapper.execute_script('return document.title;') == 'Mouse Actions v2'
 
 
-def test_driver_execute_script_with_args(driver_wrapper, mouse_event_page):
+def test_driver_execute_script_with_args(driver_wrapper, mouse_event_page_v2):
     main_page = SecondPlaygroundMainPage()
     assert not main_page.is_page_opened()
-    driver_wrapper.execute_script('arguments[0].click();', mouse_event_page.header_logo)
+    driver_wrapper.execute_script('arguments[0].click();', mouse_event_page_v2.header_logo)
     assert main_page.wait_page_loaded().is_page_opened()
 
 
 @pytest.mark.low
 def test_second_driver_different_page(driver_wrapper, second_driver_wrapper):
-    mouse_page = MouseEventPage(second_driver_wrapper)
+    mouse_page = MouseEventPageV2(second_driver_wrapper)
     pizza_page = PizzaOrderPage(driver_wrapper)
     assert len(DriverWrapper.session.all_sessions) == 2
 
@@ -99,8 +99,8 @@ def test_second_driver_different_page(driver_wrapper, second_driver_wrapper):
 
 @pytest.mark.low
 def test_second_driver_same_page(driver_wrapper, second_driver_wrapper):
-    mouse_page1 = MouseEventPage(driver_wrapper)
-    mouse_page2 = MouseEventPage(second_driver_wrapper)
+    mouse_page1 = MouseEventPageV2(driver_wrapper)
+    mouse_page2 = MouseEventPageV2(second_driver_wrapper)
     assert len(DriverWrapper.session.all_sessions) == 2
 
     mouse_page1.open_page()
@@ -118,7 +118,7 @@ def test_second_driver_same_page(driver_wrapper, second_driver_wrapper):
 @pytest.mark.low
 def test_second_driver_by_arg(driver_wrapper, second_driver_wrapper):
     pizza_page = PizzaOrderPage(driver_wrapper)
-    mouse_page = MouseEventPage(second_driver_wrapper)
+    mouse_page = MouseEventPageV2(second_driver_wrapper)
     assert len(DriverWrapper.session.all_sessions) == 2
 
     mouse_page.open_page()
@@ -174,7 +174,7 @@ def test_driver_tabs(driver_wrapper, second_playground_page):
 @pytest.mark.low
 def test_parent_in_hidden_element(driver_wrapper, second_driver_wrapper):
     pizza_page = PizzaOrderPage(driver_wrapper)
-    mouse_page = MouseEventPage(second_driver_wrapper)
+    mouse_page = MouseEventPageV2(second_driver_wrapper)
 
     card = mouse_page.mouse_click_card()
 
@@ -197,7 +197,7 @@ def test_parent_in_hidden_element(driver_wrapper, second_driver_wrapper):
 @pytest.mark.low
 def test_driver_in_hidden_group(driver_wrapper, second_driver_wrapper):
     pizza_page = PizzaOrderPage(driver_wrapper)
-    mouse_page = MouseEventPage(second_driver_wrapper)
+    mouse_page = MouseEventPageV2(second_driver_wrapper)
 
     mouse_page.open_page()
     pizza_page.open_page()
@@ -226,7 +226,7 @@ def test_driver_in_hidden_page(driver_wrapper, second_driver_wrapper):
 
 @pytest.mark.low
 def test_second_driver_in_parent_element(driver_wrapper, second_driver_wrapper):
-    mouse_page2 = MouseEventPage(second_driver_wrapper)
+    mouse_page2 = MouseEventPageV2(second_driver_wrapper)
     mouse_page2.open_page()
     card = mouse_page2.drag_n_drop()
 
