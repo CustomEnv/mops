@@ -1,15 +1,19 @@
 from __future__ import annotations
 
-import sys
-import inspect
 from copy import copy
 from functools import lru_cache
-from typing import Any, Union, Callable
+import inspect
+import sys
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-from mops.mixins.objects.size import Size
 from selenium.common.exceptions import StaleElementReferenceException as SeleniumStaleElementReferenceException
 
-from mops.exceptions import NoSuchElementException, InvalidSelectorException, TimeoutException, NoSuchParentException
+from mops.exceptions import InvalidSelectorException, NoSuchElementException, NoSuchParentException, TimeoutException
+
+if TYPE_CHECKING:
+    from mops.base.element import Element
+    from mops.base.group import Group
+    from mops.mixins.objects.size import Size
 
 WAIT_METHODS_DELAY = 0.1
 WAIT_UNIT = 1
@@ -24,13 +28,13 @@ all_tags = {'h1', 'h2', 'h3', 'h4', 'h5', 'head', 'body', 'input', 'section', 'b
             'li', 'form', 'footer', 'frame', 'area', 'span', 'video'}
 
 
-def get_dict(obj: Any):
+def get_dict(obj: Any) -> dict:
     return obj.__dict__
 
 
-def safe_call(func: Callable, *args, **kwargs) -> Union[Any, None]:
+def safe_call(func: Callable, *args: Any, **kwargs: Any) -> Union[Any, None]:
     """
-    Wrapper for any method that raises internal exceptions to prevent exceptions
+    Wrapper for any method that raises internal exceptions to prevent exceptions.
 
     :param func: any internal function
     :param args: any args for function
@@ -52,9 +56,9 @@ def safe_call(func: Callable, *args, **kwargs) -> Union[Any, None]:
 
 
 @lru_cache(maxsize=None)
-def get_timeout_in_ms(timeout: Union[int, float]):
+def get_timeout_in_ms(timeout: float) -> float:
     """
-    Get timeout in milliseconds for playwright
+    Get timeout in milliseconds for playwright.
 
     :param timeout: timeout in seconds
     :return: timeout in milliseconds
@@ -62,18 +66,18 @@ def get_timeout_in_ms(timeout: Union[int, float]):
     return validate_timeout(timeout) * 1000
 
 
-def safe_getattribute(obj, item):
+def safe_getattribute(obj: Any, item: str):
     return object.__getattribute__(obj, item)
 
 
-def get_frame(frame=1):
+def get_frame(frame: int = 1):
     """
-    Get frame by given id
+    Get frame by given id.
 
     :param frame: frame id, "current" by default
     :return: frame
     """
-    return sys._getframe(frame)  # noqa
+    return sys._getframe(frame)  # noqa:
 
 
 def is_element(obj: Any) -> bool:
@@ -96,9 +100,9 @@ def is_driver_wrapper(obj: Any) -> bool:
     return getattr(obj, '_object', None) == 'driver_wrapper'
 
 
-def initialize_objects(current_object, objects: dict, cls: Any):
+def initialize_objects(current_object: Union[Group, Element], objects: dict, cls: Any) -> None:
     """
-    Copy objects and initializing them with driver_wrapper from current object
+    Copy objects and initializing them with driver_wrapper from current object.
 
     :param current_object: list of objects to initialize
     :param objects: list of objects to initialize
@@ -112,11 +116,11 @@ def initialize_objects(current_object, objects: dict, cls: Any):
         initialize_objects(copied_obj, get_child_elements_with_names(copied_obj, cls), cls)
 
 
-def set_parent_for_attr(base_obj: object, instance_class: Union[type, tuple], with_copy: bool = False):
+def set_parent_for_attr(base_obj: object, instance_class: Union[type, tuple], with_copy: bool = False) -> None:
     """
-    Sets parent for all Elements/Group of given class.
+    Set parent for all Elements/Group of given class.
     Should be called ONLY in Group object or all_elements method.
-    Copy of objects will be executed if with_copy is True. Required for all_elements method
+    Copy of objects will be executed if with_copy is True. Required for all_elements method.
 
     :param instance_class: attribute class to looking for
     :param base_obj: object of attribute
@@ -138,9 +142,9 @@ def set_parent_for_attr(base_obj: object, instance_class: Union[type, tuple], wi
         set_parent_for_attr(child, instance_class, with_copy)
 
 
-def promote_parent_element(obj: Any, base_obj: Any, cls: Any):
+def promote_parent_element(obj: Any, base_obj: Any, cls: Any) -> None:
     """
-    Promote parent object in Element if parent is another Element
+    Promote parent object in Element if parent is another Element.
 
     :param obj: any element
     :param base_obj: base object of element: Page/Group instance
@@ -150,7 +154,7 @@ def promote_parent_element(obj: Any, base_obj: Any, cls: Any):
     initial_parent = getattr(obj, 'parent', None)
 
     if not initial_parent:
-        return None
+        return
 
     if is_element_instance(initial_parent) and initial_parent != base_obj:
         for el in get_child_elements(base_obj, cls):
@@ -160,33 +164,34 @@ def promote_parent_element(obj: Any, base_obj: Any, cls: Any):
 
 def get_child_elements(obj: object, instance: Union[type, tuple]) -> list:
     """
-    Return objects of this object by instance
+    Return objects of this object by instance.
 
     :returns: list of page elements and page objects
     """
     return list(get_child_elements_with_names(obj, instance).values())
 
 
-def get_child_elements_with_names(obj: Any, instance: Union[type, tuple] = None) -> dict:
+def get_child_elements_with_names(obj: Any, instance: Optional[Union[type, tuple]] = None) -> dict:
     """
     Return all objects of given object or by instance
-    Removing parent attribute from list to avoid infinite recursion and all dunder attributes
+    Removing parent attribute from list to avoid infinite recursion and all dunder attributes.
 
     :returns: dict of page elements and page objects
     """
     elements = {}
 
     for attribute, value in get_all_attributes_from_object(obj).items():
-        if instance and isinstance(value, instance) or not instance:
-            if attribute != 'parent' and not attribute.startswith('__') and not attribute.endswith('__'):
-                elements.update({attribute: value})
+        if (not instance or not isinstance(value, instance)) and instance:
+            continue
+        if attribute != 'parent' and not attribute.startswith('__') and not attribute.endswith('__'):
+            elements.update({attribute: value})
 
     return elements
 
 
 def get_all_attributes_from_object(reference_obj: Any) -> dict:
     """
-    Get attributes from given object and all its bases
+    Get attributes from given object and all its bases.
 
     :param reference_obj: reference object
     :return: dict of all attributes
@@ -202,7 +207,7 @@ def get_all_attributes_from_object(reference_obj: Any) -> dict:
 
     for parent_class in all_bases:
 
-        if 'ABC' in str(parent_class) or parent_class == object:
+        if 'ABC' in str(parent_class) or parent_class is object:
             continue
 
         items.update(dict(parent_class.__dict__))
@@ -212,7 +217,7 @@ def get_all_attributes_from_object(reference_obj: Any) -> dict:
 
 def get_attributes_from_object(reference_obj: Any) -> dict:
     """
-    Get attributes from given object
+    Get attributes from given object.
 
     :param reference_obj:
     :return:
@@ -230,12 +235,12 @@ def get_attributes_from_object(reference_obj: Any) -> dict:
     return items
 
 
-def is_target_on_screen(x: int, y: int, possible_range: Size):
+def is_target_on_screen(x: int, y: int, possible_range: Size) -> bool:
     """
     Check is given coordinates fit into given range
     An safe value will be applied:
       1 - Due to usage of range
-      2 - Due to rounding a number when get size/location of element
+      2 - Due to rounding a number when get size/location of element.
 
     :param x: x coordinate
     :param y: y coordinate
@@ -255,7 +260,7 @@ def calculate_coordinate_to_click(element: Any, x: int = 0, y: int = 0) -> tuple
         (0, 0) -- center of the element
         (5, 0) -- 5 pixels to the right
         (-10, 0) -- 10 pixels to the left out of the element
-        (0, -5) -- 5 pixels below the element
+        (0, -5) -- 5 pixels below the element.
 
     :param element: mops WebElement or MobileElement
     :param x: horizontal offset relative to either left (x < 0) or right side (x > 0)
@@ -273,24 +278,27 @@ def calculate_coordinate_to_click(element: Any, x: int = 0, y: int = 0) -> tuple
     return int(x), int(y)
 
 
-def validate_timeout(timeout) -> Union[float, int]:
+def validate_timeout(timeout: float) -> Union[float, int]:
     if type(timeout) not in (int, float):
-        raise TypeError('The type of `timeout` arg must be int or float')
+        msg = 'The type of `timeout` arg must be int or float'
+        raise TypeError(msg)
 
     if timeout <= 0:
-        raise ValueError('The `timeout` value must be a positive number')
+        msg = 'The `timeout` value must be a positive number'
+        raise ValueError(msg)
 
     return timeout
 
 
-def validate_silent(silent) -> bool:
+def validate_silent(silent: bool) -> bool:
     if not isinstance(silent, bool):
-        raise TypeError(f'The type of `silent` arg must be bool')
+        msg = 'The type of `silent` arg must be bool'
+        raise TypeError(msg)
 
     return silent
 
 
-def increase_delay(delay, max_delay: Union[int, float] = 1.5) -> Union[int, float]:
+def increase_delay(delay: float, max_delay: float = 1.5) -> Union[int, float]:
     if delay < max_delay:
         return delay + delay
     return delay

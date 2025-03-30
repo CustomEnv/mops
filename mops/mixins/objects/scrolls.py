@@ -1,5 +1,5 @@
 class ScrollTo:
-    """ Defines available scroll positioning options. """
+    """Defines available scroll positioning options."""
 
     START: str = 'start'
     CENTER: str = 'center'
@@ -8,7 +8,7 @@ class ScrollTo:
 
 
 class ScrollTypes:
-    """ Defines available scroll behaviors. """
+    """Defines available scroll behaviors."""
 
     SMOOTH: str = 'smooth'
     INSTANT: str = 'instant'

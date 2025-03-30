@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Any
+from typing import Any, Optional
 
 from appium.webdriver.common.appiumby import AppiumBy
 
 from mops.utils.internal_utils import (
-    get_child_elements_with_names,
-    get_child_elements,
     get_all_attributes_from_object,
+    get_child_elements,
+    get_child_elements_with_names,
 )
-
 
 all_locator_types = get_child_elements(AppiumBy, str)
 available_kwarg_keys = ('desktop', 'mobile', 'ios', 'android')
@@ -18,7 +17,7 @@ available_kwarg_keys = ('desktop', 'mobile', 'ios', 'android')
 
 def get_element_info(element: Any, label: str = 'Selector=') -> str:
     """
-    Get element selector information with parent object selector if it exists
+    Get element selector information with parent object selector if it exists.
 
     :param element: element to collect log data
     :param label: a label before selector string
@@ -38,25 +37,25 @@ def get_static(cls: Any):
 
 class InternalMixin:
 
-    def _safe_setter(self, var: str, value: Any):
+    def _safe_setter(self, var: str, value: Any) -> None:
         if not hasattr(self, var):
             setattr(self, var, value)
 
     def _set_static(self: Any, cls) -> None:
         """
-        Set static from base cls (Web/Mobile/Play Element/Page etc.)
+        Set static from base cls (Web/Mobile/Play Element/Page etc.).
 
         :return: None
         """
         data = {
             name: value for name, value in get_static(cls)
-            if name not in get_all_attributes_from_object(self).keys()
+            if name not in get_all_attributes_from_object(self)
         }.items()
 
         for name, item in data:
             setattr(self.__class__, name, item)
 
-    def _repr_builder(self: Any):
+    def _repr_builder(self: Any) -> Optional[str]:
         class_name = self.__class__.__name__
         obj_id = hex(id(self))
         parent = getattr(self, 'parent', False)

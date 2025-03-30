@@ -1,31 +1,37 @@
 from __future__ import annotations
 
-import time
 from abc import ABC
-from typing import Union, List, Any
+import time
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
-from PIL.Image import Image
-from mops.keyboard_keys import KeyboardKeys
-from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes
-from playwright.sync_api import TimeoutError as PlayTimeoutError, Error
-from playwright.sync_api import Page as PlaywrightPage
-from playwright.sync_api import Locator, Page, Browser, BrowserContext
-
-from mops.mixins.objects.size import Size
-from mops.mixins.objects.location import Location
-from mops.utils.decorators import retry
-from mops.utils.selector_synchronizer import get_platform_locator, set_playwright_locator
-from mops.abstraction.element_abc import ElementABC
-from mops.exceptions import TimeoutException, InvalidSelectorException
-from mops.utils.logs import Logging
-from mops.shared_utils import cut_log_data, get_image
-from mops.utils.internal_utils import (
-    WAIT_EL,
-    get_timeout_in_ms,
-    calculate_coordinate_to_click,
-    is_group,
-    is_element,
+from playwright.sync_api import (
+    Browser,
+    BrowserContext,
+    Error,
+    Locator,
+    Page,
+    Page as PlaywrightPage,
 )
+
+from mops.abstraction.element_abc import ElementABC
+from mops.exceptions import InvalidSelectorException
+from mops.mixins.objects.location import Location
+from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes
+from mops.mixins.objects.size import Size
+from mops.shared_utils import cut_log_data, get_image
+from mops.utils.decorators import retry
+from mops.utils.internal_utils import (
+    calculate_coordinate_to_click,
+    is_element,
+    is_group,
+)
+from mops.utils.logs import Logging
+from mops.utils.selector_synchronizer import get_platform_locator, set_playwright_locator
+
+if TYPE_CHECKING:
+    from PIL.Image import Image
+
+    from mops.keyboard_keys import KeyboardKeys
 
 
 class PlayElement(ElementABC, Logging, ABC):
@@ -36,10 +42,8 @@ class PlayElement(ElementABC, Logging, ABC):
     parent: Union[ElementABC, PlayElement]
     _element: Locator = None
 
-    def __init__(self):  # noqa
-        """
-        Initializing of web element with playwright driver
-        """
+    def __init__(self):
+        """Initializing of web element with playwright driver."""
         self.locator = get_platform_locator(self)
         set_playwright_locator(self)
 
@@ -48,7 +52,7 @@ class PlayElement(ElementABC, Logging, ABC):
     @property
     def element(self) -> Locator:
         """
-        Get playwright Locator object
+        Get playwright Locator object.
 
         :param: args: args from Locator object
         :param: kwargs: kwargs from Locator object
@@ -62,14 +66,14 @@ class PlayElement(ElementABC, Logging, ABC):
         return element
 
     @element.setter
-    def element(self, base_element: Union[Locator, None]):
+    def element(self, base_element: Union[Locator, None]) -> None:
         """
-        Element object setter. Try to avoid usage of this function
+        Element object setter. Try to avoid usage of this function.
 
         :param: play_element: playwright Locator object
         """
         self._element = base_element
-    
+
     @property
     def all_elements(self) -> Union[List[PlayElement], List[Any]]:
         """
@@ -248,7 +252,7 @@ class PlayElement(ElementABC, Logging, ABC):
             self,
             block: ScrollTo = ScrollTo.CENTER,
             behavior: ScrollTypes = ScrollTypes.INSTANT,
-            sleep: Union[int, float] = 0,
+            sleep: float = 0,
             silent: bool = False,
     ) -> PlayElement:
         """
@@ -274,10 +278,10 @@ class PlayElement(ElementABC, Logging, ABC):
 
         return self
 
-    def screenshot_image(self, screenshot_base: bytes = None) -> Image:
+    def screenshot_image(self, screenshot_base: Optional[bytes] = None) -> Image:
         """
         Returns a :class:`PIL.Image.Image` object representing the screenshot of the web element.
-        Appium iOS: Take driver screenshot and crop manually element from it
+        Appium iOS: Take driver screenshot and crop manually element from it.
 
         :param screenshot_base: Screenshot binary data (optional).
           If :obj:`None` is provided then takes a new screenshot
@@ -459,7 +463,7 @@ class PlayElement(ElementABC, Logging, ABC):
 
     def _get_base(self) -> Union[PlaywrightPage, Locator]:
         """
-        Get driver depends on parent element if available
+        Get driver depends on parent element if available.
 
         :return: driver
         """
@@ -475,7 +479,7 @@ class PlayElement(ElementABC, Logging, ABC):
     @property
     def _first_element(self):
         """
-        Get first element
+        Get first element.
 
         :return: first element
         """

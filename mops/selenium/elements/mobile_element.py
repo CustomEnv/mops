@@ -1,23 +1,23 @@
 from __future__ import annotations
 
-import time
 from abc import ABC
+import time
+from typing import TYPE_CHECKING, Optional
 
-from PIL.Image import Image
-
-from mops.selenium.core.core_element import CoreElement
 from mops.mixins.objects.location import Location
 from mops.mixins.objects.size import Size
+from mops.selenium.core.core_element import CoreElement
 from mops.utils.internal_utils import calculate_coordinate_to_click
-from mops.utils.selector_synchronizer import get_platform_locator, set_selenium_selector, set_appium_selector
+from mops.utils.selector_synchronizer import get_platform_locator, set_appium_selector
+
+if TYPE_CHECKING:
+    from PIL.Image import Image
 
 
 class MobileElement(CoreElement, ABC):
 
     def __init__(self):
-        """
-        Initializing of mobile element with appium driver
-        """
+        """Initializing of mobile element with appium driver."""
         self.locator = get_platform_locator(self)
         set_appium_selector(self)
 
@@ -31,9 +31,8 @@ class MobileElement(CoreElement, ABC):
         :type y: int
         :return: :class:`MobileElement`
         """
-        if self.driver_wrapper.is_web_context:
-            if not self.is_fully_visible(silent=True):
-                self.scroll_into_view()
+        if self.driver_wrapper.is_web_context and not self.is_fully_visible(silent=True):
+            self.scroll_into_view()
 
         x, y = calculate_coordinate_to_click(self, x, y)
 
@@ -53,9 +52,8 @@ class MobileElement(CoreElement, ABC):
         :type silent: bool
         :return: :class:`MobileElement`
         """
-        if self.driver_wrapper.is_web_context:
-            if not self.is_fully_visible(silent=True):
-                self.scroll_into_view()
+        if self.driver_wrapper.is_web_context and not self.is_fully_visible(silent=True):
+            self.scroll_into_view()
 
         x, y = calculate_coordinate_to_click(self, 0, 0)
 
@@ -112,10 +110,10 @@ class MobileElement(CoreElement, ABC):
 
         return self
 
-    def screenshot_image(self, screenshot_base: bytes = None) -> Image:
+    def screenshot_image(self, screenshot_base: Optional[bytes] = None) -> Image:
         """
         Returns a :class:`PIL.Image.Image` object representing the screenshot of the web element.
-        Appium iOS: Take driver screenshot and crop manually element from it
+        Appium iOS: Take driver screenshot and crop manually element from it.
 
         :param screenshot_base: Screenshot binary data (optional).
           If :obj:`None` is provided then takes a new screenshot
@@ -161,7 +159,7 @@ class MobileElement(CoreElement, ABC):
 
     def _element_box(self) -> tuple:
         """
-        Get element coordinates on screen for ios safari
+        Get element coordinates on screen for ios safari.
 
         :return: element coordinates on screen (start_x, start_y, end_x, end_y)
         """

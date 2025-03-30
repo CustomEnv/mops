@@ -1,37 +1,37 @@
 from __future__ import annotations
 
+import base64
+from dataclasses import astuple
+import importlib
+import json
+import math
 import os
 import re
 import shutil
-import time
-import math
-import json
-import base64
-import importlib
-from dataclasses import astuple
-from urllib.parse import urljoin
-from typing import Union, List, Any, Tuple, Optional, TYPE_CHECKING
 from string import punctuation
+import time
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+from urllib.parse import urljoin
 
 try:
-    import cv2.cv2 as cv2  # ~cv2@4.5.5.62 + python@3.8/9/10
+    from cv2 import cv2  # ~cv2@4.5.5.62 + python@3.8/9/10
 except ImportError:
     import cv2  # ~cv2@4.10.0.84 + python@3.11/12
-import numpy
-from skimage._shared.utils import check_shape_equality  # noqa
-from skimage.metrics import structural_similarity
+import numpy as np
 from PIL import Image
+from skimage._shared.utils import check_shape_equality
+from skimage.metrics import structural_similarity
 
-from mops.mixins.objects.size import Size
-from mops.exceptions import DriverWrapperException, TimeoutException
+from mops.exceptions import DriverWrapperException, TimeoutException, VisualComparisonException
 from mops.js_scripts import add_element_over_js, delete_element_over_js
-from mops.mixins.objects.box import Box
-from mops.utils.logs import autolog
 from mops.mixins.internal_mixin import get_element_info
+from mops.mixins.objects.size import Size
+from mops.utils.logs import autolog
 
 if TYPE_CHECKING:
     from mops.base.driver_wrapper import DriverWrapper
     from mops.base.element import Element
+    from mops.mixins.objects.box import Box
 
 
 class VisualComparison:
@@ -84,17 +84,21 @@ class VisualComparison:
         self.screenshot_name = 'default'
 
         if self.dynamic_threshold_factor and self.default_threshold:
-            raise Exception('Provide only one argument for threshold of visual comparison')
+            msg = 'Provide only one argument for threshold of visual comparison'
+            raise VisualComparisonException(msg)
 
         if not self.__initialized:
             self.__init_session()
 
-    def __init_session(self):
+    def __init_session(self) -> None:
         root_path = self.visual_regression_path
 
         if not root_path:
-            raise Exception('Provide visual regression path to environment. '
-                            f'Example: {self.__class__.__name__}.visual_regression_path = "src"')
+            msg = (
+                'Provide visual regression path to environment. '
+                f'Example: {self.__class__.__name__}.visual_regression_path = "src"'
+            )
+            raise VisualComparisonException(msg)
 
         root_path = root_path if root_path.endswith('/') else f'{root_path}/'
         self.reference_directory = f'{root_path}reference/'
@@ -112,19 +116,20 @@ class VisualComparison:
             filename: str,
             test_name: str,
             name_suffix: str,
-            threshold: Union[int, float],
-            delay: Union[int, float],
+            threshold: float,
+            delay: float,
             scroll: bool,
             remove: List[Any],
             fill_background: Union[str, bool],
-            cut_box: Optional[Box]
+            cut_box: Optional[Box],
     ) -> VisualComparison:
         """
         Assert that the given (by name) and taken screenshots are equal.
 
         :param filename: The full screenshot name. A custom filename will be used if an empty string is given.
         :type filename: str
-        :param test_name: Test name for the custom filename. It will try to find it automatically if an empty string is given.
+        :param test_name: Test name for the custom filename. It will try to find it automatically
+        if an empty string is given.
         :type test_name: str
         :param name_suffix: Filename suffix. Useful for the same element with positive/negative cases.
         :type name_suffix: str
@@ -146,7 +151,7 @@ class VisualComparison:
             return self
 
         remove = remove if remove else []
-        screenshot_params = dict(delay=delay, remove=remove, fill_background=fill_background, cut_box=cut_box)
+        screenshot_params = {'delay': delay, 'remove': remove, 'fill_background': fill_background, 'cut_box': cut_box}
 
         if filename:
             if name_suffix:
@@ -167,7 +172,7 @@ class VisualComparison:
             return self
 
         image = cv2.imread(reference_file)
-        if isinstance(image, type(None)):
+        if image is None:
             self._save_screenshot(reference_file, **screenshot_params)
 
             if self.visual_reference_generation or self.soft_visual_reference_generation:
@@ -176,8 +181,11 @@ class VisualComparison:
             self._disable_reruns()
 
             self._attach_allure_diff(reference_file, reference_file, reference_file)
-            raise AssertionError(f'Reference file "{reference_file}" not found, but its just saved. '
-                                 f'If it CI run, then you need to commit reference files.') from None
+            msg = (
+                f'Reference file "{reference_file}" not found, but its just saved. '
+                f'If it CI run, then you need to commit reference files.'
+            )
+            raise AssertionError(msg) from None
 
         if self.visual_reference_generation and not self.soft_visual_reference_generation:
             return self
@@ -189,20 +197,20 @@ class VisualComparison:
             for file_path in (output_file, diff_file):
                 if os.path.exists(file_path):
                     os.remove(file_path)
-        except AssertionError as exc:
+        except AssertionError:
             if self.soft_visual_reference_generation:
                 if os.path.exists(reference_file):
                     os.remove(reference_file)
                 shutil.move(output_file, reference_file)
             else:
-                raise exc
+                raise
 
         return self
 
     @staticmethod
-    def calculate_threshold(file: str, dynamic_threshold_factor: int = None) -> Tuple:
+    def calculate_threshold(file: str, dynamic_threshold_factor: Optional[int] = None) -> Tuple:
         """
-        Calculate possible threshold, based on dynamic_threshold_factor
+        Calculate possible threshold, based on dynamic_threshold_factor.
 
         :param file: image file path for calculation
         :param dynamic_threshold_factor: use provided threshold factor
@@ -220,11 +228,11 @@ class VisualComparison:
     def _save_screenshot(
             self,
             screenshot_name: str,
-            delay: Union[int, float],
+            delay: float,
             remove: list,
             fill_background: bool,
             cut_box: Optional[Box],
-    ):
+    ) -> None:
         time.sleep(delay)
 
         self._fill_background(fill_background)
@@ -246,7 +254,7 @@ class VisualComparison:
 
     def _appends_dummy_elements(self, remove_data: list) -> VisualComparison:
         """
-        Placed an element above each from given list and paints it black
+        Placed an element above each from given list and paints it black.
 
         :param remove_data: list of elements to be fake removed
         :return: VisualComparison
@@ -264,7 +272,7 @@ class VisualComparison:
 
     def _remove_dummy_elements(self) -> VisualComparison:
         """
-        Remove all dummy elements from DOM
+        Remove all dummy elements from DOM.
 
         :return: VisualComparison
         """
@@ -273,7 +281,7 @@ class VisualComparison:
 
     def _fill_background(self, fill_background_data: Union[bool, str]) -> VisualComparison:
         """
-        Fill background of element
+        Fill background of element.
 
         :param fill_background_data: fill background with given color or black color by default
         :return: VisualComparison
@@ -291,9 +299,9 @@ class VisualComparison:
         return self
 
     def _assert_same_images(self, actual_file: str, reference_file: str, diff_file: str,
-                            threshold: Union[int, float]) -> VisualComparison:
+                            threshold: float) -> VisualComparison:
         """
-        Assert that given images are equal to each other
+        Assert that given images are equal to each other.
 
         :param actual_file: actual image path
         :param reference_file: reference image path
@@ -318,9 +326,12 @@ class VisualComparison:
             height, width, _ = reference_image.shape
             scaled_image = cv2.resize(output_image, (width, height))
             cv2.imwrite(diff_file, scaled_image)
-            raise AssertionError(f"↓\nImage size (width, height) is not same for '{self.screenshot_name}':"
-                                 f"\nExpected: {reference_image.shape[0:2]};"
-                                 f"\nActual: {output_image.shape[0:2]}.") from None
+            msg = (
+                f"↓\nImage size (width, height) is not same for '{self.screenshot_name}':"
+                f"\nExpected: {reference_image.shape[0:2]};"
+                f"\nActual: {output_image.shape[0:2]}."
+            )
+            raise AssertionError(msg) from None
 
         diff, actual_threshold = self._get_difference(reference_image, output_image, threshold)
         is_different = actual_threshold > threshold
@@ -329,23 +340,25 @@ class VisualComparison:
             cv2.imwrite(diff_file, diff)
             self._attach_allure_diff(actual_file, reference_file, diff_file)
 
-        diff_data = ""
+        diff_data = ''
         if self.attach_diff_image_path:
             diff_data = f"\nDiff image {urljoin('file:', diff_file)}"
 
         base_error = f"↓\nVisual mismatch found for '{self.screenshot_name}'{diff_data}"
 
         if is_different:
-            raise AssertionError(f"{base_error}:"
-                                 f"\nThreshold is: {actual_threshold};"
-                                 f"\nPossible threshold is: {threshold}"
-                                 + additional_data) from None
+            raise AssertionError(
+                f'{base_error}:'
+                f'\nThreshold is: {actual_threshold};'
+                f'\nPossible threshold is: {threshold}'
+                + additional_data,
+            ) from None
 
         return self
 
     def _get_screenshot_name(self, test_function_name: str = '', name_suffix: str = '') -> str:
         """
-        Get screenshot name
+        Get screenshot name.
 
         :param test_function_name: execution test name. Will try to find it automatically if empty string given
         :return: custom screenshot filename:
@@ -358,7 +371,8 @@ class VisualComparison:
         """
         test_function_name = test_function_name if test_function_name else getattr(self.test_item, 'name', '')
         if not test_function_name:
-            raise Exception('Draft: provide test item self.test_item')
+            msg = 'Provide VisualComparison.test_item` variable'
+            raise VisualComparisonException(msg)
 
         test_function_name = test_function_name.replace('[', '_')  # required here for better separation
 
@@ -374,12 +388,13 @@ class VisualComparison:
             platform_version = caps['platformVersion']
             screenshot_name = f'{device_name}_v_{platform_version}_appium_{self.driver_wrapper.browser_name}'
         elif self.driver_wrapper.is_selenium:
-            platform_name = self.driver_wrapper.driver.caps["platformName"]
+            platform_name = self.driver_wrapper.driver.caps['platformName']
             screenshot_name = f'{platform_name}_selenium_{self.driver_wrapper.browser_name}'
         elif self.driver_wrapper.is_playwright:
             screenshot_name = f'playwright_{self.driver_wrapper.browser_name}'
         else:
-            raise DriverWrapperException('Cant find current platform')
+            msg = 'Cant find current platform'
+            raise DriverWrapperException(msg)
 
         name_suffix = f'_{name_suffix}_' if name_suffix else '_'
         location_name = self.element_wrapper.name if self.element_wrapper else 'entire_screen'
@@ -398,12 +413,12 @@ class VisualComparison:
 
     def _get_difference(
             self,
-            reference_img: numpy.ndarray,
-            actual_img: numpy.ndarray,
-            possible_threshold: Union[int, float]
-    ) -> tuple[numpy.ndarray, float]:
+            reference_img: np.ndarray,
+            actual_img: np.ndarray,
+            possible_threshold: float,
+    ) -> tuple[np.ndarray, float]:
         """
-        Calculate difference between two images
+        Calculate difference between two images.
 
         :param reference_img: image 1, numpy.ndarray
         :param actual_img: image 2, numpy.ndarray
@@ -421,7 +436,7 @@ class VisualComparison:
         # and is represented as a floating point data type in the range [0,1]
         # so we must convert the array to 8-bit unsigned integers in the range
         # [0,255] before we can use it with OpenCV
-        diff = (diff * 255).astype("uint8")
+        diff = (diff * 255).astype('uint8')
         diff_box = cv2.merge([diff, diff, diff])
 
         # Threshold the difference image, followed by finding contours to
@@ -430,7 +445,7 @@ class VisualComparison:
         contours = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         contours = contours[0] if len(contours) == 2 else contours[1]
 
-        mask = numpy.zeros(reference_img.shape, dtype='uint8')
+        mask = np.zeros(reference_img.shape, dtype='uint8')
         filled_after = actual_img.copy()
         percent_diff = 100 - score
         is_different_enough = percent_diff > possible_threshold
@@ -447,10 +462,10 @@ class VisualComparison:
         diff_image, percent_diff = filled_after, 100 - score
         return diff_image, percent_diff
 
-    def _attach_allure_diff(self, actual_path: str, expected_path: str, diff_path: str = None) -> None:
+    def _attach_allure_diff(self, actual_path: str, expected_path: str, diff_path: Optional[str] = None) -> None:
         """
         Attach screenshots to allure screen diff plugin
-        https://github.com/allure-framework/allure2/blob/master/plugins/screen-diff-plugin/README.md
+        https://github.com/allure-framework/allure2/blob/master/plugins/screen-diff-plugin/README.md.
 
         :param actual_path: path of actual image
         :param expected_path: path of expected image
@@ -478,27 +493,27 @@ class VisualComparison:
             allure.attach(
                 name=f'diff_for_{self.screenshot_name}',
                 body=json.dumps(diff_dict),
-                attachment_type='application/vnd.allure.image.diff'
+                attachment_type='application/vnd.allure.image.diff',
             )
 
     def _disable_reruns(self) -> None:
         """
-        Disable reruns for pytest
+        Disable reruns for pytest.
 
         :return: None
         """
         try:
             pytest_rerun = importlib.import_module('pytest_rerunfailures')
         except ModuleNotFoundError:
-            return None
+            return
 
         if hasattr(self.test_item, 'execution_count'):
             self.test_item.execution_count = pytest_rerun.get_reruns_count(self.test_item) + 1
 
     @staticmethod
-    def _remove_unexpected_underscores(text) -> str:
+    def _remove_unexpected_underscores(text: str) -> str:
         """
-        Remove multiple underscores from given text
+        Remove multiple underscores from given text.
 
         :return: test_screenshot__data___name -> test_screenshot_data_name
         """

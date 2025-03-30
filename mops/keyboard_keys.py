@@ -81,11 +81,10 @@ class PlaywrightKeys:
 
 class Interceptor(type):
 
-    def __getattribute__(self, item):
+    def __getattribute__(cls, item):
         if DriverWrapper.is_selenium:
             return getattr(SeleniumKeys, item)
-        else:
-            return getattr(PlaywrightKeys, item, NotImplementedError(f'Key is not added to Mops framework'))
+        return getattr(PlaywrightKeys, item, NotImplementedError('Key is not added to Mops framework'))
 
 
 class KeyboardKeys(SeleniumKeys, PlaywrightKeys, metaclass=Interceptor):

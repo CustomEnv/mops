@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from mops.abstraction.mixin_abc import MixinABC
-from mops.base.element import Element
 from mops.utils.internal_utils import WAIT_PAGE
 
 if TYPE_CHECKING:
+    from mops.base.element import Element
     from mops.base.page import Page
 
 
@@ -24,7 +24,7 @@ class PageABC(MixinABC, ABC):
         :type wait_page_load: bool
         :return: :obj:`Page` - The current instance of the page object.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def open_page(self, url: str = '') -> Page:
         """
@@ -34,9 +34,9 @@ class PageABC(MixinABC, ABC):
         :type url: str
         :return: :obj:`Page` - The current instance of the page object.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def wait_page_loaded(self, silent: bool = False, timeout: Union[int, float] = WAIT_PAGE) -> Page:
+    def wait_page_loaded(self, silent: bool = False, timeout: float = WAIT_PAGE) -> Page:
         """
         Wait until the page is fully loaded by checking the visibility of the anchor element and other page elements.
 
@@ -49,7 +49,7 @@ class PageABC(MixinABC, ABC):
         :type timeout: Union[int, float]
         :return: :obj:`Page` - The current instance of the page object.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_page_opened(self, with_elements: bool = False, with_url: bool = False) -> bool:
         """
@@ -61,7 +61,7 @@ class PageABC(MixinABC, ABC):
         :type with_url: bool
         :return: :obj:`bool` - `True` if the page is opened, otherwise `False`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def swipe(
             self,
@@ -70,7 +70,7 @@ class PageABC(MixinABC, ABC):
             end_x: int,
             end_y: int,
             duration: int = 0,
-            sleep: Union[int, float] = 0
+            sleep: float = 0,
     ) -> Page:
         """
         Appium only: Swipe from one point to another, with an optional duration and post-swipe delay.
@@ -89,7 +89,7 @@ class PageABC(MixinABC, ABC):
         :type sleep: Union[int, float]
         :return: :obj:`Page` - The current instance of the page object.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def swipe_down(self) -> Page:
         """
@@ -97,7 +97,7 @@ class PageABC(MixinABC, ABC):
 
         :return: :obj:`Page` - The current instance of the page object.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def swipe_up(self) -> Page:
         """
@@ -105,4 +105,4 @@ class PageABC(MixinABC, ABC):
 
         :return: :obj:`Page` - The current instance of the page object.
         """
-        raise NotImplementedError()
+        raise NotImplementedError

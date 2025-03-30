@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC
+from typing import Any
 
-from mops.selenium.core.core_element import CoreElement
 from mops.js_scripts import js_click
+from mops.selenium.core.core_element import CoreElement
 from mops.utils.internal_utils import calculate_coordinate_to_click
 from mops.utils.selector_synchronizer import get_platform_locator, set_selenium_selector
 
@@ -11,13 +12,11 @@ from mops.utils.selector_synchronizer import get_platform_locator, set_selenium_
 class WebElement(CoreElement, ABC):
 
     def __init__(self):
-        """
-        Initializing of web element with selenium driver
-        """
+        """Initialize of web element with selenium driver"""
         self.locator = get_platform_locator(self)
         set_selenium_selector(self)
 
-    def click(self, *, force_wait: bool = True, **kwargs) -> WebElement:
+    def click(self, *, force_wait: bool = True, **kwargs: Any) -> WebElement:
         """
         Clicks on the element.
 

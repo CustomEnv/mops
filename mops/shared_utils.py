@@ -1,13 +1,13 @@
 import io
 import logging
-from subprocess import Popen, PIPE, run
+from subprocess import PIPE, Popen, run
 
 from PIL import Image
 
 
 def _scaled_screenshot(screenshot_binary: bytes, width: int) -> Image:
     """
-    Get scaled screenshot to fit driver window / element size
+    Get scaled screenshot to fit driver window / element size.
 
     :param screenshot_binary: original screenshot binary
     :param width: driver or element width
@@ -55,7 +55,7 @@ def shell_running_command(cmd, **kwargs):
 
 
 def shell_command(cmd,  **kwargs):
-    process = run(cmd, shell=True, **kwargs)
+    process = run(cmd, shell=True, **kwargs, check=False)
 
     if process.stdout:
         process.output = process.stdout.decode('utf8').replace('\n', '')
@@ -69,7 +69,7 @@ def shell_command(cmd,  **kwargs):
 
 def cut_log_data(data: str, length=50) -> str:
     """
-    Cut given data for reducing log length
+    Cut given data for reducing log length.
 
     :param data: original data ~ 'very long string for typing. string endless continues'
     :param length: length to cut given data ~ 20
@@ -81,7 +81,7 @@ def cut_log_data(data: str, length=50) -> str:
 
 def disable_logging(loggers: list) -> None:
     """
-    Disable logging for given loggers
+    Disable logging for given loggers.
 
     :param loggers: list of loggers to be disabled
     :return: None
@@ -92,7 +92,7 @@ def disable_logging(loggers: list) -> None:
 
 def set_log_level(loggers: list, level: int) -> None:
     """
-    Set log level for given loggers
+    Set log level for given loggers.
 
     :param loggers: list of loggers to be disabled
     :param level: level to be set

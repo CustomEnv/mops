@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import InitVar, dataclass
 import typing
-from dataclasses import dataclass, InitVar
 
-from mops.mixins.objects.size import Size
 from mops.utils.internal_utils import get_dict
+
+if typing.TYPE_CHECKING:
+    from mops.mixins.objects.size import Size
 
 
 @dataclass
@@ -15,6 +17,7 @@ class Box:
     The class allows specifying these edges as absolute values or percentages of an image's dimensions.
     It includes methods to fill missing values and calculate the coordinates of the cut box based on an image's size.
     """
+
     left: typing.Union[int, float, None] = None
     top: typing.Union[int, float, None] = None
     right: typing.Union[int, float, None] = None
@@ -50,7 +53,7 @@ class Box:
         width, height = size.width, size.height
         self.fill_values()
 
-        if self.is_percents:  # noqa
+        if self.is_percents:
             left = self.left * width / 100 if self.left else self.left
             top = self.top * height / 100 if self.top else self.top
             right = width - self.right * width / 100 if self.right else width

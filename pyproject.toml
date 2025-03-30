@@ -61,6 +61,7 @@ dev-dependencies = [
     "furo==2024.8.6",
     "sphinx==7.1.2",
     "myst-parser==3.0.1",
+    "ruff==0.11.2",
 ]
 
 [project.urls]
@@ -81,3 +82,50 @@ version = { attr = "mops.__version__" }
 # Temporary workaround for https://github.com/astral-sh/uv/issues/9513, https://github.com/pypa/setuptools/issues/4759
 [tool.setuptools]
 license-files = []
+
+[tool.ruff]
+line-length = 120
+include = ["**/mops/**"]
+target-version = "py37"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D415",  # First line should end with a period, question mark, or exclamation point
+    "D212",  # Multi-line docstring summary should start at the first line
+    "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed
+    "D400",  # First line should end with a period
+    "D100",
+    "D105",  # Missing docstring in magic method
+    "ANN204",  # Missing return type annotation for special method
+    "INP001",
+    "UP006",  # Use `list` instead of `List` for type annotation
+    "D203",
+    "D205",  #  1 blank line required between summary line and description
+    "D213",
+    "B904",  # raise exceptions with `raise ... from err` or `raise ... from None`
+    "FBT001",  # Boolean-typed positional argument in function definition
+    "FBT002",  #  Boolean default positional argument in function definition
+    "SIM114",  #  Boolean default positional argument in function definition
+    "TD",  #  flake8-todos (TD)
+    "FIX",  #  flake8-fixme (FIX)
+    "PTH",  #  flake8-use-pathlib (PTH)
+]
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
+
+[tool.ruff.lint.isort]
+known-first-party = ["mops"]
+combine-as-imports = true
+force-sort-within-sections = true
+
+[tool.ruff.lint.pylint]
+max-args = 15
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.pyupgrade]
+# Preserve types, even if a file imports `from __future__ import annotations`.
+keep-runtime-typing = true
