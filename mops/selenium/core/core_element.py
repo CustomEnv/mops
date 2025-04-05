@@ -40,6 +40,23 @@ if TYPE_CHECKING:
     from mops.base.element import Element
 
 
+def drop_element_cache(obj):
+    obj._element = None
+    if obj.parent:
+        drop_element_cache(obj.parent)
+
+
+def refetch(func):
+
+    def decorator(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except:
+            drop_element_cache(args[0])
+            return func(*args, **kwargs)
+    return decorator
+
+
 class CoreElement(ElementABC, ABC):
 
     parent: Union[Element]
@@ -320,7 +337,7 @@ class CoreElement(ElementABC, ABC):
         is_displayed = self.is_available()
 
         if is_displayed:
-            is_displayed = safe_call(self._cached_element.is_displayed)
+            is_displayed = safe_call(self.element.is_displayed)
 
         if not silent:
             self.log(f'Check displaying of "{self.name}" - {is_displayed}')
@@ -463,20 +480,18 @@ class CoreElement(ElementABC, ABC):
         :param force_wait: force wait for some element
         :return: SeleniumWebElement
         """
-        element = self._element
+        element = None
 
         if wait is True:
             wait = self.wait_visibility
 
-        if not element:
+        # Try to get element instantly without wait. Skipped if force_wait given
+        if not force_wait:
+            element = safe_call(self._find_element, wait_parent=False)
 
-            # Try to get element instantly without wait. Skipped if force_wait given
-            if not force_wait:
-                element = safe_call(self._find_element, wait_parent=False)
-
-            # Wait for element if it is not found instantly
-            if (not element and wait) or force_wait:
-                element = self._get_cached_element(safe_call(wait, silent=True))
+        # Wait for element if it is not found instantly
+        if (not element and wait) or force_wait:
+            element = self._get_cached_element(safe_call(wait, silent=True))
 
         if not element:
             element_info = f'"{self.name}" {self.__class__.__name__}'
@@ -514,6 +529,7 @@ class CoreElement(ElementABC, ABC):
 
         return base
 
+    @refetch
     def _find_element(self, wait_parent: bool = False) -> Union[SeleniumWebElement, AppiumWebElement]:
         """
         Find selenium/appium element
@@ -522,11 +538,13 @@ class CoreElement(ElementABC, ABC):
         :return: SeleniumWebElement or AppiumWebElement
         """
         base = self._get_base(wait=wait_parent)
-        self._cached_element = None
+
+        if self._element:
+            return self._element
 
         try:
             element = base.find_element(self.locator_type, self.locator)
-            self._cached_element = element
+            self._element = element
             return element
         except (SeleniumInvalidArgumentException, SeleniumInvalidSelectorException) as exc:
             self._raise_invalid_selector_exception(exc)
@@ -541,13 +559,12 @@ class CoreElement(ElementABC, ABC):
         :return: list of SeleniumWebElement or AppiumWebElement
         """
         base = self._get_base(wait=wait_parent)
-        self._cached_element = None
 
         try:
             elements = base.find_elements(self.locator_type, self.locator)
 
             if elements:
-                self._cached_element = elements[0]
+                self._element = elements[0]
 
             return elements
         except (SeleniumInvalidArgumentException, InvalidSelectorException) as exc:
@@ -594,4 +611,4 @@ class CoreElement(ElementABC, ABC):
         :param obj: CoreElement object
         :return: None, SeleniumWebElement, AppiumWebElement
         """
-        return getattr(obj, '_cached_element', None)
+        return getattr(obj, '_element', None)
