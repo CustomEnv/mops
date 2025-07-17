@@ -21,8 +21,22 @@ class LocatorType:
         For better readability, you can use this class with the following syntax:
 
         - :obj:`Element(f'{LocatorType.XPATH}=//*[@class="class-name"]')`
+        - :obj:`Element(f'{LocatorType.ANDROID_UIAUTOMATOR}=//*[@class="class-name"]')`
     """
     CSS: str = 'css'
     XPATH: str = 'xpath'
     ID: str = 'id'
     TEXT: str = 'text'
+
+    # Appium mobile native context
+    IOS_PREDICATE: str = '-ios predicate string'
+    IOS_UIAUTOMATION: str = '-ios uiautomation'
+    IOS_CLASS_CHAIN: str = '-ios class chain'
+    ANDROID_UIAUTOMATOR: str = '-android uiautomator'
+    ANDROID_VIEWTAG: str = '-android viewtag'
+    ANDROID_DATA_MATCHER: str = '-android datamatcher'
+    ANDROID_VIEW_MATCHER: str = '-android viewmatcher'
+    WINDOWS_UI_AUTOMATION: str = '-windows uiautomation'
+    ACCESSIBILITY_ID: str = 'accessibility id'
+    IMAGE: str = '-image'
+    CUSTOM: str = '-custom'

@@ -15,6 +15,19 @@ DEFAULT_MATCH = (f"{LocatorType.XPATH}=", f"{LocatorType.ID}=", f"{LocatorType.C
 XPATH_MATCH = ("/", "./", "(/")
 CSS_MATCH = ("#", ".")
 CSS_REGEXP = r"[#.\[\]=]"
+APPIUM_LOCATOR_TYPES = [
+    LocatorType.IOS_PREDICATE,
+    LocatorType.IOS_UIAUTOMATION,
+    LocatorType.IOS_CLASS_CHAIN,
+    LocatorType.ANDROID_UIAUTOMATOR,
+    LocatorType.ANDROID_VIEWTAG,
+    LocatorType.ANDROID_DATA_MATCHER,
+    LocatorType.ANDROID_VIEW_MATCHER,
+    LocatorType.WINDOWS_UI_AUTOMATION,
+    LocatorType.ACCESSIBILITY_ID,
+    LocatorType.IMAGE,
+    LocatorType.CUSTOM,
+]
 
 
 def get_platform_locator(obj: Any):
@@ -147,8 +160,11 @@ def set_appium_selector(obj: Any):
 
     locator = obj.locator.strip()
 
-    # Mobile com.android selector
-
-    if ':id' in locator:
+    if ':id/' in locator:  # Mobile com.android selector
         obj.locator_type = By.CSS_SELECTOR
         obj.log_locator = f'{LocatorType.ID}={locator}'
+    elif '=' in locator and any([f'{locator_type}=' in locator for locator_type in APPIUM_LOCATOR_TYPES]):
+        partition = locator.partition('=')
+        obj.locator_type = partition[0]
+        obj.locator = partition[-1]
+        obj.log_locator = locator

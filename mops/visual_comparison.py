@@ -319,8 +319,8 @@ class VisualComparison:
             scaled_image = cv2.resize(output_image, (width, height))
             cv2.imwrite(diff_file, scaled_image)
             raise AssertionError(f"↓\nImage size (width, height) is not same for '{self.screenshot_name}':"
-                                 f"\nExpected: {reference_image.shape[0:2]};"
-                                 f"\nActual: {output_image.shape[0:2]}.") from None
+                                 f"\nExpected: {self._get_image_size_from_shape(reference_image.shape)};"
+                                 f"\nActual: {self._get_image_size_from_shape(output_image.shape)}.") from None
 
         diff, actual_threshold = self._get_difference(reference_image, output_image, threshold)
         is_different = actual_threshold > threshold
@@ -503,3 +503,12 @@ class VisualComparison:
         :return: test_screenshot__data___name -> test_screenshot_data_name
         """
         return re.sub(r'_{2,}', '_', text)
+
+    def _get_image_size_from_shape(self, shape: tuple) -> tuple:
+        """
+        Get image size (width, height) from shape
+
+        :param shape: shape tuple from numpy.ndarray
+        :return: (width, height)
+        """
+        return shape[1], shape[0]
