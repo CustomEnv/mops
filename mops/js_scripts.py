@@ -46,7 +46,7 @@ function appendElement(given_obj) {
     const driverWrapperObj = document.createElement("div");
 
     driverWrapperObj.style.zIndex = 9999999;
-    driverWrapperObj.setAttribute("class", "driver-wrapper-comparison-support-element");
+    driverWrapperObj.setAttribute("class", "driver-wrapper-visual-comparison-support-element");
     driverWrapperObj.style.backgroundColor = "#000";
 
     // Determine position type based on scroll position

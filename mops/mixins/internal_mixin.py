@@ -3,17 +3,10 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Any
 
-from appium.webdriver.common.appiumby import AppiumBy
-
 from mops.utils.internal_utils import (
     get_child_elements_with_names,
-    get_child_elements,
     get_all_attributes_from_object,
 )
-
-
-all_locator_types = get_child_elements(AppiumBy, str)
-available_kwarg_keys = ('desktop', 'mobile', 'ios', 'android')
 
 
 def get_element_info(element: Any, label: str = 'Selector=') -> str:
