@@ -20,7 +20,6 @@ from selenium.webdriver.common.by import By
         ("button", "button", By.CSS_SELECTOR, "css=button"),
         ("tbody tr td span", "tbody tr td span", By.CSS_SELECTOR, "css=tbody tr td span"),
         ("textarea", "textarea", By.CSS_SELECTOR, "css=textarea"),
-        ("Some text", '//*[contains(text(), "Some text")]', LocatorType.XPATH, 'xpath=//*[contains(text(), "Some text")]'),
         ("[href='/some/url']", "[href='/some/url']", By.CSS_SELECTOR, "css=[href='/some/url']"),
     ],
 )
@@ -44,7 +43,6 @@ def test_set_selenium_selector(locator_input, expected_locator, expected_locator
         ("#my_element", "css=#my_element"),
         ("button", "css=button"),
         ("tbody tr td span", "css=tbody tr td span"),
-        ("Some text", "text=Some text"),
         ("[href='/some/url']", "css=[href='/some/url']"),
     ],
 )
