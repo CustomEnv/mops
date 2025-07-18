@@ -32,13 +32,16 @@ class WebDriver(CoreDriver):
         :param size: The desired inner window size as a :class:`.Size` object.
         :return: The current instance of :obj:`.WebDriver`.
         """
-        outer_width, outer_height = astuple(self.get_window_size())
-        inner_width, inner_height = astuple(self.get_inner_window_size())
+        width, height = astuple(size)
 
-        width_diff = outer_width - inner_width
-        height_diff = outer_height - inner_height
+        if self.is_desktop:
+            outer_width, outer_height = astuple(self.get_window_size())
+            inner_width, inner_height = astuple(self.get_inner_window_size())
 
-        self.driver.set_window_size(size.width + width_diff, size.height + height_diff)
+            width += outer_width - inner_width
+            height += outer_height - inner_height
+
+        self.driver.set_window_size(width, height)
         return self
 
     def get_all_tabs(self) -> List[str]:

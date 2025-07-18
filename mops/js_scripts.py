@@ -46,7 +46,7 @@ function appendElement(given_obj) {
     driver_wrapper_obj = document.createElement("div");
 
     driver_wrapper_obj.style.zIndex=9999999;
-    driver_wrapper_obj.setAttribute("class","driver-wrapper-comparison-support-element");
+    driver_wrapper_obj.setAttribute("class", "driver-wrapper-visual-comparison-support-element");
 
     driver_wrapper_obj.style.position = "absolute";
     driver_wrapper_obj.style.backgroundColor = "#000";
