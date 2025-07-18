@@ -15,6 +15,19 @@ DEFAULT_MATCH = (f"{LocatorType.XPATH}=", f"{LocatorType.ID}=", f"{LocatorType.C
 XPATH_MATCH = ("/", "./", "(/")
 CSS_MATCH = ("#", ".")
 CSS_REGEXP = r"[#.\[\]=]"
+APPIUM_LOCATOR_TYPES = (
+    f'{LocatorType.IOS_PREDICATE}=',
+    f'{LocatorType.IOS_UIAUTOMATION}=',
+    f'{LocatorType.IOS_CLASS_CHAIN}=',
+    f'{LocatorType.ANDROID_UIAUTOMATOR}=',
+    f'{LocatorType.ANDROID_VIEWTAG}=',
+    f'{LocatorType.ANDROID_DATA_MATCHER}=',
+    f'{LocatorType.ANDROID_VIEW_MATCHER}=',
+    f'{LocatorType.WINDOWS_UI_AUTOMATION}=',
+    f'{LocatorType.ACCESSIBILITY_ID}=',
+    f'{LocatorType.IMAGE}=',
+    f'{LocatorType.CUSTOM}=',
+)
 
 
 def get_platform_locator(obj: Any):
@@ -89,11 +102,6 @@ def set_selenium_selector(obj: Any):
         obj.locator_type = By.CSS_SELECTOR
         obj.log_locator = f'{LocatorType.CSS}={locator}'
 
-    elif " " in locator:
-        obj.locator = f'//*[contains(text(), "{locator}")]'
-        obj.locator_type = By.XPATH
-        obj.log_locator = f'{LocatorType.XPATH}={obj.locator}'
-
     # Default to ID if nothing else matches
 
     else:
@@ -127,9 +135,6 @@ def set_playwright_locator(obj: Any):
     elif locator in all_tags or all(tag in all_tags for tag in locator.split()):
         obj.locator_type = LocatorType.CSS
 
-    elif " " in locator:
-        obj.locator_type = LocatorType.TEXT
-
     # Default to ID if nothing else matches
 
     else:
@@ -147,8 +152,11 @@ def set_appium_selector(obj: Any):
 
     locator = obj.locator.strip()
 
-    # Mobile com.android selector
-
-    if ':id' in locator:
+    if ':id/' in locator:  # Mobile com.android selector
         obj.locator_type = By.CSS_SELECTOR
         obj.log_locator = f'{LocatorType.ID}={locator}'
+    elif locator.startswith(APPIUM_LOCATOR_TYPES):
+        partition = locator.partition('=')
+        obj.locator_type = partition[0]
+        obj.locator = partition[-1]
+        obj.log_locator = locator
