@@ -56,6 +56,7 @@ def _set_selenium_compatibility_id_locator(obj: Any, split: bool = True) -> Any:
 
     obj.locator = f'[{LocatorType.ID}="{locator}"]'
     obj.locator_type = By.CSS_SELECTOR
+    obj.log_locator = f'{LocatorType.ID}={locator}'
 
 
 def get_platform_locator(obj: Any):
@@ -94,6 +95,7 @@ def set_selenium_selector(obj: Any):
     Sets selenium locator & locator type
     """
     locator = obj.locator.strip()
+    obj.log_locator = locator
 
     # Checking the supported locators
 
@@ -117,20 +119,20 @@ def set_selenium_selector(obj: Any):
 
     elif locator.startswith(_XPATH_MATCH):
         obj.locator_type = By.XPATH
+        obj.log_locator = f'{LocatorType.XPATH}={locator}'
 
     elif locator.startswith(_CSS_MATCH) or re.search(_CSS_REGEXP, locator):
         obj.locator_type = By.CSS_SELECTOR
+        obj.log_locator = f'{LocatorType.CSS}={locator}'
 
     elif locator in all_tags or all(tag in all_tags for tag in locator.split()):
         obj.locator_type = By.CSS_SELECTOR
+        obj.log_locator = f'{LocatorType.CSS}={locator}'
 
     # Default to ID if nothing else matches
 
     else:
         _set_selenium_compatibility_id_locator(obj, split=False)
-
-    mops_locator_type = _SELENIUM_MOPS_LOCATOR_TYPES[obj.locator_type]
-    obj.log_locator = f'{mops_locator_type}={obj.locator}'
 
 
 def set_playwright_locator(obj: Any):
@@ -178,7 +180,6 @@ def set_appium_selector(obj: Any):
     # Mobile com.android selector
     if ':id/' in locator and not locator.startswith(_APPIUM_MATCH):
         _set_selenium_compatibility_id_locator(obj)
-        obj.log_locator = f'{LocatorType.CSS}={obj.locator}'
     elif locator.startswith(_APPIUM_LOCATOR_TYPES):
         partition = locator.partition('=')
         obj.locator_type = partition[0]

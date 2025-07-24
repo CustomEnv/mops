@@ -12,9 +12,10 @@ from selenium.webdriver.common.by import By
     "locator_input, expected_locator, expected_locator_type, expected_log_locator",
     [
         ("xpath=//div", "//div", LocatorType.XPATH, "xpath=//div"),
-        ("text=Hello", '//*[contains(text(), "Hello")]', LocatorType.XPATH, 'xpath=//*[contains(text(), "Hello")]'),
+        ("text=Hello", '//*[contains(text(), "Hello")]', LocatorType.XPATH, 'text=Hello'),
         ("css=.class", ".class", By.CSS_SELECTOR, "css=.class"),
-        ("id=my_id", '[id="my_id"]', By.CSS_SELECTOR, 'css=[id="my_id"]'),
+        ("id=my_id", '[id="my_id"]', By.CSS_SELECTOR, 'id=my_id'),
+        ("todefault", '[id="todefault"]', By.CSS_SELECTOR, 'id=todefault'),
         ("/html/body/div", "/html/body/div", LocatorType.XPATH, "xpath=/html/body/div"),
         ("#my_element", "#my_element", By.CSS_SELECTOR, "css=#my_element"),
         ("button", "button", By.CSS_SELECTOR, "css=button"),
@@ -39,6 +40,7 @@ def test_set_selenium_selector(locator_input, expected_locator, expected_locator
         ("text=Hello", "text=Hello"),
         ("css=.class", "css=.class"),
         ("id=my_id", "id=my_id"),
+        ("todefault", 'id=todefault'),
         ("/html/body/div", "xpath=/html/body/div"),
         ("#my_element", "css=#my_element"),
         ("button", "css=button"),
@@ -87,8 +89,8 @@ def test_set_appium_native_selector(locator, locator_type):
 @pytest.mark.parametrize(
     "locator, source_locator_type, expected_locator, expected_log_locator",
     [
-        (f'id={com_android_locator}', By.CSS_SELECTOR, f'[id="{com_android_locator}"]', f'css=[id="{com_android_locator}"]'),
-        (com_android_locator, By.CSS_SELECTOR, f'[id="{com_android_locator}"]', f'css=[id="{com_android_locator}"]'),
+        (f'id={com_android_locator}', By.CSS_SELECTOR, f'[id="{com_android_locator}"]', f'id={com_android_locator}'),
+        (com_android_locator, By.CSS_SELECTOR, f'[id="{com_android_locator}"]', f'id={com_android_locator}'),
     ],
 )
 def test_set_automatically_appium_selector(locator, source_locator_type, expected_locator, expected_log_locator):
