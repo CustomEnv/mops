@@ -89,15 +89,21 @@ class CoreDriver(Logging, DriverWrapperABC):
         """
         return Size(**self.driver.get_window_size())
 
-    def wait(self, timeout: Union[int, float] = WAIT_UNIT) -> CoreDriver:
+    def wait(self, timeout: Union[int, float] = WAIT_UNIT, reason: str = '') -> CoreDriver:
         """
         Pauses the execution for a specified amount of time.
 
         :param timeout: The time to sleep in seconds (can be an integer or float).
         :type timeout: typing.Union[int, float]
 
+        :param reason: The waiting reason.
+        :type reason: str
+
         :return: :obj:`.CoreDriver` - The current instance of the driver wrapper.
         """
+        if reason:
+            self.log(reason)
+
         time.sleep(timeout)
         return self
 

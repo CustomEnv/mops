@@ -95,12 +95,15 @@ class DriverWrapperABC(ABC):
         """
         raise NotImplementedError()
 
-    def wait(self, timeout: Union[int, float] = WAIT_UNIT) -> DriverWrapper:
+    def wait(self, timeout: Union[int, float] = WAIT_UNIT, reason: str = '') -> DriverWrapper:
         """
         Pauses the execution for a specified amount of time.
 
         :param timeout: The time to sleep in seconds (can be an integer or float).
         :type timeout: typing.Union[int, float]
+
+        :param reason: The waiting reason.
+        :type reason: str
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """

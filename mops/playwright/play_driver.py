@@ -66,15 +66,21 @@ class PlayDriver(Logging, DriverWrapperABC):
         """
         return self.browser_name.lower() == 'firefox'
 
-    def wait(self, timeout: Union[int, float] = WAIT_UNIT) -> PlayDriver:
+    def wait(self, timeout: Union[int, float] = WAIT_UNIT, reason: str = '') -> PlayDriver:
         """
         Pauses the execution for a specified amount of time.
 
         :param timeout: The time to sleep in seconds (can be an integer or float).
         :type timeout: typing.Union[int, float]
 
+        :param reason: The waiting reason.
+        :type reason: str
+
         :return: :obj:`.PlayDriver` - The current instance of the driver wrapper.
         """
+        if reason:
+            self.log(reason)
+
         self.driver.wait_for_timeout(get_timeout_in_ms(timeout))
         return self
 
