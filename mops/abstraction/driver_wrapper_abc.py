@@ -310,6 +310,14 @@ class DriverWrapperABC(ABC):
         """
         raise NotImplementedError()
 
+    def get_scroll_position(self) -> int:
+        """
+        Returns the current vertical scroll position of the page.
+
+        :return: :class:`int` - Current vertical scroll offset in pixels.
+        """
+        raise NotImplementedError()
+
     def assert_screenshot(
             self,
             filename: str = '',
