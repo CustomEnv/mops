@@ -251,15 +251,15 @@ class PlayDriver(Logging, DriverWrapperABC):
         self.driver = self._base_driver
         return self
 
-    def execute_script(self, script: str, *args) -> Any:
+    def execute_script(self, script: str, *args: Any) -> Any:
         """
         Synchronously executes JavaScript in the current window or frame.
         Compatible with Selenium's `execute_script` method.
 
         :param script: The JavaScript code to execute.
         :type script: str
-        :param args: Any arguments to pass to the JavaScript (e.g., Element object).
-        :type args: list
+        :param args: Any arguments to pass to the JavaScript.
+        :type args: :obj:`typing.Any`
         :return: :obj:`typing.Any` - The result of the JavaScript execution.
         """
         script = script.replace('return ', '')

@@ -220,6 +220,14 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
 
         return image_object
 
+    def get_scroll_position(self) -> int:
+        """
+        Returns the current vertical scroll position of the page.
+
+        :return: :class:`int` - Current vertical scroll offset in pixels.
+        """
+        return self.execute_script('return window.pageYOffset')
+
     def assert_screenshot(
             self,
             filename: str = '',

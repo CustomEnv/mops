@@ -266,14 +266,14 @@ class ElementABC(MixinABC, ABC):
         """
         raise NotImplementedError()
 
-    def execute_script(self, script: str, *args) -> Any:
+    def execute_script(self, script: str, *args: Any) -> Any:
         """
         Executes a JavaScript script on the element.
 
         :param script: JavaScript code to be executed, referring to the element as ``arguments[0]``.
         :type script: str
-        :param args: Additional arguments for the script,
-          that appear in script as ``arguments[1]`` ``arguments[2]`` etc.
+        :param args: Any arguments to pass to the JavaScript.
+        :type args: :obj:`typing.Any`
         :return: :obj:`typing.Any` result from the script.
         """
         raise NotImplementedError()

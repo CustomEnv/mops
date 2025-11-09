@@ -23,7 +23,6 @@ from mops.selenium.sel_utils import ActionChains
 from mops.js_scripts import get_element_size_js, get_element_position_on_screen_js, hide_caret_js_script
 from mops.keyboard_keys import KeyboardKeys
 from mops.mixins.objects.location import Location
-from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes, scroll_into_view_blocks
 from mops.mixins.objects.size import Size
 from mops.shared_utils import cut_log_data, _scaled_screenshot
 from mops.utils.internal_utils import WAIT_EL, safe_call, get_dict, is_group
@@ -205,38 +204,6 @@ class CoreElement(ElementABC, ABC):
         return self
 
     # Element state
-
-    def scroll_into_view(
-            self,
-            block: ScrollTo = ScrollTo.CENTER,
-            behavior: ScrollTypes = ScrollTypes.INSTANT,
-            sleep: Union[int, float] = 0,
-            silent: bool = False,
-    ) -> CoreElement:
-        """
-        Scrolls the element into view using a JavaScript script.
-
-        :param block: The scrolling block alignment. One of the :class:`.ScrollTo` options.
-        :type block: ScrollTo
-        :param behavior: The scrolling behavior. One of the :class:`.ScrollTypes` options.
-        :type behavior: ScrollTypes
-        :param sleep: Delay in seconds after scrolling. Can be an integer or a float.
-        :type sleep: typing.Union[int, float]
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`CoreElement`
-        """
-        if not silent:
-            self.log(f'Scroll element "{self.name}" into view')
-
-        assert block in scroll_into_view_blocks, f'Provide one of {scroll_into_view_blocks} option in `block` argument'
-
-        self.execute_script(f'arguments[0].scrollIntoView({{block: "{block}", behavior: "{behavior}"}});')
-
-        if sleep:
-            time.sleep(sleep)
-
-        return self
 
     def screenshot_image(self, screenshot_base: bytes = None) -> Image:
         """

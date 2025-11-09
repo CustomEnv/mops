@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import time
 from copy import copy
 from typing import Union, List, Type, Tuple, Optional, TYPE_CHECKING
 
 from PIL.Image import Image
 
+from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes, scroll_into_view_blocks
 from mops.mixins.objects.wait_result import Result
 from playwright.sync_api import Page as PlaywrightDriver
 from appium.webdriver.webdriver import WebDriver as AppiumDriver
@@ -696,6 +698,43 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
 
         return is_visible
 
+    def scroll_into_view(
+            self,
+            block: ScrollTo = ScrollTo.CENTER,
+            behavior: ScrollTypes = ScrollTypes.INSTANT,
+            sleep: Union[int, float] = 0,
+            silent: bool = False,
+    ) -> Element:
+        """
+        Scrolls the element into view using a JavaScript script.
+
+        :param block: The scrolling block alignment. One of the :class:`.ScrollTo` options.
+        :type block: ScrollTo
+        :param behavior: The scrolling behavior. One of the :class:`.ScrollTypes` options.
+        :type behavior: ScrollTypes
+        :param sleep: Delay in seconds after scrolling. Can be an integer or a float.
+        :type sleep: typing.Union[int, float]
+        :param silent: If :obj:`True`, suppresses logging.
+        :type silent: bool
+        :return: :class:`Element`
+        """
+        if not silent:
+            self.log(f'Scroll element "{self.name}" into view')
+
+        if block not in scroll_into_view_blocks:
+            message = f'Provide one of {scroll_into_view_blocks} option in `block` argument'
+            raise UnsuitableArgumentsException(message)
+
+        self.execute_script(
+            'arguments[0].scrollIntoView({block: arguments[1], behavior: arguments[2]});',
+            block, behavior
+        )
+
+        if sleep:
+            time.sleep(sleep)
+
+        return self
+
     def save_screenshot(
             self,
             file_name: str,
@@ -735,14 +774,14 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
         self.execute_script('arguments[0].style.opacity = "0";')
         return self
 
-    def execute_script(self, script: str, *args) -> Any:
+    def execute_script(self, script: str, *args: Any) -> Any:
         """
         Executes a JavaScript script on the element.
 
         :param script: JavaScript code to be executed, referring to the element as ``arguments[0]``.
         :type script: str
-        :param args: Additional arguments for the script,
-          that appear in script as ``arguments[1]`` ``arguments[2]`` etc.
+        :param args: Any arguments to pass to the JavaScript.
+        :type args: :obj:`typing.Any`
         :return: :obj:`typing.Any` result from the script.
         """
         return self.driver_wrapper.execute_script(script, *[self, *[arg for arg in args]])
