@@ -266,6 +266,14 @@ class ElementABC(MixinABC, ABC):
         """
         raise NotImplementedError()
 
+    def show(self) -> Element:
+        """
+        Shows the element.
+
+        :return: :class:`Element`
+        """
+        raise NotImplementedError()
+
     def execute_script(self, script: str, *args: Any) -> Any:
         """
         Executes a JavaScript script on the element.

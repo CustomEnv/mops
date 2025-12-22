@@ -7,6 +7,7 @@ from typing import Union, List, Type, Tuple, Optional, TYPE_CHECKING
 from PIL.Image import Image
 
 from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes, scroll_into_view_blocks
+from mops.mixins.objects.visual_comaprison_mixin import hide_before_screenshot, reveal_after_screenshot
 from mops.mixins.objects.wait_result import Result
 from playwright.sync_api import Page as PlaywrightDriver
 from appium.webdriver.webdriver import WebDriver as AppiumDriver
@@ -774,6 +775,15 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
         self.execute_script('arguments[0].style.opacity = "0";')
         return self
 
+    def show(self) -> Element:
+        """
+        Shows the element.
+
+        :return: :class:`Element`
+        """
+        self.execute_script('arguments[0].style.opacity = "1";')
+        return self
+
     def execute_script(self, script: str, *args: Any) -> Any:
         """
         Executes a JavaScript script on the element.
@@ -836,16 +846,19 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
         delay = delay or VisualComparison.default_delay
         remove = [remove] if type(remove) is not list and remove else remove
 
-        if hide:
-            if not isinstance(hide, list):
-                hide = [hide]
-            for object_to_hide in hide:
-                object_to_hide.hide()
+        if scroll:
+            self.scroll_into_view()
+
+        hide_before_screenshot(hide, is_optional=False, dw=self.driver_wrapper)
+        self.driver_wrapper.wait(delay)
+        hide_before_screenshot(VisualComparison.always_hide, is_optional=False, dw=self.driver_wrapper)
 
         VisualComparison(self.driver_wrapper, self).assert_screenshot(
-            filename=filename, test_name=test_name, name_suffix=name_suffix, threshold=threshold, delay=delay,
-            scroll=scroll, remove=remove, fill_background=fill_background, cut_box=cut_box
+            filename=filename, test_name=test_name, name_suffix=name_suffix, threshold=threshold,
+            remove=remove, fill_background=fill_background, cut_box=cut_box
         )
+
+        reveal_after_screenshot(VisualComparison.always_hide, dw=self.driver_wrapper)
 
     def soft_assert_screenshot(
             self,

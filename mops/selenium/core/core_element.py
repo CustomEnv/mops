@@ -215,8 +215,9 @@ class CoreElement(ElementABC, ABC):
         :type screenshot_base: bytes
         :return: :class:`PIL.Image.Image`
         """
+        element_size = self.size.width
         screenshot_base = screenshot_base if screenshot_base else self.screenshot_base
-        return _scaled_screenshot(screenshot_base, self.size.width)
+        return _scaled_screenshot(screenshot_base, element_size)
 
     @property
     def screenshot_base(self) -> bytes:
