@@ -141,7 +141,6 @@ def test_assert_screenshot_negative_different_sizes(second_playground_page, driv
     filename = vc._get_screenshot_name()
     vc._save_screenshot(
         screenshot_name=f'tests/adata/visual/reference/{filename}.png',
-        delay=1,
         remove=[],
         fill_background=False,
         cut_box=None,
@@ -161,7 +160,6 @@ def test_assert_screenshot_negative_missmatch(second_playground_page, driver_wra
     filename = vc._get_screenshot_name()
     vc._save_screenshot(
         screenshot_name=f'tests/adata/visual/reference/{filename}.png',
-        delay=1,
         remove=[],
         fill_background=False,
         cut_box=None,
