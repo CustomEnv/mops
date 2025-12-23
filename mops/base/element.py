@@ -766,21 +766,31 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
 
         return image_object
 
-    def hide(self) -> Element:
+    def hide(self, silent: bool = False) -> Element:
         """
-        Hides the element.
+        Make the element invisible by setting its opacity to 0.
 
+        :param silent: If :obj:`True`, suppresses logging.
+        :type silent: bool
         :return: :class:`Element`
         """
+        if not silent:
+            self.log(f'Hiding element "{self.name}"')
+
         self.execute_script('arguments[0].style.opacity = "0";')
         return self
 
-    def show(self) -> Element:
+    def show(self, silent: bool = False) -> Element:
         """
-        Shows the element.
+        Make the element visible by setting its opacity to 1.
 
+        :param silent: If :obj:`True`, suppresses logging.
+        :type silent: bool
         :return: :class:`Element`
         """
+        if not silent:
+            self.log(f'Showing element "{self.name}"')
+
         self.execute_script('arguments[0].style.opacity = "1";')
         return self
 
