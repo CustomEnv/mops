@@ -274,7 +274,7 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
 
         hide_before_screenshot(hide, is_optional=False, dw=self)
         self.wait(delay)
-        hide_before_screenshot(VisualComparison.always_hide, is_optional=False, dw=self)
+        hide_before_screenshot(VisualComparison.always_hide, is_optional=True, dw=self)
 
         VisualComparison(self).assert_screenshot(
             filename=filename, test_name=test_name, name_suffix=name_suffix, threshold=threshold,
