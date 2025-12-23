@@ -70,7 +70,7 @@ return appendElement(arguments[0]);
 """
 
 
-hide_caret_js_script = 'document.activeElement.blur();'
+hide_caret_js_script = "arguments[0].style.caretColor = 'transparent';"
 
 
 add_driver_index_comment_js = """
