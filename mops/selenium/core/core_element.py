@@ -181,7 +181,7 @@ class CoreElement(ElementABC, ABC):
 
         try:
             if not self.is_checked():
-                self.click(with_wait=False)
+                self.click(force_wait=False)
         finally:
             self.element = None
 
@@ -197,7 +197,7 @@ class CoreElement(ElementABC, ABC):
 
         try:
             if self.is_checked():
-                self.click(with_wait=False)
+                self.click(force_wait=False)
         finally:
             self.element = None
 
