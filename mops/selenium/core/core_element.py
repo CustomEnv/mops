@@ -107,6 +107,8 @@ class CoreElement(ElementABC, ABC):
             return self
         except SeleniumWebDriverException as exc:
             selenium_exc_msg = exc.msg
+        finally:
+            self.element = None  # FIXME
 
         raise ElementNotInteractableException(
             f'Element "{self.name}" not interactable. {self.get_element_info()}. '
