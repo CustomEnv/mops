@@ -123,7 +123,7 @@ def test_get_container_error_msg(forms_page):
 @pytest.mark.skip_platform('playwright', reason='selenium only')
 def test_get_element_error_msg(forms_page):
     try:
-        Element('some_element')._get_element(wait=False)
+        Element('some_element')._get_element(wait_strategy=False)
     except NoSuchElementException as exc:
         assert """Unable to locate the "some_element" Element. Selector='id=some_element'""" == exc.msg
     else:
@@ -135,7 +135,7 @@ def test_get_element_error_msg(forms_page):
 def test_get_element_with_element_container_error_msg(forms_page):
     try:
         container = Element(forms_page.controls_form.locator, name='another element as container')
-        Element('some_element', parent=container)._get_element(wait=False)
+        Element('some_element', parent=container)._get_element(wait_strategy=False)
     except NoSuchElementException as exc:
         assert """Unable to locate the "some_element" Element. Selector='xpath=//*[contains(@class, "card") and .//.="Basic Form Controls"] >> id=some_element'""" in exc.msg, exc.msg
         assert """WARNING: Located 2 elements for "another element as container" container""" in exc.msg, exc.msg
