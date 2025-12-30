@@ -107,8 +107,6 @@ class CoreElement(ElementABC, ABC):
             return self
         except SeleniumWebDriverException as exc:
             selenium_exc_msg = exc.msg
-        finally:
-            self.element = None  # FIXME
 
         raise ElementNotInteractableException(
             f'Element "{self.name}" not interactable. {self.get_element_info()}. '
@@ -179,7 +177,7 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`CoreElement`
         """
-        self.element = self._get_element(wait=self.wait_availability)
+        self.element = self._get_element(wait_strategy=self.wait_availability)
 
         try:
             if not self.is_checked():
@@ -195,7 +193,7 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`CoreElement`
         """
-        self.element = self._get_element(wait=self.wait_availability)
+        self.element = self._get_element(wait_strategy=self.wait_availability)
 
         try:
             if self.is_checked():
@@ -240,7 +238,7 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`str` - element text
         """
-        element = self._get_element(wait=self.wait_availability)
+        element = self._get_element(wait_strategy=self.wait_availability)
 
         if self.driver_wrapper.is_safari:
             return element.get_attribute('innerText')
@@ -272,12 +270,15 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`bool` - :obj:`True` if present in DOM
         """
+        if self._element:
+            return self._is_element_still_available(self._element)
+
         try:
-            element = safe_call(self._find_element, wait_parent=False)
+            element = bool(safe_call(self._find_element, wait_parent=False))
         except SeleniumInvalidSelectorException as exc:
             raise InvalidSelectorException(exc.msg)
 
-        return bool(element)
+        return element
 
     def is_displayed(self, silent: bool = False) -> bool:
         """
@@ -290,7 +291,8 @@ class CoreElement(ElementABC, ABC):
         is_displayed = self.is_available()
 
         if is_displayed:
-            is_displayed = safe_call(self._cached_element.is_displayed)
+            desired_element = self._element or self._cached_element
+            is_displayed = bool(safe_call(desired_element.is_displayed))
 
         if not silent:
             self.log(f'Check displaying of "{self.name}" - {is_displayed}')
@@ -404,7 +406,7 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`bool` - :obj:`True` if the checkbox or radio button is checked, :obj:`False` otherwise.
         """
-        return self._get_element(wait=self.wait_availability).is_selected()
+        return self._get_element(wait_strategy=self.wait_availability).is_selected()
 
     # Mixin
 
@@ -425,18 +427,20 @@ class CoreElement(ElementABC, ABC):
         """
         return ActionChains(self.driver)
 
-    def _get_element(self, wait: Union[bool, Callable] = True, force_wait: bool = False) -> SeleniumWebElement:
+    def _get_element(self, wait_strategy: Union[bool, Callable] = True, force_wait: bool = False) -> SeleniumWebElement:
         """
         Get selenium element from driver or parent element
 
-        :param wait: wait strategy for element and/or element parent before grab
+        :param wait_strategy: wait strategy for element and/or element parent before grab
         :param force_wait: force wait for some element
         :return: SeleniumWebElement
         """
-        element = self._element
+        element = None
+        if self._is_element_still_available(self._element):
+            element = self._element
 
-        if wait is True:
-            wait = self.wait_visibility
+        if wait_strategy is True:
+            wait_strategy = self.wait_visibility
 
         if not element:
 
@@ -445,8 +449,8 @@ class CoreElement(ElementABC, ABC):
                 element = safe_call(self._find_element, wait_parent=False)
 
             # Wait for element if it is not found instantly
-            if (not element and wait) or force_wait:
-                element = self._get_cached_element(safe_call(wait, silent=True))
+            if (not element and wait_strategy) or force_wait:
+                element = self._get_cached_element(safe_call(wait_strategy, silent=True))
 
         if not element:
             element_info = f'"{self.name}" {self.__class__.__name__}'
@@ -565,3 +569,15 @@ class CoreElement(ElementABC, ABC):
         :return: None, SeleniumWebElement, AppiumWebElement
         """
         return getattr(obj, '_cached_element', None)
+
+    def _is_element_still_available(self, element: Union[None, SeleniumWebElement, AppiumWebElement]) -> bool:
+        """
+        Check is the element still available on page
+
+        :param element: SeleniumWebElement, AppiumWebElement object
+        :return: bool
+        """
+        if not element:
+            return False
+
+        return bool(safe_call(self.driver_wrapper.execute_script, 'return arguments[0];', element))
