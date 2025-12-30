@@ -258,18 +258,22 @@ class ElementABC(MixinABC, ABC):
         """
         raise NotImplementedError()
 
-    def hide(self) -> Element:
+    def hide(self, silent: bool = False) -> Element:
         """
-        Hides the element.
+        Make the element invisible by setting its opacity to 0.
 
+        :param silent: If :obj:`True`, suppresses logging.
+        :type silent: bool
         :return: :class:`Element`
         """
         raise NotImplementedError()
 
-    def show(self) -> Element:
+    def show(self, silent: bool = False) -> Element:
         """
-        Shows the element.
+        Make the element visible by setting its opacity to 1.
 
+        :param silent: If :obj:`True`, suppresses logging.
+        :type silent: bool
         :return: :class:`Element`
         """
         raise NotImplementedError()
