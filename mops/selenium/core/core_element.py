@@ -468,7 +468,7 @@ class CoreElement(ElementABC, ABC):
 
         return element
 
-    def _get_base(self, wait: Union[bool, Callable] = True) -> Union[SeleniumWebDriver, SeleniumWebElement]:
+    def _get_base(self, wait_strategy: Union[bool, Callable] = True) -> Union[SeleniumWebDriver, SeleniumWebElement]:
         """
         Get driver with depends on parent element if available
 
@@ -484,7 +484,7 @@ class CoreElement(ElementABC, ABC):
                 return base
 
         if self.parent:
-            base = self.parent._get_element(wait=wait)
+            base = self.parent._get_element(wait_strategy=wait_strategy)
 
         return base
 
@@ -495,7 +495,7 @@ class CoreElement(ElementABC, ABC):
         :param wait_parent: wait for base(parent) element
         :return: SeleniumWebElement or AppiumWebElement
         """
-        base = self._get_base(wait=wait_parent)
+        base = self._get_base(wait_strategy=wait_parent)
         self._cached_element = None
 
         try:
@@ -514,7 +514,7 @@ class CoreElement(ElementABC, ABC):
         :param wait_parent: wait for base(parent) element
         :return: list of SeleniumWebElement or AppiumWebElement
         """
-        base = self._get_base(wait=wait_parent)
+        base = self._get_base(wait_strategy=wait_parent)
         self._cached_element = None
 
         try:
