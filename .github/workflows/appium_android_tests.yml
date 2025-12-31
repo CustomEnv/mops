@@ -14,7 +14,7 @@ on:
 
 jobs:
   android-tests:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout Repository
@@ -62,7 +62,7 @@ jobs:
             -no-snapshot
             -noaudio
             -no-boot-anim
-            -partition-size 2048
+            -disk-size 2048
           script: uv run --no-config pytest tests/web_tests --platform android --driver chrome -v --alluredir=allure-report --reruns=2 -m='not low'
 
       - name: Teardown (Allure Report and Error Handling)
