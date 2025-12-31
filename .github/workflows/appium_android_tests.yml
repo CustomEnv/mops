@@ -42,7 +42,7 @@ jobs:
       - name: Install Appium & UiAutomator2 Driver
         run: |
           npm install -g npm@11.6.4
-          npm install -g appium@3.1.12
+          npm install -g appium@3.1.2
           appium driver install xcuitest@10.14.1
 
       - name: Start Appium Server in the Background
