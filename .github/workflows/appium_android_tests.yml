@@ -14,7 +14,7 @@ on:
 
 jobs:
   android-tests:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout Repository
@@ -53,11 +53,17 @@ jobs:
         id: tests
         continue-on-error: true
         with:
-          script: uv run --no-config pytest tests/web_tests --platform android --driver chrome -v --alluredir=allure-report --reruns=2 -m='not low'
           api-level: 33
           target: google_apis
           arch: x86_64
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          emulator-options: >
+            -no-window
+            -gpu swiftshader_indirect
+            -no-snapshot
+            -noaudio
+            -no-boot-anim
+            -partition-size 2048
+          script: uv run --no-config pytest tests/web_tests --platform android --driver chrome -v --alluredir=allure-report --reruns=2 -m='not low'
 
       - name: Teardown (Allure Report and Error Handling)
         if: ${{ steps.tests.outcome == 'failure' }}
