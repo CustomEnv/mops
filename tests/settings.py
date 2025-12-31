@@ -12,7 +12,7 @@ def get_android_desired_caps():
     return {
         'deviceName': env.get('ANDROID_DEVICE_NAME') or 'emulator-5555',
         'platformName': 'Android',
-        'platformVersion': env.get('ANDROID_PLATFORM_VERSION') or '13.0',
+        'platformVersion': env.get('ANDROID_PLATFORM_VERSION') or '14.0',
         # Update following capabilities before driver init
         # 'app': 'https://testingbot.com/appium/sample.apk',
         # 'browserName': 'Chrome',
