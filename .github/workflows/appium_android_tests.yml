@@ -56,13 +56,13 @@ jobs:
           api-level: 33
           target: google_apis
           arch: x86_64
+          disk-size: 4096
           emulator-options: >
             -no-window
             -gpu swiftshader_indirect
             -no-snapshot
             -noaudio
             -no-boot-anim
-            -disk-size 2048
           script: uv run --no-config pytest tests/web_tests --platform android --driver chrome -v --alluredir=allure-report --reruns=2 -m='not low'
 
       - name: Teardown (Allure Report and Error Handling)
