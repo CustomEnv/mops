@@ -47,7 +47,7 @@ jobs:
 
       - name: Start Appium Server in the Background
         run: |
-          nohup appium --allow-insecure chromedriver_autodownload > appium.log 2>&1 &
+          nohup appium --allow-insecure "*:chromedriver_autodownload" > appium.log 2>&1 &
           sleep 10
 
       - name: Enable KVM
