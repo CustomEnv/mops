@@ -17,6 +17,15 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: AdityaGarg8/remove-unwanted-software@v5
+        with:
+          remove-dotnet: true
+          remove-haskell: true
+          remove-codeql: true
+          remove-docker-images: true
+          remove-large-packages: true
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -63,6 +72,7 @@ jobs:
             -no-snapshot
             -noaudio
             -no-boot-anim
+            -no-metrics
           script: uv run --no-config pytest tests/web_tests --platform android --driver chrome -v --alluredir=allure-report --reruns=2 -m='not low'
 
       - name: Teardown (Allure Report and Error Handling)
