@@ -24,17 +24,17 @@ jobs:
         id: setup
         uses: ./.github/actions/setup
         with:
-          python-version: '3.8'
+          python-version: '3.10'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: '22.12.0'
+          node-version: '25.2.1'
 
       - name: Install Appium & UiAutomator2 Driver
         run: |
-          npm install -g npm@10.9.0
-          npm install -g appium@2.14.0
-          appium driver install xcuitest@7.35.1
+          npm install -g npm@11.6.4
+          npm install -g appium@3.1.2
+          appium driver install xcuitest@10.14.1
 
       - name: Start Appium Server in the Background
         run: |
