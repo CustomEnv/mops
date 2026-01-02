@@ -43,6 +43,7 @@ jobs:
 
       - name: Run Appium Safari tests
         id: tests
+        timeout-minutes: 30
         run: |
           uv run --no-config pytest tests/web_tests --platform ios --driver safari -v --alluredir=allure-report --reruns=2 -m='not low'
         continue-on-error: true

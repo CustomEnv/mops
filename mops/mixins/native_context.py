@@ -1,4 +1,9 @@
 from mops.mixins.objects.locator import Locator
+from mops.mixins.capabilities import (
+    CUSTOM_BOTTOM_BAR_LOCATOR_CAPABILITY,
+    CUSTOM_DONE_BUTTON_LOCATOR_CAPABILITY,
+    CUSTOM_TOP_BAR_LOCATOR_CAPABILITY,
+)
 
 
 class NativeContext:
@@ -39,7 +44,7 @@ class NativeSafari:
         from mops.base.element import Element
         self.driver_wrapper = driver_wrapper
 
-        self.custom_top_bar_locator = self.driver_wrapper.caps.get('mops:customTopBarLocator', None)
+        self.custom_top_bar_locator = self.driver_wrapper.caps.get(CUSTOM_TOP_BAR_LOCATOR_CAPABILITY, '')
         self.top_bar = Element(
             Locator(
                 mobile=self.custom_top_bar_locator or self.ios_mobile_top_bar_locator,
@@ -49,14 +54,14 @@ class NativeSafari:
             driver_wrapper=driver_wrapper
         )
 
-        self.custom_bottom_bar_locator = self.driver_wrapper.caps.get('mops:customBottomBarLocator', None)
+        self.custom_bottom_bar_locator = self.driver_wrapper.caps.get(CUSTOM_BOTTOM_BAR_LOCATOR_CAPABILITY, '')
         self.bottom_bar = Element(
             self.custom_bottom_bar_locator or self.ios_18_bottom_bar_locator,
             name='safari bottom bar',
             driver_wrapper=driver_wrapper
         )
 
-        self.custom_done_button_locator = self.driver_wrapper.caps.get('mops:customDoneButtonLocator', None)
+        self.custom_done_button_locator = self.driver_wrapper.caps.get(CUSTOM_DONE_BUTTON_LOCATOR_CAPABILITY, '')
         self.keyboard_done_button = Element(
             locator=self.custom_done_button_locator or self.ios_keyboard_hide_button,
             name='keyboard Done button',
@@ -73,7 +78,7 @@ class NativeSafari:
             return 0  # iPad does not have bottom bar
 
         if not self.custom_bottom_bar_locator:
-            ios_version = float(self.driver_wrapper.driver.caps.get('platformVersion', '18.2'))
+            ios_version = float(self.driver_wrapper.driver.caps.get('platformVersion', 18.2))
 
             if ios_version >= 18.2:
                 self.bottom_bar.locator = self.ios_18_bottom_bar_locator
