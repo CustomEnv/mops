@@ -14,9 +14,18 @@ on:
 
 jobs:
   android-tests:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: AdityaGarg8/remove-unwanted-software@v5
+        with:
+          remove-dotnet: true
+          remove-haskell: true
+          remove-codeql: true
+          remove-docker-images: true
+          #  remove-large-packages: true  # Slow
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -24,21 +33,21 @@ jobs:
         id: setup
         uses: ./.github/actions/setup
         with:
-          python-version: '3.8'
+          python-version: '3.10'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: '22.12.0'
+          node-version: '25.2.1'
 
       - name: Install Appium & UiAutomator2 Driver
         run: |
-          npm install -g npm@10.9.0
-          npm install -g appium@2.14.0
-          appium driver install uiautomator2@3.9.0
+          npm install -g npm@11.6.4
+          npm install -g appium@3.1.2
+          appium driver install uiautomator2@6.7.8
 
       - name: Start Appium Server in the Background
         run: |
-          nohup appium --allow-insecure chromedriver_autodownload > appium.log 2>&1 &
+          nohup appium --allow-insecure "*:chromedriver_autodownload" > appium.log 2>&1 &
           sleep 10
 
       - name: Enable KVM
@@ -48,12 +57,12 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       # https://github.com/ReactiveCircus/android-emulator-runner
-      - uses: reactivecircus/android-emulator-runner@v2.33.0
+      - uses: reactivecircus/android-emulator-runner@v2.35.0
         name: Android Tests
         id: tests
         continue-on-error: true
         with:
-          api-level: 33
+          api-level: 34
           target: google_apis
           arch: x86_64
           emulator-options: >
@@ -62,7 +71,7 @@ jobs:
             -no-snapshot
             -noaudio
             -no-boot-anim
-            -partition-size 2048
+            -no-metrics
           script: uv run --no-config pytest tests/web_tests --platform android --driver chrome -v --alluredir=allure-report --reruns=2 -m='not low'
 
       - name: Teardown (Allure Report and Error Handling)

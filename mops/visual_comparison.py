@@ -13,6 +13,8 @@ from urllib.parse import urljoin
 from typing import Union, List, Any, Tuple, Optional, TYPE_CHECKING
 from string import punctuation
 
+from mops.mixins.capabilities import CUSTOM_DEVICE_NAME_CAPABILITY
+
 try:
     import cv2.cv2 as cv2  # ~cv2@4.5.5.62 + python@3.8/9/10
 except ImportError:
@@ -360,7 +362,7 @@ class VisualComparison:
 
         if self.driver_wrapper.is_android or self.driver_wrapper.is_ios:
             caps = self.driver_wrapper.driver.caps
-            device_name = caps.get('customDeviceName', '')
+            device_name = caps.get(CUSTOM_DEVICE_NAME_CAPABILITY, '')
 
             if self.driver_wrapper.is_android and not device_name:
                 device_name = caps.get('avd', f'{caps.get("deviceManufacturer")}_{caps.get("deviceModel", "none")}')

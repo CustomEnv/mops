@@ -9,7 +9,7 @@ from mops.selenium.core.core_element import CoreElement
 from mops.mixins.objects.location import Location
 from mops.mixins.objects.size import Size
 from mops.utils.internal_utils import calculate_coordinate_to_click
-from mops.utils.selector_synchronizer import get_platform_locator, set_selenium_selector, set_appium_selector
+from mops.utils.selector_synchronizer import get_platform_locator, set_appium_selector
 
 
 class MobileElement(CoreElement, ABC):
