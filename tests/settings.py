@@ -27,10 +27,11 @@ def get_android_desired_caps():
 
 def get_ios_desired_caps():
     env = os.environ
+    platform_version = '18.6'
 
     return {
-        'deviceName': env.get('IOS_DEVICE_NAME') or 'iPhone 16',
-        'platformVersion': env.get('IOS_PLATFORM_VERSION') or '18.6',
+        'deviceName': 'iPhone 16',
+        'platformVersion': platform_version,
         'udid': env.get('udid') or '',
         'automationName': 'XCUITest',
         'platformName': 'iOS',
@@ -38,4 +39,5 @@ def get_ios_desired_caps():
         'newCommandTimeout': 3000,
         'wdaLaunchTimeout': 120000,
         'autoWebview': True,
+        # 'appium:noReset': True,
     }
