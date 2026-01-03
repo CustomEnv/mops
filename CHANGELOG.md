@@ -2,6 +2,26 @@
 
 <br>
 
+## v3.3.0
+*Release date: 2026-01-03*
+
+### Added
+- `DriverWrapper.wait`: `reason` arg
+- `DriverWrapper.get_scroll_position` method
+- `Element.show` method
+- `VisualComparison.always_hide` attribute
+- `Locator.tap` instead of `Locator.click` for playwright on mobile resolution
+- `WebElement` methods retry logic on `JavascriptException`
+
+### Changed
+- Playwright's `scroll_into_view` logic moved to js (same as Selenium)
+- `NativeSafari` locators
+
+### Fixed
+- Parent element cache drop
+
+---
+
 ## Patch: v3.1.1, v3.2.1 
 *Release date: 2025-07-18*
 
