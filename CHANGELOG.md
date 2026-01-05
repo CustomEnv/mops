@@ -3,7 +3,7 @@
 <br>
 
 ## v3.3.0
-*Release date: 2026-01-03*
+*Release date: 2026-01-05*
 
 ### Added
 - `DriverWrapper.wait`: `reason` arg
