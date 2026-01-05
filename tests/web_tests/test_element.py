@@ -15,7 +15,7 @@ from tests.adata.pages.keyboard_page import KeyboardPage
 )
 def test_multiple_parents_found_positive(expected_condition_page):
     """ There should not be any exception if element found even there are multiple parents for him """
-    WaitValueCardBroken().any_row._get_element(wait=False)
+    WaitValueCardBroken().any_row._get_element(wait_strategy=False)
 
 
 def test_element_displayed_positive(base_playground_page):

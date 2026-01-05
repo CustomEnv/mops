@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import time
 from abc import ABC
 from typing import Union, List, Any
 
 from PIL.Image import Image
 from mops.keyboard_keys import KeyboardKeys
-from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes
-from playwright.sync_api import TimeoutError as PlayTimeoutError, Error
+from playwright.sync_api import Error
 from playwright.sync_api import Page as PlaywrightPage
 from playwright.sync_api import Locator, Page, Browser, BrowserContext
 
@@ -16,12 +14,10 @@ from mops.mixins.objects.location import Location
 from mops.utils.decorators import retry
 from mops.utils.selector_synchronizer import get_platform_locator, set_playwright_locator
 from mops.abstraction.element_abc import ElementABC
-from mops.exceptions import TimeoutException, InvalidSelectorException
+from mops.exceptions import InvalidSelectorException
 from mops.utils.logs import Logging
 from mops.shared_utils import cut_log_data, get_image
 from mops.utils.internal_utils import (
-    WAIT_EL,
-    get_timeout_in_ms,
     calculate_coordinate_to_click,
     is_group,
     is_element,
@@ -105,7 +101,11 @@ class PlayElement(ElementABC, Logging, ABC):
         if force_wait:
             self.wait_visibility(silent=True)
 
-        self._first_element.click(**kwargs)
+        if self.driver_wrapper.is_mobile_resolution:
+            self._first_element.tap(**kwargs)
+        else:
+            self._first_element.click(**kwargs)
+
         return self
 
     def click_outside(self, x: int = -5, y: int = -5) -> PlayElement:
@@ -243,36 +243,6 @@ class PlayElement(ElementABC, Logging, ABC):
         return self
 
     # Element state
-
-    def scroll_into_view(
-            self,
-            block: ScrollTo = ScrollTo.CENTER,
-            behavior: ScrollTypes = ScrollTypes.INSTANT,
-            sleep: Union[int, float] = 0,
-            silent: bool = False,
-    ) -> PlayElement:
-        """
-        Scrolls the element into view using a JavaScript script.
-
-        :param block: The scrolling block alignment. One of the :class:`.ScrollTo` options.
-        :type block: ScrollTo
-        :param behavior: The scrolling behavior. One of the :class:`.ScrollTypes` options.
-        :type behavior: ScrollTypes
-        :param sleep: Delay in seconds after scrolling. Can be an integer or a float.
-        :type sleep: typing.Union[int, float]
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`PlayElement`
-        """
-        if not silent:
-            self.log(f'Scroll element "{self.name}" into view')
-
-        self._first_element.scroll_into_view_if_needed()
-
-        if sleep:
-            time.sleep(sleep)
-
-        return self
 
     def screenshot_image(self, screenshot_base: bytes = None) -> Image:
         """

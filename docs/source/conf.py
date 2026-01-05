@@ -13,7 +13,7 @@ from mops import __version__, __project_name__
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = __project_name__
-copyright = '2025, Podolian Vladimir'
+copyright = '2026, Podolian Vladimir'
 author = 'Podolian Vladimir'
 
 release = __version__

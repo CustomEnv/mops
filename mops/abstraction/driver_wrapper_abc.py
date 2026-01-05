@@ -95,12 +95,15 @@ class DriverWrapperABC(ABC):
         """
         raise NotImplementedError()
 
-    def wait(self, timeout: Union[int, float] = WAIT_UNIT) -> DriverWrapper:
+    def wait(self, timeout: Union[int, float] = WAIT_UNIT, reason: str = '') -> DriverWrapper:
         """
         Pauses the execution for a specified amount of time.
 
         :param timeout: The time to sleep in seconds (can be an integer or float).
         :type timeout: typing.Union[int, float]
+
+        :param reason: The waiting reason.
+        :type reason: str
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
@@ -222,15 +225,15 @@ class DriverWrapperABC(ABC):
         """
         raise NotImplementedError()
 
-    def execute_script(self, script: str, *args) -> Any:
+    def execute_script(self, script: str, *args: Any) -> Any:
         """
         Synchronously executes JavaScript in the current window or frame.
         Compatible with Selenium's `execute_script` method.
 
         :param script: The JavaScript code to execute.
         :type script: str
-        :param args: Any arguments to pass to the JavaScript (e.g., Element object).
-        :type args: list
+        :param args: Any arguments to pass to the JavaScript.
+        :type args: :obj:`typing.Any`
         :return: :obj:`typing.Any` - The result of the JavaScript execution.
         """
         raise NotImplementedError()
@@ -304,6 +307,14 @@ class DriverWrapperABC(ABC):
         :param convert_type: Image conversion type before saving (optional).
         :type convert_type: str
         :return: :class:`PIL.Image.Image`
+        """
+        raise NotImplementedError()
+
+    def get_scroll_position(self) -> int:
+        """
+        Returns the current vertical scroll position of the page.
+
+        :return: :class:`int` - Current vertical scroll offset in pixels.
         """
         raise NotImplementedError()
 

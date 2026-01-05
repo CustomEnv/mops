@@ -11,11 +11,26 @@ from mops.mixins.objects.locator_type import LocatorType
 from mops.utils.internal_utils import all_tags
 
 
-DEFAULT_MATCH = (f"{LocatorType.XPATH}=", f"{LocatorType.ID}=", f"{LocatorType.CSS}=", f"{LocatorType.TEXT}=")
-XPATH_MATCH = ("/", "./", "(/")
-CSS_MATCH = ("#", ".")
-CSS_REGEXP = r"[#.\[\]=]"
-APPIUM_LOCATOR_TYPES = (
+_XPATH_MATCH = ("/", "./", "(/")
+_CSS_MATCH = ("#", ".")
+_CSS_REGEXP = r"[#.\[\]=]"
+
+_DEFAULT_MATCH = (
+    f"{LocatorType.XPATH}=",
+    f"{LocatorType.ID}=",
+    f"{LocatorType.CSS}=",
+    f"{LocatorType.TEXT}=",
+)
+
+_APPIUM_MATCH = (
+    f"{LocatorType.XPATH}=",
+    f"{LocatorType.ID}=",
+    f"[{LocatorType.ID}=",
+    f"{LocatorType.CSS}=",
+    f"{LocatorType.TEXT}="
+)
+
+_APPIUM_LOCATOR_TYPES = (
     f'{LocatorType.IOS_PREDICATE}=',
     f'{LocatorType.IOS_UIAUTOMATION}=',
     f'{LocatorType.IOS_CLASS_CHAIN}=',
@@ -28,6 +43,20 @@ APPIUM_LOCATOR_TYPES = (
     f'{LocatorType.IMAGE}=',
     f'{LocatorType.CUSTOM}=',
 )
+
+_SELENIUM_MOPS_LOCATOR_TYPES = {
+    By.ID: LocatorType.ID,
+    By.XPATH: LocatorType.XPATH,
+    By.CSS_SELECTOR: LocatorType.CSS,
+}
+
+
+def _set_selenium_compatibility_id_locator(obj: Any, split: bool = True) -> Any:
+    locator = obj.locator.split(f"{LocatorType.ID}=")[-1] if split else obj.locator
+
+    obj.locator = f'[{LocatorType.ID}="{locator}"]'
+    obj.locator_type = By.CSS_SELECTOR
+    obj.log_locator = f'{LocatorType.ID}={locator}'
 
 
 def get_platform_locator(obj: Any):
@@ -84,17 +113,15 @@ def set_selenium_selector(obj: Any):
         obj.locator_type = By.CSS_SELECTOR
 
     elif locator.startswith(f"{LocatorType.ID}="):
-        locator = obj.locator.split(f"{LocatorType.ID}=")[-1]
-        obj.locator = f'[{LocatorType.ID}="{locator}"]'
-        obj.locator_type = By.CSS_SELECTOR
+        _set_selenium_compatibility_id_locator(obj)
 
     # Checking the regular locators
 
-    elif locator.startswith(XPATH_MATCH):
+    elif locator.startswith(_XPATH_MATCH):
         obj.locator_type = By.XPATH
         obj.log_locator = f'{LocatorType.XPATH}={locator}'
 
-    elif locator.startswith(CSS_MATCH) or re.search(CSS_REGEXP, locator):
+    elif locator.startswith(_CSS_MATCH) or re.search(_CSS_REGEXP, locator):
         obj.locator_type = By.CSS_SELECTOR
         obj.log_locator = f'{LocatorType.CSS}={locator}'
 
@@ -105,31 +132,29 @@ def set_selenium_selector(obj: Any):
     # Default to ID if nothing else matches
 
     else:
-        locator = obj.locator.split(f"{LocatorType.ID}=")[-1]
-        obj.locator = f'[{LocatorType.ID}="{locator}"]'
-        obj.locator_type = By.CSS_SELECTOR
-        obj.log_locator = f'{LocatorType.ID}={locator}'
+        _set_selenium_compatibility_id_locator(obj, split=False)
 
 
 def set_playwright_locator(obj: Any):
     """
     Sets playwright locator & locator type
     """
-    locator = obj.locator.strip()
+    locator: str = obj.locator.strip()
+
     obj.log_locator = locator
 
     # Checking the supported locators
 
-    if locator.startswith(DEFAULT_MATCH):
+    if locator.startswith(_DEFAULT_MATCH):
         obj.locator_type = locator.partition('=')[0]
         return
 
     # Checking the regular locators
 
-    elif locator.startswith(XPATH_MATCH):
+    elif locator.startswith(_XPATH_MATCH):
         obj.locator_type = LocatorType.XPATH
 
-    elif locator.startswith(CSS_MATCH) or re.search(CSS_REGEXP, locator):
+    elif locator.startswith(_CSS_MATCH) or re.search(_CSS_REGEXP, locator):
         obj.locator_type = LocatorType.CSS
 
     elif locator in all_tags or all(tag in all_tags for tag in locator.split()):
@@ -150,12 +175,12 @@ def set_appium_selector(obj: Any):
     """
     set_selenium_selector(obj)
 
-    locator = obj.locator.strip()
+    locator: str = obj.locator.strip()
 
-    if ':id/' in locator:  # Mobile com.android selector
-        obj.locator_type = By.CSS_SELECTOR
-        obj.log_locator = f'{LocatorType.ID}={locator}'
-    elif locator.startswith(APPIUM_LOCATOR_TYPES):
+    # Mobile com.android selector
+    if ':id/' in locator and not locator.startswith(_APPIUM_MATCH):
+        _set_selenium_compatibility_id_locator(obj)
+    elif locator.startswith(_APPIUM_LOCATOR_TYPES):
         partition = locator.partition('=')
         obj.locator_type = partition[0]
         obj.locator = partition[-1]

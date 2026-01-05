@@ -258,22 +258,34 @@ class ElementABC(MixinABC, ABC):
         """
         raise NotImplementedError()
 
-    def hide(self) -> Element:
+    def hide(self, silent: bool = False) -> Element:
         """
-        Hides the element.
+        Make the element invisible by setting its opacity to 0.
 
+        :param silent: If :obj:`True`, suppresses logging.
+        :type silent: bool
         :return: :class:`Element`
         """
         raise NotImplementedError()
 
-    def execute_script(self, script: str, *args) -> Any:
+    def show(self, silent: bool = False) -> Element:
+        """
+        Make the element visible by setting its opacity to 1.
+
+        :param silent: If :obj:`True`, suppresses logging.
+        :type silent: bool
+        :return: :class:`Element`
+        """
+        raise NotImplementedError()
+
+    def execute_script(self, script: str, *args: Any) -> Any:
         """
         Executes a JavaScript script on the element.
 
         :param script: JavaScript code to be executed, referring to the element as ``arguments[0]``.
         :type script: str
-        :param args: Additional arguments for the script,
-          that appear in script as ``arguments[1]`` ``arguments[2]`` etc.
+        :param args: Any arguments to pass to the JavaScript.
+        :type args: :obj:`typing.Any`
         :return: :obj:`typing.Any` result from the script.
         """
         raise NotImplementedError()

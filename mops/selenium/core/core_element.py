@@ -23,7 +23,6 @@ from mops.selenium.sel_utils import ActionChains
 from mops.js_scripts import get_element_size_js, get_element_position_on_screen_js, hide_caret_js_script
 from mops.keyboard_keys import KeyboardKeys
 from mops.mixins.objects.location import Location
-from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes, scroll_into_view_blocks
 from mops.mixins.objects.size import Size
 from mops.shared_utils import cut_log_data, _scaled_screenshot
 from mops.utils.internal_utils import WAIT_EL, safe_call, get_dict, is_group
@@ -178,11 +177,11 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`CoreElement`
         """
-        self.element = self._get_element(wait=self.wait_availability)
+        self.element = self._get_element(wait_strategy=self.wait_availability)
 
         try:
             if not self.is_checked():
-                self.click(with_wait=False)
+                self.click(force_wait=False)
         finally:
             self.element = None
 
@@ -194,49 +193,17 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`CoreElement`
         """
-        self.element = self._get_element(wait=self.wait_availability)
+        self.element = self._get_element(wait_strategy=self.wait_availability)
 
         try:
             if self.is_checked():
-                self.click(with_wait=False)
+                self.click(force_wait=False)
         finally:
             self.element = None
 
         return self
 
     # Element state
-
-    def scroll_into_view(
-            self,
-            block: ScrollTo = ScrollTo.CENTER,
-            behavior: ScrollTypes = ScrollTypes.INSTANT,
-            sleep: Union[int, float] = 0,
-            silent: bool = False,
-    ) -> CoreElement:
-        """
-        Scrolls the element into view using a JavaScript script.
-
-        :param block: The scrolling block alignment. One of the :class:`.ScrollTo` options.
-        :type block: ScrollTo
-        :param behavior: The scrolling behavior. One of the :class:`.ScrollTypes` options.
-        :type behavior: ScrollTypes
-        :param sleep: Delay in seconds after scrolling. Can be an integer or a float.
-        :type sleep: typing.Union[int, float]
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`CoreElement`
-        """
-        if not silent:
-            self.log(f'Scroll element "{self.name}" into view')
-
-        assert block in scroll_into_view_blocks, f'Provide one of {scroll_into_view_blocks} option in `block` argument'
-
-        self.execute_script(f'arguments[0].scrollIntoView({{block: "{block}", behavior: "{behavior}"}});')
-
-        if sleep:
-            time.sleep(sleep)
-
-        return self
 
     def screenshot_image(self, screenshot_base: bytes = None) -> Image:
         """
@@ -248,8 +215,9 @@ class CoreElement(ElementABC, ABC):
         :type screenshot_base: bytes
         :return: :class:`PIL.Image.Image`
         """
+        element_size = self.size.width
         screenshot_base = screenshot_base if screenshot_base else self.screenshot_base
-        return _scaled_screenshot(screenshot_base, self.size.width)
+        return _scaled_screenshot(screenshot_base, element_size)
 
     @property
     def screenshot_base(self) -> bytes:
@@ -270,7 +238,7 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`str` - element text
         """
-        element = self._get_element(wait=self.wait_availability)
+        element = self._get_element(wait_strategy=self.wait_availability)
 
         if self.driver_wrapper.is_safari:
             return element.get_attribute('innerText')
@@ -302,12 +270,15 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`bool` - :obj:`True` if present in DOM
         """
+        if self._element:
+            return self._is_element_still_available(self._element)
+
         try:
-            element = safe_call(self._find_element, wait_parent=False)
+            element = bool(safe_call(self._find_element, wait_parent=False))
         except SeleniumInvalidSelectorException as exc:
             raise InvalidSelectorException(exc.msg)
 
-        return bool(element)
+        return element
 
     def is_displayed(self, silent: bool = False) -> bool:
         """
@@ -320,7 +291,8 @@ class CoreElement(ElementABC, ABC):
         is_displayed = self.is_available()
 
         if is_displayed:
-            is_displayed = safe_call(self._cached_element.is_displayed)
+            desired_element = self._element or self._cached_element
+            is_displayed = bool(safe_call(desired_element.is_displayed))
 
         if not silent:
             self.log(f'Check displaying of "{self.name}" - {is_displayed}')
@@ -434,7 +406,7 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`bool` - :obj:`True` if the checkbox or radio button is checked, :obj:`False` otherwise.
         """
-        return self._get_element(wait=self.wait_availability).is_selected()
+        return self._get_element(wait_strategy=self.wait_availability).is_selected()
 
     # Mixin
 
@@ -455,18 +427,20 @@ class CoreElement(ElementABC, ABC):
         """
         return ActionChains(self.driver)
 
-    def _get_element(self, wait: Union[bool, Callable] = True, force_wait: bool = False) -> SeleniumWebElement:
+    def _get_element(self, wait_strategy: Union[bool, Callable] = True, force_wait: bool = False) -> SeleniumWebElement:
         """
         Get selenium element from driver or parent element
 
-        :param wait: wait strategy for element and/or element parent before grab
+        :param wait_strategy: wait strategy for element and/or element parent before grab
         :param force_wait: force wait for some element
         :return: SeleniumWebElement
         """
-        element = self._element
+        element = None
+        if self._is_element_still_available(self._element):
+            element = self._element
 
-        if wait is True:
-            wait = self.wait_visibility
+        if wait_strategy is True:
+            wait_strategy = self.wait_visibility
 
         if not element:
 
@@ -475,8 +449,8 @@ class CoreElement(ElementABC, ABC):
                 element = safe_call(self._find_element, wait_parent=False)
 
             # Wait for element if it is not found instantly
-            if (not element and wait) or force_wait:
-                element = self._get_cached_element(safe_call(wait, silent=True))
+            if (not element and wait_strategy) or force_wait:
+                element = self._get_cached_element(safe_call(wait_strategy, silent=True))
 
         if not element:
             element_info = f'"{self.name}" {self.__class__.__name__}'
@@ -494,7 +468,7 @@ class CoreElement(ElementABC, ABC):
 
         return element
 
-    def _get_base(self, wait: Union[bool, Callable] = True) -> Union[SeleniumWebDriver, SeleniumWebElement]:
+    def _get_base(self, wait_strategy: Union[bool, Callable] = True) -> Union[SeleniumWebDriver, SeleniumWebElement]:
         """
         Get driver with depends on parent element if available
 
@@ -510,7 +484,7 @@ class CoreElement(ElementABC, ABC):
                 return base
 
         if self.parent:
-            base = self.parent._get_element(wait=wait)
+            base = self.parent._get_element(wait_strategy=wait_strategy)
 
         return base
 
@@ -521,7 +495,7 @@ class CoreElement(ElementABC, ABC):
         :param wait_parent: wait for base(parent) element
         :return: SeleniumWebElement or AppiumWebElement
         """
-        base = self._get_base(wait=wait_parent)
+        base = self._get_base(wait_strategy=wait_parent)
         self._cached_element = None
 
         try:
@@ -540,7 +514,7 @@ class CoreElement(ElementABC, ABC):
         :param wait_parent: wait for base(parent) element
         :return: list of SeleniumWebElement or AppiumWebElement
         """
-        base = self._get_base(wait=wait_parent)
+        base = self._get_base(wait_strategy=wait_parent)
         self._cached_element = None
 
         try:
@@ -595,3 +569,15 @@ class CoreElement(ElementABC, ABC):
         :return: None, SeleniumWebElement, AppiumWebElement
         """
         return getattr(obj, '_cached_element', None)
+
+    def _is_element_still_available(self, element: Union[None, SeleniumWebElement, AppiumWebElement]) -> bool:
+        """
+        Check is the element still available on page
+
+        :param element: SeleniumWebElement, AppiumWebElement object
+        :return: bool
+        """
+        if not element:
+            return False
+
+        return bool(safe_call(self.driver_wrapper.execute_script, 'return arguments[0];', element))

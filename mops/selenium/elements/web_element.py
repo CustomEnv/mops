@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from abc import ABC
 
+from selenium.common import JavascriptException
+
 from mops.selenium.core.core_element import CoreElement
 from mops.js_scripts import js_click
+from mops.utils.decorators import retry
 from mops.utils.internal_utils import calculate_coordinate_to_click
 from mops.utils.selector_synchronizer import get_platform_locator, set_selenium_selector
 
@@ -44,7 +47,7 @@ class WebElement(CoreElement, ABC):
 
         return self
 
-
+    @retry(JavascriptException)
     def hover(self, silent: bool = False) -> WebElement:
         """
         Hover the mouse over the current element.
@@ -63,6 +66,7 @@ class WebElement(CoreElement, ABC):
             .perform()
         return self
 
+    @retry(JavascriptException)
     def hover_outside(self, x: int = 0, y: int = -5) -> WebElement:
         """
         Hover the mouse outside the current element, by default 5px above it.
@@ -84,6 +88,7 @@ class WebElement(CoreElement, ABC):
             .perform()
         return self
 
+    @retry(JavascriptException)
     def click_outside(self, x: int = -5, y: int = -5) -> WebElement:
         """
         Perform a click outside the current element, by default 5px left and above it.
@@ -104,6 +109,7 @@ class WebElement(CoreElement, ABC):
         self.driver_wrapper.click_by_coordinates(x=x, y=y, silent=True)
         return self
 
+    @retry(JavascriptException)
     def click_into_center(self, silent: bool = False) -> WebElement:
         """
         Clicks at the center of the element.
