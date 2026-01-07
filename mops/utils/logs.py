@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+from functools import cache
 import logging
-import sys
-from functools import lru_cache
 from os.path import basename
+import sys
 from typing import Any
 
 from mops.utils.internal_utils import get_frame, is_driver_wrapper
-
 
 logger = logging.getLogger('mops')
 
@@ -33,7 +32,7 @@ def driver_wrapper_logs_settings(level: str = LogLevel.INFO) -> None:
     handler.setLevel(level)
     handler.setFormatter(logging.Formatter(
         fmt='[%(asctime)s.%(msecs)03d][%(levelname).1s]%(message)s',
-        datefmt="%h %d][%H:%M:%S"
+        datefmt='%h %d][%H:%M:%S',
     ))
     logger.addHandler(handler)
 
@@ -77,13 +76,9 @@ class Logging:
         :type level: str
         :return: :obj:`None`
         """
-        if is_driver_wrapper(self):
-            label = self.label
-        else:
-            label = self.driver_wrapper.label
+        label = self.label if is_driver_wrapper(self) else self.driver_wrapper.label
 
         _send_log_message(f'[{label}]{self._get_code_info()} {message}', level)
-        return None
 
     def _get_code_info(self) -> str:
         """
@@ -106,7 +101,7 @@ def _send_log_message(log_message: str, level: str) -> None:
     logger.log(_get_log_level(level), log_message)
 
 
-@lru_cache(maxsize=None)
+@cache
 def _get_log_level(level: str) -> int:
     """
     Get log level from string. Moved to a different function for using @lru_cache

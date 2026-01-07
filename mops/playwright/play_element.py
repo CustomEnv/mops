@@ -1,27 +1,28 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Union, List, Any
+from typing import TYPE_CHECKING, Any, List
 
-from PIL.Image import Image
-from mops.keyboard_keys import KeyboardKeys
-from playwright.sync_api import Error
-from playwright.sync_api import Page as PlaywrightPage
-from playwright.sync_api import Locator, Page, Browser, BrowserContext
+from playwright.sync_api import Browser, BrowserContext, Error, Locator, Page, Page as PlaywrightPage
 
-from mops.mixins.objects.size import Size
-from mops.mixins.objects.location import Location
-from mops.utils.decorators import retry
-from mops.utils.selector_synchronizer import get_platform_locator, set_playwright_locator
 from mops.abstraction.element_abc import ElementABC
 from mops.exceptions import InvalidSelectorException
-from mops.utils.logs import Logging
+from mops.mixins.objects.location import Location
+from mops.mixins.objects.size import Size
 from mops.shared_utils import cut_log_data, get_image
+from mops.utils.decorators import retry
 from mops.utils.internal_utils import (
     calculate_coordinate_to_click,
-    is_group,
     is_element,
+    is_group,
 )
+from mops.utils.logs import Logging
+from mops.utils.selector_synchronizer import get_platform_locator, set_playwright_locator
+
+if TYPE_CHECKING:
+    from PIL.Image import Image
+
+    from mops.keyboard_keys import KeyboardKeys
 
 
 class PlayElement(ElementABC, Logging, ABC):
@@ -29,13 +30,11 @@ class PlayElement(ElementABC, Logging, ABC):
     instance: Browser
     context: BrowserContext
     driver: Page
-    parent: Union[ElementABC, PlayElement]
+    parent: ElementABC | PlayElement
     _element: Locator = None
 
-    def __init__(self):  # noqa
-        """
-        Initializing of web element with playwright driver
-        """
+    def __init__(self):
+        """Initializing of web element with playwright driver"""
         self.locator = get_platform_locator(self)
         set_playwright_locator(self)
 
@@ -58,16 +57,16 @@ class PlayElement(ElementABC, Logging, ABC):
         return element
 
     @element.setter
-    def element(self, base_element: Union[Locator, None]):
+    def element(self, base_element: Locator | None) -> None:
         """
         Element object setter. Try to avoid usage of this function
 
         :param: play_element: playwright Locator object
         """
         self._element = base_element
-    
+
     @property
-    def all_elements(self) -> Union[List[PlayElement], List[Any]]:
+    def all_elements(self) -> List[PlayElement] | List[Any]:
         """
         Returns a list of all matching elements.
 
@@ -144,7 +143,7 @@ class PlayElement(ElementABC, Logging, ABC):
         return self
 
 
-    def type_text(self, text: Union[str, KeyboardKeys], silent: bool = False) -> PlayElement:
+    def type_text(self, text: str | KeyboardKeys, silent: bool = False) -> PlayElement:
         """
         Types text into the element.
 
@@ -244,7 +243,7 @@ class PlayElement(ElementABC, Logging, ABC):
 
     # Element state
 
-    def screenshot_image(self, screenshot_base: bytes = None) -> Image:
+    def screenshot_image(self, screenshot_base: bytes | None = None) -> Image:
         """
         Returns a :class:`PIL.Image.Image` object representing the screenshot of the web element.
         Appium iOS: Take driver screenshot and crop manually element from it
@@ -427,7 +426,7 @@ class PlayElement(ElementABC, Logging, ABC):
 
     # Mixin
 
-    def _get_base(self) -> Union[PlaywrightPage, Locator]:
+    def _get_base(self) -> PlaywrightPage | Locator:
         """
         Get driver depends on parent element if available
 

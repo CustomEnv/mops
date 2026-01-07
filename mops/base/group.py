@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from typing import Any, Union, List, Optional
+from typing import TYPE_CHECKING, Any, List
 
-from mops.base.driver_wrapper import DriverWrapper
 from mops.base.element import Element
-from mops.mixins.objects.locator import Locator
 from mops.utils.internal_utils import (
-    set_parent_for_attr,
     get_child_elements,
+    get_child_elements_with_names,
     initialize_objects,
-    get_child_elements_with_names
+    set_parent_for_attr,
 )
+
+if TYPE_CHECKING:
+    from mops.base.driver_wrapper import DriverWrapper
+    from mops.mixins.objects.locator import Locator
 
 
 class Group(Element):
@@ -35,11 +37,11 @@ class Group(Element):
 
     def __init__(
             self,
-            locator: Union[Locator, str],
+            locator: Locator | str,
             name: str = '',
-            parent: Union[Group, Element, bool] = None,
-            wait: Optional[bool] = None,
-            driver_wrapper: Union[DriverWrapper, Any] = None,
+            parent: Group | Element | bool = None,
+            wait: bool | None = None,
+            driver_wrapper: DriverWrapper | Any = None,
     ):
         """
         Initializes a group of elements based on the current driver.

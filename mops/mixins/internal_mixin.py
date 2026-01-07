@@ -4,8 +4,8 @@ from functools import lru_cache
 from typing import Any
 
 from mops.utils.internal_utils import (
-    get_child_elements_with_names,
     get_all_attributes_from_object,
+    get_child_elements_with_names,
 )
 
 
@@ -31,7 +31,7 @@ def get_static(cls: Any):
 
 class InternalMixin:
 
-    def _safe_setter(self, var: str, value: Any):
+    def _safe_setter(self, var: str, value: Any) -> None:
         if not hasattr(self, var):
             setattr(self, var, value)
 
@@ -43,13 +43,13 @@ class InternalMixin:
         """
         data = {
             name: value for name, value in get_static(cls)
-            if name not in get_all_attributes_from_object(self).keys()
+            if name not in get_all_attributes_from_object(self)
         }.items()
 
         for name, item in data:
             setattr(self.__class__, name, item)
 
-    def _repr_builder(self: Any):
+    def _repr_builder(self: Any) -> str | None:
         class_name = self.__class__.__name__
         obj_id = hex(id(self))
         parent = getattr(self, 'parent', False)

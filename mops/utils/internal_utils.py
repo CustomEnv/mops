@@ -1,15 +1,19 @@
 from __future__ import annotations
 
-import sys
-import inspect
 from copy import copy
-from functools import lru_cache
-from typing import Any, Union, Callable
+from functools import cache
+import inspect
+import sys
+from typing import TYPE_CHECKING, Any
 
 from selenium.common.exceptions import WebDriverException as SeleniumWebDriverException
 
 from mops.exceptions import DriverWrapperException as MopsDriverWrapperException
-from mops.mixins.objects.size import Size
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from mops.mixins.objects.size import Size
 
 WAIT_METHODS_DELAY = 0.1
 WAIT_UNIT = 1
@@ -28,7 +32,7 @@ def get_dict(obj: Any):
     return obj.__dict__
 
 
-def safe_call(func: Callable, *args, **kwargs) -> Union[Any, None]:
+def safe_call(func: Callable, *args, **kwargs) -> Any | None:
     """
     Wrapper for any method that raises internal exceptions to prevent exceptions
 
@@ -48,8 +52,8 @@ def safe_call(func: Callable, *args, **kwargs) -> Union[Any, None]:
         pass
 
 
-@lru_cache(maxsize=None)
-def get_timeout_in_ms(timeout: Union[int, float]):
+@cache
+def get_timeout_in_ms(timeout: float):
     """
     Get timeout in milliseconds for playwright
 
@@ -93,7 +97,7 @@ def is_driver_wrapper(obj: Any) -> bool:
     return getattr(obj, '_object', None) == 'driver_wrapper'
 
 
-def initialize_objects(current_object, objects: dict, cls: Any):
+def initialize_objects(current_object, objects: dict, cls: Any) -> None:
     """
     Copy objects and initializing them with driver_wrapper from current object
 
@@ -109,7 +113,7 @@ def initialize_objects(current_object, objects: dict, cls: Any):
         initialize_objects(copied_obj, get_child_elements_with_names(copied_obj, cls), cls)
 
 
-def set_parent_for_attr(base_obj: object, instance_class: Union[type, tuple], with_copy: bool = False):
+def set_parent_for_attr(base_obj: object, instance_class: type | tuple, with_copy: bool = False) -> None:
     """
     Sets parent for all Elements/Group of given class.
     Should be called ONLY in Group object or all_elements method.
@@ -135,7 +139,7 @@ def set_parent_for_attr(base_obj: object, instance_class: Union[type, tuple], wi
         set_parent_for_attr(child, instance_class, with_copy)
 
 
-def promote_parent_element(obj: Any, base_obj: Any, cls: Any):
+def promote_parent_element(obj: Any, base_obj: Any, cls: Any) -> None:
     """
     Promote parent object in Element if parent is another Element
 
@@ -147,7 +151,7 @@ def promote_parent_element(obj: Any, base_obj: Any, cls: Any):
     initial_parent = getattr(obj, 'parent', None)
 
     if not initial_parent:
-        return None
+        return
 
     if is_element_instance(initial_parent) and initial_parent != base_obj:
         for el in get_child_elements(base_obj, cls):
@@ -155,7 +159,7 @@ def promote_parent_element(obj: Any, base_obj: Any, cls: Any):
                 obj.parent = el
 
 
-def get_child_elements(obj: object, instance: Union[type, tuple]) -> list:
+def get_child_elements(obj: object, instance: type | tuple) -> list:
     """
     Return objects of this object by instance
 
@@ -164,7 +168,7 @@ def get_child_elements(obj: object, instance: Union[type, tuple]) -> list:
     return list(get_child_elements_with_names(obj, instance).values())
 
 
-def get_child_elements_with_names(obj: Any, instance: Union[type, tuple] = None) -> dict:
+def get_child_elements_with_names(obj: Any, instance: type | tuple | None = None) -> dict:
     """
     Return all objects of given object or by instance
     Removing parent attribute from list to avoid infinite recursion and all dunder attributes
@@ -174,7 +178,7 @@ def get_child_elements_with_names(obj: Any, instance: Union[type, tuple] = None)
     elements = {}
 
     for attribute, value in get_all_attributes_from_object(obj).items():
-        if instance and isinstance(value, instance) or not instance:
+        if (instance and isinstance(value, instance)) or not instance:
             if attribute != 'parent' and not attribute.startswith('__') and not attribute.endswith('__'):
                 elements.update({attribute: value})
 
@@ -270,24 +274,27 @@ def calculate_coordinate_to_click(element: Any, x: int = 0, y: int = 0) -> tuple
     return int(x), int(y)
 
 
-def validate_timeout(timeout) -> Union[float, int]:
+def validate_timeout(timeout) -> float | int:
     if type(timeout) not in (int, float):
-        raise TypeError('The type of `timeout` arg must be int or float')
+        msg = 'The type of `timeout` arg must be int or float'
+        raise TypeError(msg)
 
     if timeout <= 0:
-        raise ValueError('The `timeout` value must be a positive number')
+        msg = 'The `timeout` value must be a positive number'
+        raise ValueError(msg)
 
     return timeout
 
 
 def validate_silent(silent) -> bool:
     if not isinstance(silent, bool):
-        raise TypeError(f'The type of `silent` arg must be bool')
+        msg = 'The type of `silent` arg must be bool'
+        raise TypeError(msg)
 
     return silent
 
 
-def increase_delay(delay, max_delay: Union[int, float] = 1.5) -> Union[int, float]:
+def increase_delay(delay, max_delay: float = 1.5) -> int | float:
     if delay < max_delay:
         return delay + delay
     return delay

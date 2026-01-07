@@ -1,64 +1,63 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Union, Any, List, Tuple, Optional, TYPE_CHECKING
-
-from PIL.Image import Image
-from appium.webdriver.extensions.location import Location
-
-from mops.mixins.objects.box import Box
-from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes
-from selenium.webdriver.remote.webelement import WebElement as SeleniumWebElement
-from appium.webdriver.webelement import WebElement as AppiumWebElement
-from playwright.sync_api import Locator as PlayWebElement
+from typing import TYPE_CHECKING, Any, List, NoReturn, Tuple
 
 from mops.abstraction.mixin_abc import MixinABC
-from mops.keyboard_keys import KeyboardKeys
-from mops.mixins.objects.size import Size
-from mops.utils.internal_utils import WAIT_EL, QUARTER_WAIT_EL
+from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes
+from mops.utils.internal_utils import QUARTER_WAIT_EL, WAIT_EL
 
 if TYPE_CHECKING:
-    from mops.mixins.objects.locator import Locator
+    from appium.webdriver.extensions.location import Location
+    from appium.webdriver.webelement import WebElement as AppiumWebElement
+    from PIL.Image import Image
+    from playwright.sync_api import Locator as PlayWebElement
+    from selenium.webdriver.remote.webelement import WebElement as SeleniumWebElement
+
     from mops.base.element import Element
+    from mops.keyboard_keys import KeyboardKeys
+    from mops.mixins.objects.box import Box
+    from mops.mixins.objects.locator import Locator
+    from mops.mixins.objects.size import Size
 
 
 class ElementABC(MixinABC, ABC):
 
-    locator: Union[Locator, str]
+    locator: Locator | str
     name: str = ''
-    parent: Union[Any, bool, None] = None
-    wait: Optional[bool] = None
+    parent: Any | bool | None = None
+    wait: bool | None = None
 
     @property
-    def element(self) -> Union[SeleniumWebElement, AppiumWebElement, PlayWebElement]:
-        """
+    def element(self) -> SeleniumWebElement | AppiumWebElement | PlayWebElement:
+        r"""
         Returns a source element object, depending on the current driver in use.
 
         :return: :class:`selenium.webdriver.remote.webelement.WebElement` or\n
           :class:`appium.webdriver.webelement.WebElement` or\n
           :class:`playwright.sync_api.Locator`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @element.setter
-    def element(self, base_element: Union[SeleniumWebElement, AppiumWebElement, PlayWebElement]):
-        """
+    def element(self, base_element: SeleniumWebElement | AppiumWebElement | PlayWebElement) -> NoReturn:
+        r"""
         Sets the source element object.
 
         :param base_element: :class:`selenium.webdriver.remote.webelement.WebElement` or\n
           :class:`appium.webdriver.webelement.WebElement` or\n
           :class:`playwright.sync_api.Locator`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
-    def all_elements(self) -> Union[List[Element], List[Any]]:
+    def all_elements(self) -> List[Element] | List[Any]:
         """
         Returns a list of all matching elements.
 
         :return: A list of wrapped :class:`Element` objects.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def click(self, *, force_wait: bool = True, **kwargs) -> Element:
         """
@@ -79,7 +78,7 @@ class ElementABC(MixinABC, ABC):
 
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def click_into_center(self, silent: bool = False) -> Element:
         """
@@ -89,9 +88,9 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def type_text(self, text: Union[str, KeyboardKeys], silent: bool = False) -> Element:
+    def type_text(self, text: str | KeyboardKeys, silent: bool = False) -> Element:
         """
         Types text into the element.
 
@@ -101,7 +100,7 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def type_slowly(self, text: str, sleep_gap: float = 0.05, silent: bool = False) -> Element:
         """
@@ -115,7 +114,7 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def clear_text(self, silent: bool = False) -> Element:
         """
@@ -125,7 +124,7 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def check(self) -> Element:
         """
@@ -133,7 +132,7 @@ class ElementABC(MixinABC, ABC):
 
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def uncheck(self) -> Element:
         """
@@ -141,14 +140,14 @@ class ElementABC(MixinABC, ABC):
 
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def wait_visibility(
             self,
             *,
             timeout: int = WAIT_EL,
             silent: bool = False,
-            continuous: Union[bool, int, float] = False,
+            continuous: bool | float = False,
     ) -> Element:
         """
         Waits until the element becomes visible.
@@ -177,14 +176,14 @@ class ElementABC(MixinABC, ABC):
         :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def wait_hidden(
             self,
             *,
             timeout: int = WAIT_EL,
             silent: bool = False,
-            continuous: Union[bool, int, float] = False,
+            continuous: bool | float = False,
     ) -> Element:
         """
         Waits until the element becomes hidden.
@@ -213,10 +212,10 @@ class ElementABC(MixinABC, ABC):
         :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def wait_availability(self, *, timeout: int = WAIT_EL, silent: bool = False) -> Element:
-        """
+        r"""
         Waits until the element becomes available in DOM tree. \n
          **Note:** The method requires the use of named arguments.
 
@@ -237,13 +236,13 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def save_screenshot(
             self,
             file_name: str,
-            screenshot_base: Union[bytes, Image] = None,
-            convert_type: str = None
+            screenshot_base: bytes | Image = None,
+            convert_type: str | None = None,
     ) -> Image:
         """
         Saves a screenshot of the element.
@@ -256,7 +255,7 @@ class ElementABC(MixinABC, ABC):
         :type convert_type: str
         :return: :class:`PIL.Image.Image`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def hide(self, silent: bool = False) -> Element:
         """
@@ -266,7 +265,7 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def show(self, silent: bool = False) -> Element:
         """
@@ -276,7 +275,7 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def execute_script(self, script: str, *args: Any) -> Any:
         """
@@ -288,9 +287,9 @@ class ElementABC(MixinABC, ABC):
         :type args: :obj:`typing.Any`
         :return: :obj:`typing.Any` result from the script.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def screenshot_image(self, screenshot_base: bytes = None) -> Image:
+    def screenshot_image(self, screenshot_base: bytes | None = None) -> Image:
         """
         Returns a :class:`PIL.Image.Image` object representing the screenshot of the web element.
         Appium iOS: Take driver screenshot and crop manually element from it
@@ -300,7 +299,7 @@ class ElementABC(MixinABC, ABC):
         :type screenshot_base: bytes
         :return: :class:`PIL.Image.Image`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def screenshot_base(self) -> bytes:
@@ -309,7 +308,7 @@ class ElementABC(MixinABC, ABC):
 
         :return: :class:`bytes` - screenshot binary
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def text(self) -> str:
@@ -318,7 +317,7 @@ class ElementABC(MixinABC, ABC):
 
         :return: :class:`str` - element text
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def inner_text(self) -> str:
@@ -327,7 +326,7 @@ class ElementABC(MixinABC, ABC):
 
         :return: :class:`str` - element inner text
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def value(self) -> str:
@@ -336,7 +335,7 @@ class ElementABC(MixinABC, ABC):
 
         :return: :class:`str` - element value
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_available(self) -> bool:
         """
@@ -344,7 +343,7 @@ class ElementABC(MixinABC, ABC):
 
         :return: :class:`bool` - :obj:`True` if present in DOM
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_displayed(self, silent: bool = False) -> bool:
         """
@@ -354,7 +353,7 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`bool`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_hidden(self, silent: bool = False) -> bool:
         """
@@ -364,7 +363,7 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`bool`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_attribute(self, attribute: str, silent: bool = False) -> str:
         """
@@ -376,7 +375,7 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`str` - The value of the specified attribute.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_all_texts(self, silent: bool = False) -> List[str]:
         """
@@ -386,7 +385,7 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`list` of :class:`str` - A list containing the text content of all matching elements.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_elements_count(self, silent: bool = False) -> int:
         """
@@ -396,7 +395,7 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`int` - The number of matching elements.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_rect(self) -> dict:
         """
@@ -404,7 +403,7 @@ class ElementABC(MixinABC, ABC):
 
         :return: :class:`dict` - A dictionary {'x', 'y', 'width', 'height'} of the element.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def size(self) -> Size:
@@ -413,7 +412,7 @@ class ElementABC(MixinABC, ABC):
 
         :return: :class:`.Size` - An object representing the element's dimensions.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def location(self) -> Location:
@@ -422,7 +421,7 @@ class ElementABC(MixinABC, ABC):
 
         :return: :class:`.Location` - An object representing the element's position.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_enabled(self, silent: bool = False) -> bool:
         """
@@ -432,7 +431,7 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`bool` - :obj:`True` if the element is enabled, :obj:`False` otherwise.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_checked(self) -> bool:
         """
@@ -440,7 +439,7 @@ class ElementABC(MixinABC, ABC):
 
         :return: :class:`bool` - :obj:`True` if the checkbox or radio button is checked, :obj:`False` otherwise.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def hover(self, silent: bool = False) -> Element:
         """
@@ -450,7 +449,7 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def hover_outside(self, x: int = 0, y: int = -5) -> Element:
         """
@@ -462,7 +461,7 @@ class ElementABC(MixinABC, ABC):
         :type y: int
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def click_outside(self, x: int = -5, y: int = -5) -> Element:
         """
@@ -474,7 +473,7 @@ class ElementABC(MixinABC, ABC):
         :type y: int
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def click_in_alert(self) -> Element:
         """
@@ -483,7 +482,7 @@ class ElementABC(MixinABC, ABC):
 
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def set_text(self, text: str, silent: bool = False) -> Element:
         """
@@ -495,9 +494,9 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def send_keyboard_action(self, action: Union[str, KeyboardKeys]) -> Element:
+    def send_keyboard_action(self, action: str | KeyboardKeys) -> Element:
         """
         Send a keyboard action to the current element (e.g., press a key or shortcut).
 
@@ -505,14 +504,14 @@ class ElementABC(MixinABC, ABC):
         :type action: str or :class:`KeyboardKeys`
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def wait_elements_count(
             self,
             expected_count: int,
             *,
-            timeout: Union[int, float] = WAIT_EL,
-            silent: bool = False
+            timeout: float = WAIT_EL,
+            silent: bool = False,
     ) -> Element:
         """
         Wait until the number of matching elements equals the expected count.
@@ -538,14 +537,14 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def wait_for_text(
             self,
-            expected_text: Optional[str] = None,
+            expected_text: str | None = None,
             *,
-            timeout: Union[int, float] = WAIT_EL,
-            silent: bool = False
+            timeout: float = WAIT_EL,
+            silent: bool = False,
     ) -> Element:
         """
         Wait for the presence of a specific text in the current element, or for any non-empty text.
@@ -571,14 +570,14 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def wait_for_value(
             self,
-            expected_value: Optional[str] = None,
+            expected_value: str | None = None,
             *,
-            timeout: Union[int, float] = WAIT_EL,
-            silent: bool = False
+            timeout: float = WAIT_EL,
+            silent: bool = False,
     ) -> Element:
         """
         Wait for a specific value in the current element, or for any non-empty value.
@@ -604,14 +603,14 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def wait_visibility_without_error(
             self,
             *,
-            timeout: Union[int, float] = QUARTER_WAIT_EL,
+            timeout: float = QUARTER_WAIT_EL,
             silent: bool = False,
-            continuous: Union[bool, int, float] = False,
+            continuous: bool | float = False,
     ) -> Element:
         """
         Wait for the element to become visible, without raising an error if it does not.
@@ -640,14 +639,14 @@ class ElementABC(MixinABC, ABC):
         :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def wait_hidden_without_error(
             self,
             *,
-            timeout: Union[int, float] = QUARTER_WAIT_EL,
+            timeout: float = QUARTER_WAIT_EL,
             silent: bool = False,
-            continuous: Union[bool, int, float] = False,
+            continuous: bool | float = False,
     ) -> Element:
         """
         Wait for the element to become hidden, without raising an error if it does not.
@@ -676,9 +675,9 @@ class ElementABC(MixinABC, ABC):
         :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def wait_enabled(self, *, timeout: Union[int, float] = WAIT_EL, silent: bool = False) -> Element:
+    def wait_enabled(self, *, timeout: float = WAIT_EL, silent: bool = False) -> Element:
         """
         Wait for the element to become enabled and/or clickable.
 
@@ -701,9 +700,9 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def wait_disabled(self, *, timeout: Union[int, float] = WAIT_EL, silent: bool = False) -> Element:
+    def wait_disabled(self, *, timeout: float = WAIT_EL, silent: bool = False) -> Element:
         """
         Wait for the element to become disabled.
 
@@ -726,14 +725,14 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def wait_for_size(
             self,
             expected_size: Size,
             *,
-            timeout: Union[int, float] = WAIT_EL,
-            silent: bool = False
+            timeout: float = WAIT_EL,
+            silent: bool = False,
     ) -> Element:
         """
         Wait until element size will be equal to given :class:`.Size` object
@@ -759,7 +758,7 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_visible(self, check_displaying: bool = True, silent: bool = False) -> bool:
         """
@@ -772,7 +771,7 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`bool`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_fully_visible(self, check_displaying: bool = True, silent: bool = False) -> bool:
         """
@@ -785,13 +784,13 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`bool`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def scroll_into_view(
             self,
             block: ScrollTo = ScrollTo.CENTER,
             behavior: ScrollTypes = ScrollTypes.INSTANT,
-            sleep: Union[int, float] = 0,
+            sleep: float = 0,
             silent: bool = False,
     ) -> Element:
         """
@@ -807,20 +806,20 @@ class ElementABC(MixinABC, ABC):
         :type silent: bool
         :return: :class:`Element`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def assert_screenshot(
             self,
             filename: str = '',
             test_name: str = '',
             name_suffix: str = '',
-            threshold: Union[int, float] = None,
-            delay: Union[int, float] = None,
+            threshold: float | None = None,
+            delay: float | None = None,
             scroll: bool = False,
-            remove: Union[Element, List[Element]] = None,
-            fill_background: Union[str, bool] = False,
+            remove: Element | List[Element] = None,
+            fill_background: str | bool = False,
             cut_box: Box = None,
-            hide: Union[Element, List[Element]] = None,
+            hide: Element | List[Element] = None,
     ) -> None:
         """
         Asserts that the given screenshot matches the currently taken screenshot.
@@ -856,20 +855,20 @@ class ElementABC(MixinABC, ABC):
         :type hide: typing.Optional[Element or typing.List[Element]]
         :return: :obj:`None`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def soft_assert_screenshot(
             self,
             filename: str = '',
             test_name: str = '',
             name_suffix: str = '',
-            threshold: Union[int, float] = None,
-            delay: Union[int, float] = None,
+            threshold: float | None = None,
+            delay: float | None = None,
             scroll: bool = False,
-            remove: Union[Element, List[Element]] = None,
-            fill_background: Union[str, bool] = False,
+            remove: Element | List[Element] = None,
+            fill_background: str | bool = False,
             cut_box: Box = None,
-            hide: Union[Element, List[Element]] = None,
+            hide: Element | List[Element] = None,
     ) -> Tuple[bool, str]:
         """
         Compares the currently taken screenshot to the expected screenshot and returns a result.
@@ -903,9 +902,9 @@ class ElementABC(MixinABC, ABC):
           Can be a single element or a list of elements.
         :return: :class:`typing.Tuple` (:class:`bool`, :class:`str`) - result state and result message
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def get_element_info(self, element: Optional[Element] = None) -> str:
+    def get_element_info(self, element: Element | None = None) -> str:
         """
         Retrieves detailed logging information for the specified element.
 
@@ -914,9 +913,9 @@ class ElementABC(MixinABC, ABC):
         :type element: :class:`Element` or :obj:`None`
         :return: :class:`str` - A string containing the log data.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def _get_all_elements(self, sources: Union[tuple, list]) -> List[Element]:
+    def _get_all_elements(self, sources: tuple | list) -> List[Element]:
         """
         Retrieves all wrapped elements from the given sources.
 
@@ -924,4 +923,4 @@ class ElementABC(MixinABC, ABC):
         :type sources: tuple or list
         :return: A list of wrapped :class:`Element` objects.
         """
-        raise NotImplementedError()
+        raise NotImplementedError

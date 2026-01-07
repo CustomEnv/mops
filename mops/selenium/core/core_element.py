@@ -1,16 +1,9 @@
 from __future__ import annotations
 
-import time
 from abc import ABC
-from typing import Union, List, Any, Callable, TYPE_CHECKING
+import time
+from typing import TYPE_CHECKING, Any, List
 
-from PIL import Image
-
-from mops.mixins.internal_mixin import get_element_info
-from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
-from selenium.webdriver.remote.webelement import WebElement as SeleniumWebElement
-from appium.webdriver.webelement import WebElement as AppiumWebElement
-from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import (
     InvalidArgumentException as SeleniumInvalidArgumentException,
     InvalidSelectorException as SeleniumInvalidSelectorException,
@@ -18,33 +11,43 @@ from selenium.common.exceptions import (
     StaleElementReferenceException as SeleniumStaleElementReferenceException,
     WebDriverException as SeleniumWebDriverException,
 )
+from selenium.webdriver.support.wait import WebDriverWait
+
 from mops.abstraction.element_abc import ElementABC
-from mops.selenium.sel_utils import ActionChains
-from mops.js_scripts import get_element_size_js, get_element_position_on_screen_js, hide_caret_js_script
-from mops.keyboard_keys import KeyboardKeys
-from mops.mixins.objects.location import Location
-from mops.mixins.objects.size import Size
-from mops.shared_utils import cut_log_data, _scaled_screenshot
-from mops.utils.internal_utils import WAIT_EL, safe_call, get_dict, is_group
-from mops.utils.decorators import retry
 from mops.exceptions import (
-    InvalidSelectorException,
     DriverWrapperException,
-    NoSuchElementException,
     ElementNotInteractableException,
+    InvalidSelectorException,
+    NoSuchElementException,
     NoSuchParentException,
 )
+from mops.js_scripts import get_element_position_on_screen_js, get_element_size_js, hide_caret_js_script
+from mops.mixins.internal_mixin import get_element_info
+from mops.mixins.objects.location import Location
+from mops.mixins.objects.size import Size
+from mops.selenium.sel_utils import ActionChains
+from mops.shared_utils import _scaled_screenshot, cut_log_data
+from mops.utils.decorators import retry
+from mops.utils.internal_utils import WAIT_EL, get_dict, is_group, safe_call
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from appium.webdriver.webelement import WebElement as AppiumWebElement
+    from PIL import Image
+    from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
+    from selenium.webdriver.remote.webelement import WebElement as SeleniumWebElement
+
     from mops.base.element import Element
+    from mops.keyboard_keys import KeyboardKeys
 
 
 class CoreElement(ElementABC, ABC):
 
-    parent: Union[Element]
+    parent: Element
     locator_type: str
-    _element: Union[None, SeleniumWebElement, AppiumWebElement] = None
-    _cached_element: Union[None, SeleniumWebElement, AppiumWebElement] = None
+    _element: None | SeleniumWebElement | AppiumWebElement = None
+    _cached_element: None | SeleniumWebElement | AppiumWebElement = None
 
     # Element
 
@@ -58,7 +61,7 @@ class CoreElement(ElementABC, ABC):
         return self._get_element()
 
     @element.setter
-    def element(self, base_element: Union[SeleniumWebElement, AppiumWebElement]):
+    def element(self, base_element: SeleniumWebElement | AppiumWebElement) -> None:
         """
         Core element setter. Try to avoid usage of this function
 
@@ -67,7 +70,7 @@ class CoreElement(ElementABC, ABC):
         self._element = base_element
 
     @property
-    def all_elements(self) -> Union[List[CoreElement], List[Any]]:
+    def all_elements(self) -> List[CoreElement] | List[Any]:
         """
         Returns a list of all matching elements.
 
@@ -108,12 +111,15 @@ class CoreElement(ElementABC, ABC):
         except SeleniumWebDriverException as exc:
             selenium_exc_msg = exc.msg
 
-        raise ElementNotInteractableException(
+        msg = (
             f'Element "{self.name}" not interactable. {self.get_element_info()}. '
             f'Original error: {selenium_exc_msg}'
         )
+        raise ElementNotInteractableException(
+            msg,
+        )
 
-    def type_text(self, text: Union[str, KeyboardKeys], silent: bool = False) -> CoreElement:
+    def type_text(self, text: str | KeyboardKeys, silent: bool = False) -> CoreElement:
         """
         Types text into the element.
 
@@ -205,7 +211,7 @@ class CoreElement(ElementABC, ABC):
 
     # Element state
 
-    def screenshot_image(self, screenshot_base: bytes = None) -> Image:
+    def screenshot_image(self, screenshot_base: bytes | None = None) -> Image:
         """
         Returns a :class:`PIL.Image.Image` object representing the screenshot of the web element.
         Appium iOS: Take driver screenshot and crop manually element from it
@@ -343,7 +349,7 @@ class CoreElement(ElementABC, ABC):
 
         self.wait_visibility(silent=True)
 
-        return list(element_item.text for element_item in self.all_elements)
+        return [element_item.text for element_item in self.all_elements]
 
     def get_elements_count(self, silent: bool = False) -> int:
         """
@@ -427,7 +433,7 @@ class CoreElement(ElementABC, ABC):
         """
         return ActionChains(self.driver)
 
-    def _get_element(self, wait_strategy: Union[bool, Callable] = True, force_wait: bool = False) -> SeleniumWebElement:
+    def _get_element(self, wait_strategy: bool | Callable = True, force_wait: bool = False) -> SeleniumWebElement:
         """
         Get selenium element from driver or parent element
 
@@ -455,20 +461,26 @@ class CoreElement(ElementABC, ABC):
         if not element:
             element_info = f'"{self.name}" {self.__class__.__name__}'
             if self.parent and not self._get_cached_element(self.parent):
-                raise NoSuchParentException(
+                msg = (
                     f'{self._get_container_info()} container not found while accessing {element_info}. '
                     f'{get_element_info(self.parent, "Container Selector=")}'
                 )
+                raise NoSuchParentException(
+                    msg,
+                )
 
-            raise NoSuchElementException(
+            msg = (
                 f'Unable to locate the {element_info}. '
                 f'{self.get_element_info()}'
                 f'{self._ensure_unique_parent()}'
             )
+            raise NoSuchElementException(
+                msg,
+            )
 
         return element
 
-    def _get_base(self, wait_strategy: Union[bool, Callable] = True) -> Union[SeleniumWebDriver, SeleniumWebElement]:
+    def _get_base(self, wait_strategy: bool | Callable = True) -> SeleniumWebDriver | SeleniumWebElement:
         """
         Get driver with depends on parent element if available
 
@@ -477,18 +489,18 @@ class CoreElement(ElementABC, ABC):
         base = self.driver
 
         if not base:
-            raise DriverWrapperException("Can't find driver")
+            msg = "Can't find driver"
+            raise DriverWrapperException(msg)
 
-        if self.driver_wrapper.is_appium:
-            if self.driver_wrapper.is_native_context:
-                return base
+        if self.driver_wrapper.is_appium and self.driver_wrapper.is_native_context:
+            return base
 
         if self.parent:
             base = self.parent._get_element(wait_strategy=wait_strategy)
 
         return base
 
-    def _find_element(self, wait_parent: bool = False) -> Union[SeleniumWebElement, AppiumWebElement]:
+    def _find_element(self, wait_parent: bool = False) -> SeleniumWebElement | AppiumWebElement:
         """
         Find selenium/appium element
 
@@ -507,7 +519,7 @@ class CoreElement(ElementABC, ABC):
         except SeleniumNoSuchElementException as exc:
             raise NoSuchElementException(exc.msg)
 
-    def _find_elements(self, wait_parent: bool = False) -> List[Union[SeleniumWebElement, AppiumWebElement]]:
+    def _find_elements(self, wait_parent: bool = False) -> List[SeleniumWebElement | AppiumWebElement]:
         """
         Find all selenium/appium elements
 
@@ -537,8 +549,7 @@ class CoreElement(ElementABC, ABC):
         if 'invalid locator' in exc.msg or 'is not a valid' in exc.msg:
             msg = f'Selector for "{self.name}" is invalid. {self.get_element_info()}'
             raise InvalidSelectorException(msg)
-        else:
-            raise exc
+        raise exc
 
     def _get_container_info(self) -> str:
         container_info = f'"{self.parent.name}"'
@@ -561,7 +572,7 @@ class CoreElement(ElementABC, ABC):
 
         return info
 
-    def _get_cached_element(self, obj: Union[CoreElement, Element]) -> Union[None, SeleniumWebElement, AppiumWebElement]:
+    def _get_cached_element(self, obj: CoreElement | Element) -> None | SeleniumWebElement | AppiumWebElement:
         """
         Get cached element from given object
 
@@ -570,7 +581,7 @@ class CoreElement(ElementABC, ABC):
         """
         return getattr(obj, '_cached_element', None)
 
-    def _is_element_still_available(self, element: Union[None, SeleniumWebElement, AppiumWebElement]) -> bool:
+    def _is_element_still_available(self, element: None | SeleniumWebElement | AppiumWebElement) -> bool:
         """
         Check is the element still available on page
 

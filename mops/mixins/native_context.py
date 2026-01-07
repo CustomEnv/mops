@@ -1,9 +1,9 @@
-from mops.mixins.objects.locator import Locator
 from mops.mixins.capabilities import (
     CUSTOM_BOTTOM_BAR_LOCATOR_CAPABILITY,
     CUSTOM_DONE_BUTTON_LOCATOR_CAPABILITY,
     CUSTOM_TOP_BAR_LOCATOR_CAPABILITY,
 )
+from mops.mixins.objects.locator import Locator
 
 
 class NativeContext:
@@ -48,24 +48,24 @@ class NativeSafari:
         self.top_bar = Element(
             Locator(
                 mobile=self.custom_top_bar_locator or self.ios_mobile_top_bar_locator,
-                tablet=self.custom_top_bar_locator or self.ipados_top_bar_locator
+                tablet=self.custom_top_bar_locator or self.ipados_top_bar_locator,
             ),
             name='safari top bar',
-            driver_wrapper=driver_wrapper
+            driver_wrapper=driver_wrapper,
         )
 
         self.custom_bottom_bar_locator = self.driver_wrapper.caps.get(CUSTOM_BOTTOM_BAR_LOCATOR_CAPABILITY, '')
         self.bottom_bar = Element(
             self.custom_bottom_bar_locator or self.ios_18_bottom_bar_locator,
             name='safari bottom bar',
-            driver_wrapper=driver_wrapper
+            driver_wrapper=driver_wrapper,
         )
 
         self.custom_done_button_locator = self.driver_wrapper.caps.get(CUSTOM_DONE_BUTTON_LOCATOR_CAPABILITY, '')
         self.keyboard_done_button = Element(
             locator=self.custom_done_button_locator or self.ios_keyboard_hide_button,
             name='keyboard Done button',
-            driver_wrapper=driver_wrapper
+            driver_wrapper=driver_wrapper,
         )
 
     def get_bottom_bar_height(self) -> int:

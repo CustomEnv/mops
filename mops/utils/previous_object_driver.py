@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import Any, Union
+from typing import Any
 
 from mops.base.driver_wrapper import DriverWrapperSessions
 
@@ -37,7 +37,7 @@ class PreviousObjectDriver:
                 if previous_object and getattr(previous_object, 'driver_wrapper', None):
                     current_obj.driver_wrapper = previous_object.driver_wrapper
 
-    def _get_prev_obj_instance(self, current_obj: Any) -> Union[None, Any]:
+    def _get_prev_obj_instance(self, current_obj: Any) -> None | Any:
         """
         Finds previous object with nested element/group/page
 

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import time
 from abc import ABC
-from typing import Union
+import time
 
 from mops.selenium.core.core_page import CorePage
 
@@ -16,7 +15,7 @@ class MobilePage(CorePage, ABC):
             end_x: int,
             end_y: int,
             duration: int = 0,
-            sleep: Union[int, float] = 0
+            sleep: float = 0,
     ) -> MobilePage:
         """
         Appium only: Swipe from one point to another, with an optional duration and post-swipe delay.

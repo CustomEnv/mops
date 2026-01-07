@@ -1,17 +1,19 @@
 from __future__ import annotations
 
-from typing import Union, List, Optional
+from typing import TYPE_CHECKING, List
 
 from appium.webdriver.applicationstate import ApplicationState
-from appium.webdriver.webdriver import WebDriver as AppiumDriver
 
-from mops.selenium.core.core_driver import CoreDriver
 from mops.mixins.native_context import NativeContext, NativeSafari
+from mops.selenium.core.core_driver import CoreDriver
+
+if TYPE_CHECKING:
+    from appium.webdriver.webdriver import WebDriver as AppiumDriver
 
 
 class MobileDriver(CoreDriver):
 
-    bundle_id: Optional[str]
+    bundle_id: str | None
 
     def __init__(self, driver_container: Driver, *args, **kwargs):  # noqa
         """
@@ -122,7 +124,7 @@ class MobileDriver(CoreDriver):
         self.__is_web_context = True
         return self
 
-    def get_web_view_context(self) -> Union[None, str]:
+    def get_web_view_context(self) -> None | str:
         """
         Appium only: Get the WEBVIEW context name.
 
@@ -132,6 +134,7 @@ class MobileDriver(CoreDriver):
         for context in self.get_all_contexts():
             if 'WEBVIEW' in context:
                 return context
+        return None
 
     def get_current_context(self) -> str:
         """
@@ -168,7 +171,7 @@ class MobileDriver(CoreDriver):
     @property
     def top_bar_height(self) -> int:
         """
-        iOS only - Get the height of the top bar.
+        IOS only - Get the height of the top bar.
 
         :return: :obj:`int` - The height of the top bar in pixels.
         """
@@ -181,7 +184,7 @@ class MobileDriver(CoreDriver):
     @property
     def bottom_bar_height(self) -> int:
         """
-        iOS only - Get the height of the bottom bar.
+        IOS only - Get the height of the bottom bar.
 
         :return: :obj:`int` - The height of the bottom bar in pixels.
         """
@@ -203,7 +206,7 @@ class MobileDriver(CoreDriver):
         """
         return self.driver.contexts
 
-    def screenshot_image(self, screenshot_base: bytes = None):
+    def screenshot_image(self, screenshot_base: bytes | None = None):
         """
         Returns a :class:`PIL.Image.Image` object representing the screenshot of the web page.
         Appium iOS: Removes native controls from image manually
@@ -290,4 +293,5 @@ def _set_static(obj) -> None:
         elif obj.is_android:
             obj.bundle_id = obj.caps.get('appPackage', 'undefined: appPackage')
         else:
-            raise Exception('Make sure that correct "platformName" capability specified')
+            msg = 'Make sure that correct "platformName" capability specified'
+            raise Exception(msg)

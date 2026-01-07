@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import astuple
-from typing import List
+from typing import TYPE_CHECKING, List
 
-from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
-
-from mops.mixins.objects.size import Size
 from mops.selenium.core.core_driver import CoreDriver
-from mops.mixins.objects.driver import Driver
+
+if TYPE_CHECKING:
+    from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
+
+    from mops.mixins.objects.driver import Driver
+    from mops.mixins.objects.size import Size
 
 
 class WebDriver(CoreDriver):
@@ -79,10 +81,7 @@ class WebDriver(CoreDriver):
         :type tab: int
         :return: :obj:`.WebDriver` - The current instance of the driver wrapper, now switched to the specified tab.
         """
-        if tab == -1:
-            tab = self.get_all_tabs()[tab]
-        else:
-            tab = self.get_all_tabs()[tab - 1]
+        tab = self.get_all_tabs()[tab] if tab == -1 else self.get_all_tabs()[tab - 1]
 
         self.driver.switch_to.window(tab)
         return self

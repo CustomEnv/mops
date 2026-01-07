@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from typing import Union, Any
-
-from appium.webdriver.webdriver import WebDriver as AppiumWebDriver
-from playwright.sync_api import Page as PlaywrightSourcePage
-from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
+from typing import TYPE_CHECKING, Any
 
 from mops.base.driver_wrapper import DriverWrapper, DriverWrapperSessions
 
+if TYPE_CHECKING:
+    from appium.webdriver.webdriver import WebDriver as AppiumWebDriver
+    from playwright.sync_api import Page as PlaywrightSourcePage
+    from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
 
-def get_driver_wrapper_from_object(obj: Union[DriverWrapper, Any]):
+
+def get_driver_wrapper_from_object(obj: DriverWrapper | Any):
     """
     Retrieves the driver wrapper from a given object. The object can either be a :class:`.DriverWrapper` instance
       or an object that contains a ``driver_wrapper`` attribute.
@@ -28,8 +29,9 @@ def get_driver_wrapper_from_object(obj: Union[DriverWrapper, Any]):
     elif hasattr(obj, 'driver_wrapper'):
         driver_wrapper_instance = obj.driver_wrapper
     else:
-        obj_nfo = f'"{getattr(obj, "name")}" of "{obj.__class__}"' if obj else obj
-        raise Exception(f'Cant get driver_wrapper from {obj_nfo}')
+        obj_nfo = f'"{obj.name}" of "{obj.__class__}"' if obj else obj
+        msg = f'Cant get driver_wrapper from {obj_nfo}'
+        raise Exception(msg)
 
     return driver_wrapper_instance
 
@@ -39,8 +41,8 @@ class DriverMixin:
     _driver_wrapper = None
 
     @property
-    def driver(self) -> Union[SeleniumWebDriver, AppiumWebDriver, PlaywrightSourcePage]:
-        """
+    def driver(self) -> SeleniumWebDriver | AppiumWebDriver | PlaywrightSourcePage:
+        r"""
         Retrieves the source driver instance, which could be a Selenium, Appium, or Playwright driver.
 
         :return: Current source driver that assigned for this object, which is either \n
@@ -61,7 +63,7 @@ class DriverMixin:
         return self._driver_wrapper
 
     @driver_wrapper.setter
-    def driver_wrapper(self, driver_wrapper: DriverWrapper):
+    def driver_wrapper(self, driver_wrapper: DriverWrapper) -> None:
         """
         Sets the driver wrapper instance, for this object.
 

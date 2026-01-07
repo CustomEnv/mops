@@ -1,33 +1,34 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Union
+from typing import TYPE_CHECKING, Any
 
 from selenium.webdriver.common.by import By
 
 from mops.exceptions import InvalidLocatorException
-from mops.mixins.objects.locator import Locator
 from mops.mixins.objects.locator_type import LocatorType
 from mops.utils.internal_utils import all_tags
 
+if TYPE_CHECKING:
+    from mops.mixins.objects.locator import Locator
 
-_XPATH_MATCH = ("/", "./", "(/")
-_CSS_MATCH = ("#", ".")
-_CSS_REGEXP = r"[#.\[\]=]"
+_XPATH_MATCH = ('/', './', '(/')
+_CSS_MATCH = ('#', '.')
+_CSS_REGEXP = r'[#.\[\]=]'
 
 _DEFAULT_MATCH = (
-    f"{LocatorType.XPATH}=",
-    f"{LocatorType.ID}=",
-    f"{LocatorType.CSS}=",
-    f"{LocatorType.TEXT}=",
+    f'{LocatorType.XPATH}=',
+    f'{LocatorType.ID}=',
+    f'{LocatorType.CSS}=',
+    f'{LocatorType.TEXT}=',
 )
 
 _APPIUM_MATCH = (
-    f"{LocatorType.XPATH}=",
-    f"{LocatorType.ID}=",
-    f"[{LocatorType.ID}=",
-    f"{LocatorType.CSS}=",
-    f"{LocatorType.TEXT}="
+    f'{LocatorType.XPATH}=',
+    f'{LocatorType.ID}=',
+    f'[{LocatorType.ID}=',
+    f'{LocatorType.CSS}=',
+    f'{LocatorType.TEXT}=',
 )
 
 _APPIUM_LOCATOR_TYPES = (
@@ -52,7 +53,7 @@ _SELENIUM_MOPS_LOCATOR_TYPES = {
 
 
 def _set_selenium_compatibility_id_locator(obj: Any, split: bool = True) -> Any:
-    locator = obj.locator.split(f"{LocatorType.ID}=")[-1] if split else obj.locator
+    locator = obj.locator.split(f'{LocatorType.ID}=')[-1] if split else obj.locator
 
     obj.locator = f'[{LocatorType.ID}="{locator}"]'
     obj.locator_type = By.CSS_SELECTOR
@@ -66,7 +67,7 @@ def get_platform_locator(obj: Any):
     :param obj: Page/Group/Element
     :return: current platform locator
     """
-    locator: Union[Locator, str] = obj.locator
+    locator: Locator | str = obj.locator
 
     if type(locator) is str or not obj.driver_wrapper:
         return locator
@@ -85,34 +86,33 @@ def get_platform_locator(obj: Any):
         locator = mobile_fallback_locator
 
     if not isinstance(locator, str):
-        raise InvalidLocatorException(f'Cannot extract locator for current platform for following object: {obj}')
+        msg = f'Cannot extract locator for current platform for following object: {obj}'
+        raise InvalidLocatorException(msg)
 
     return locator
 
 
-def set_selenium_selector(obj: Any):
-    """
-    Sets selenium locator & locator type
-    """
+def set_selenium_selector(obj: Any) -> None:
+    """Sets selenium locator & locator type"""
     locator = obj.locator.strip()
     obj.log_locator = locator
 
     # Checking the supported locators
 
-    if locator.startswith(f"{LocatorType.XPATH}="):
-        obj.locator = obj.locator.split(f"{LocatorType.XPATH}=")[-1]
+    if locator.startswith(f'{LocatorType.XPATH}='):
+        obj.locator = obj.locator.split(f'{LocatorType.XPATH}=')[-1]
         obj.locator_type = By.XPATH
 
-    elif locator.startswith(f"{LocatorType.TEXT}="):
-        locator = obj.locator.split(f"{LocatorType.TEXT}=")[-1]
+    elif locator.startswith(f'{LocatorType.TEXT}='):
+        locator = obj.locator.split(f'{LocatorType.TEXT}=')[-1]
         obj.locator = f'//*[contains(text(), "{locator}")]'
         obj.locator_type = By.XPATH
 
-    elif locator.startswith(f"{LocatorType.CSS}="):
-        obj.locator = obj.locator.split(f"{LocatorType.CSS}=")[-1]
+    elif locator.startswith(f'{LocatorType.CSS}='):
+        obj.locator = obj.locator.split(f'{LocatorType.CSS}=')[-1]
         obj.locator_type = By.CSS_SELECTOR
 
-    elif locator.startswith(f"{LocatorType.ID}="):
+    elif locator.startswith(f'{LocatorType.ID}='):
         _set_selenium_compatibility_id_locator(obj)
 
     # Checking the regular locators
@@ -135,10 +135,8 @@ def set_selenium_selector(obj: Any):
         _set_selenium_compatibility_id_locator(obj, split=False)
 
 
-def set_playwright_locator(obj: Any):
-    """
-    Sets playwright locator & locator type
-    """
+def set_playwright_locator(obj: Any) -> None:
+    """Sets playwright locator & locator type"""
     locator: str = obj.locator.strip()
 
     obj.log_locator = locator
@@ -151,7 +149,7 @@ def set_playwright_locator(obj: Any):
 
     # Checking the regular locators
 
-    elif locator.startswith(_XPATH_MATCH):
+    if locator.startswith(_XPATH_MATCH):
         obj.locator_type = LocatorType.XPATH
 
     elif locator.startswith(_CSS_MATCH) or re.search(_CSS_REGEXP, locator):
@@ -169,10 +167,8 @@ def set_playwright_locator(obj: Any):
     obj.log_locator = obj.locator
 
 
-def set_appium_selector(obj: Any):
-    """
-    Sets appium locator & locator type
-    """
+def set_appium_selector(obj: Any) -> None:
+    """Sets appium locator & locator type"""
     set_selenium_selector(obj)
 
     locator: str = obj.locator.strip()

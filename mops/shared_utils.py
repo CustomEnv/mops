@@ -1,6 +1,6 @@
 import io
 import logging
-from subprocess import Popen, PIPE, run
+from subprocess import PIPE, Popen, run
 
 from PIL import Image
 
@@ -55,7 +55,7 @@ def shell_running_command(cmd, **kwargs):
 
 
 def shell_command(cmd,  **kwargs):
-    process = run(cmd, shell=True, **kwargs)
+    process = run(cmd, check=False, shell=True, **kwargs)
 
     if process.stdout:
         process.output = process.stdout.decode('utf8').replace('\n', '')

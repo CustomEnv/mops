@@ -1,23 +1,24 @@
 from __future__ import annotations
 
+import contextlib
 from dataclasses import asdict
 from functools import cached_property
-from typing import List, Union, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, List
 
-from playwright._impl._errors import Error as PlaywrightError  # noqa
-
-from PIL import Image
-from playwright.sync_api import Locator, Page, Browser, BrowserContext
+from playwright._impl._errors import Error as PlaywrightError
+from playwright.sync_api import Browser, BrowserContext, Locator, Page
 
 from mops.abstraction.driver_wrapper_abc import DriverWrapperABC
-from mops.mixins.objects.driver import Driver
 from mops.mixins.objects.size import Size
 from mops.shared_utils import get_image
-from mops.utils.internal_utils import get_timeout_in_ms, WAIT_UNIT
+from mops.utils.internal_utils import WAIT_UNIT, get_timeout_in_ms
 from mops.utils.logs import Logging
 
 if TYPE_CHECKING:
+    from PIL import Image
+
     from mops.base.element import Element
+    from mops.mixins.objects.driver import Driver
 
 
 class PlayDriver(Logging, DriverWrapperABC):
@@ -66,7 +67,7 @@ class PlayDriver(Logging, DriverWrapperABC):
         """
         return self.browser_name.lower() == 'firefox'
 
-    def wait(self, timeout: Union[int, float] = WAIT_UNIT, reason: str = '') -> PlayDriver:
+    def wait(self, timeout: float = WAIT_UNIT, reason: str = '') -> PlayDriver:
         """
         Pauses the execution for a specified amount of time.
 
@@ -155,7 +156,7 @@ class PlayDriver(Logging, DriverWrapperABC):
         self.driver.go_back()
         return self
 
-    def quit(self, silent: bool = False, trace_path: str = 'trace.zip'):
+    def quit(self, silent: bool = False, trace_path: str = 'trace.zip') -> None:
         """
         Quit the driver instance.
 
@@ -175,10 +176,8 @@ class PlayDriver(Logging, DriverWrapperABC):
         :return: :obj:`None`
         """
         if trace_path:
-            try:
+            with contextlib.suppress(PlaywrightError):
                 self.context.tracing.stop(path=trace_path)
-            except PlaywrightError:
-                pass
 
         self._base_driver.close()
         self.context.close()
@@ -331,7 +330,7 @@ class PlayDriver(Logging, DriverWrapperABC):
         height = self.execute_script('return window.outerHeight')
         return Size(width=width, height=height)
 
-    def screenshot_image(self, screenshot_base: bytes = None) -> Image:
+    def screenshot_image(self, screenshot_base: bytes | None = None) -> Image:
         """
         Returns a :class:`PIL.Image.Image` object representing the screenshot of the web page.
         Appium iOS: Removes native controls from image manually
@@ -392,10 +391,7 @@ class PlayDriver(Logging, DriverWrapperABC):
         :type tab: int
         :return: :obj:`.PlayDriver` - The current instance of the driver wrapper, now switched to the specified tab.
         """
-        if tab == -1:
-            tab = self.get_all_tabs()[tab]
-        else:
-            tab = self.get_all_tabs()[tab - 1]
+        tab = self.get_all_tabs()[tab] if tab == -1 else self.get_all_tabs()[tab - 1]
 
         self.driver = tab
         self.driver.bring_to_front()
