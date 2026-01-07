@@ -2,6 +2,12 @@
 
 <br>
 
+## v3.3.1
+*Release date: 2026-01-05*
+
+### Changed
+- `safe_call` exceptions list
+
 ## v3.3.0
 *Release date: 2026-01-05*
 

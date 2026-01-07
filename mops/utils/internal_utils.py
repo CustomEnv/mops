@@ -6,10 +6,10 @@ from copy import copy
 from functools import lru_cache
 from typing import Any, Union, Callable
 
-from mops.mixins.objects.size import Size
-from selenium.common.exceptions import StaleElementReferenceException as SeleniumStaleElementReferenceException
+from selenium.common.exceptions import WebDriverException as SeleniumWebDriverException
 
-from mops.exceptions import NoSuchElementException, InvalidSelectorException, TimeoutException, NoSuchParentException
+from mops.exceptions import DriverWrapperException as MopsDriverWrapperException
+from mops.mixins.objects.size import Size
 
 WAIT_METHODS_DELAY = 0.1
 WAIT_UNIT = 1
@@ -38,11 +38,8 @@ def safe_call(func: Callable, *args, **kwargs) -> Union[Any, None]:
     :return: None or function return
     """
     exceptions = (
-        NoSuchElementException,
-        InvalidSelectorException,
-        TimeoutException,
-        NoSuchParentException,
-        SeleniumStaleElementReferenceException,
+        MopsDriverWrapperException,
+        SeleniumWebDriverException,
     )
 
     try:
