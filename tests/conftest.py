@@ -12,13 +12,14 @@ from mops.utils.logs import driver_wrapper_logs_settings
 from mops.visual_comparison import VisualComparison
 from tests.adata.drivers.driver_entities import DriverEntities
 from tests.adata.drivers.driver_factory import DriverFactory
+from tests.adata.pages.PopupsPage import PopupsPage
 from tests.adata.pages.colored_blocks_page import ColoredBlocksPage
 from tests.adata.pages.expected_condition_page import ExpectedConditionPage
 from tests.adata.pages.forms_page import FormsPage
 from tests.adata.pages.frames_page import FramesPage
 from tests.adata.pages.keyboard_page import KeyboardPage
 from tests.adata.pages.progress_bar_page import ProgressBarPage
-from tests.adata.pages.mouse_event_page import MouseEventPage
+from tests.adata.pages.mouse_event_page import MouseEventPageV1, MouseEventPageV2
 from tests.adata.pages.pizza_order_page import PizzaOrderPage
 from tests.adata.pages.playground_main_page import PlaygroundMainPage, SecondPlaygroundMainPage
 from tests.adata.pytest_utils import skip_platform
@@ -167,13 +168,23 @@ def colored_blocks_page(driver_wrapper):
 
 
 @pytest.fixture
+def popups_page(driver_wrapper):
+    return PopupsPage().open_page()
+
+
+@pytest.fixture
 def pizza_order_page(driver_wrapper):
     return PizzaOrderPage().open_page()
 
 
 @pytest.fixture
-def mouse_event_page(driver_wrapper):
-    return MouseEventPage().open_page()
+def mouse_event_page_v1(driver_wrapper):
+    return MouseEventPageV1().open_page()
+
+
+@pytest.fixture
+def mouse_event_page_v2(driver_wrapper):
+    return MouseEventPageV2().open_page()
 
 
 @pytest.fixture

@@ -131,3 +131,10 @@ class InvalidLocatorException(DriverWrapperException):
     Thrown when locator is invalid
     """
     pass
+
+
+class ContinuousWaitException(DriverWrapperException):
+    """
+    Thrown when continuous wait is failed
+    """
+    pass

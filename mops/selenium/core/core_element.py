@@ -7,7 +7,6 @@ from typing import Union, List, Any, Callable, TYPE_CHECKING
 from PIL import Image
 
 from mops.mixins.internal_mixin import get_element_info
-from mops.mixins.objects.wait_result import Result
 from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
 from selenium.webdriver.remote.webelement import WebElement as SeleniumWebElement
 from appium.webdriver.webelement import WebElement as AppiumWebElement
@@ -16,21 +15,19 @@ from selenium.common.exceptions import (
     InvalidArgumentException as SeleniumInvalidArgumentException,
     InvalidSelectorException as SeleniumInvalidSelectorException,
     NoSuchElementException as SeleniumNoSuchElementException,
-    ElementNotInteractableException as SeleniumElementNotInteractableException,
-    ElementClickInterceptedException as SeleniumElementClickInterceptedException,
     StaleElementReferenceException as SeleniumStaleElementReferenceException,
+    WebDriverException as SeleniumWebDriverException,
 )
 from mops.abstraction.element_abc import ElementABC
 from mops.selenium.sel_utils import ActionChains
-from mops.js_scripts import get_element_size_js, get_element_position_on_screen_js
+from mops.js_scripts import get_element_size_js, get_element_position_on_screen_js, hide_caret_js_script
 from mops.keyboard_keys import KeyboardKeys
 from mops.mixins.objects.location import Location
-from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes, scroll_into_view_blocks
 from mops.mixins.objects.size import Size
 from mops.shared_utils import cut_log_data, _scaled_screenshot
-from mops.utils.internal_utils import WAIT_EL, safe_call, get_dict, HALF_WAIT_EL, wait_condition, is_group
+from mops.utils.internal_utils import WAIT_EL, safe_call, get_dict, is_group
+from mops.utils.decorators import retry
 from mops.exceptions import (
-    TimeoutException,
     InvalidSelectorException,
     DriverWrapperException,
     NoSuchElementException,
@@ -87,6 +84,7 @@ class CoreElement(ElementABC, ABC):
 
     # Element interaction
 
+    @retry(ElementNotInteractableException)
     def click(self, *, force_wait: bool = True, **kwargs) -> CoreElement:
         """
         Clicks on the element.
@@ -108,26 +106,17 @@ class CoreElement(ElementABC, ABC):
         """
         self.log(f'Click into "{self.name}"')
 
-        self.element = self._get_element(force_wait=force_wait)
+        if force_wait:
+            self.wait_visibility(silent=True)
 
-        selenium_exc_msg = None
-        start_time = time.time()
-        while time.time() - start_time < HALF_WAIT_EL:
-            try:
-                element = self.wait_enabled(silent=True).element
-                element.click()
-                return self
-            except (
-                    SeleniumElementNotInteractableException,
-                    SeleniumElementClickInterceptedException,
-                    SeleniumStaleElementReferenceException,
-            ) as exc:
-                selenium_exc_msg = exc.msg
-            finally:
-                self.element = None
+        try:
+            self.wait_enabled(silent=True).element.click()
+            return self
+        except SeleniumWebDriverException as exc:
+            selenium_exc_msg = exc.msg
 
         raise ElementNotInteractableException(
-            f'Element "{self.name}" not interactable after {HALF_WAIT_EL} seconds. {self.get_element_info()}. '
+            f'Element "{self.name}" not interactable. {self.get_element_info()}. '
             f'Original error: {selenium_exc_msg}'
         )
 
@@ -147,6 +136,7 @@ class CoreElement(ElementABC, ABC):
             self.log(f'Type text "{cut_log_data(text)}" into "{self.name}"')
 
         self.element.send_keys(text)
+
         return self
 
     def type_slowly(self, text: str, sleep_gap: float = 0.05, silent: bool = False) -> CoreElement:
@@ -170,6 +160,7 @@ class CoreElement(ElementABC, ABC):
         for letter in str(text):
             element.send_keys(letter)
             time.sleep(sleep_gap)
+
         return self
 
     def clear_text(self, silent: bool = False) -> CoreElement:
@@ -184,6 +175,7 @@ class CoreElement(ElementABC, ABC):
             self.log(f'Clear text in "{self.name}"')
 
         self.element.clear()
+
         return self
 
     def check(self) -> CoreElement:
@@ -192,11 +184,11 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`CoreElement`
         """
-        self.element = self._get_element(wait=self.wait_availability)
+        self.element = self._get_element(wait_strategy=self.wait_availability)
 
         try:
             if not self.is_checked():
-                self.click(with_wait=False)
+                self.click(force_wait=False)
         finally:
             self.element = None
 
@@ -208,138 +200,17 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`CoreElement`
         """
-        self.element = self._get_element(wait=self.wait_availability)
+        self.element = self._get_element(wait_strategy=self.wait_availability)
 
         try:
             if self.is_checked():
-                self.click(with_wait=False)
+                self.click(force_wait=False)
         finally:
             self.element = None
 
         return self
 
-    # Element waits
-
-    @wait_condition
-    def wait_visibility(self, *, timeout: int = WAIT_EL, silent: bool = False) -> CoreElement:
-        """
-        Waits until the element becomes visible.
-        **Note:** The method requires the use of named arguments.
-
-        **Selenium:**
-
-        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
-          during the waiting process.
-
-        **Appium:**
-
-        - Applied :func:`wait_condition` decorator integrates an exponential delay
-          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
-          with each iteration during the waiting process.
-
-        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
-        :type timeout: int
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`CoreElement`
-        """
-        return Result(  # noqa
-            execution_result=self.is_displayed(silent=True),
-            log=f'Wait until "{self.name}" becomes visible',
-            exc=TimeoutException(f'"{self.name}" not visible', info=self)
-        )
-
-    @wait_condition
-    def wait_hidden(self, *, timeout: int = WAIT_EL, silent: bool = False) -> CoreElement:
-        """
-        Waits until the element becomes hidden.
-        **Note:** The method requires the use of named arguments.
-
-        **Selenium:**
-
-        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
-          during the waiting process.
-
-        **Appium:**
-
-        - Applied :func:`wait_condition` decorator integrates an exponential delay
-          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
-          with each iteration during the waiting process.
-
-        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
-        :type timeout: int
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`CoreElement`
-        """
-        return Result(  # noqa
-            execution_result=self.is_hidden(silent=True),
-            log=f'Wait until "{self.name}" becomes hidden',
-            exc=TimeoutException(f'"{self.name}" still visible', info=self),
-        )
-
-    @wait_condition
-    def wait_availability(self, *, timeout: int = WAIT_EL, silent: bool = False) -> CoreElement:
-        """
-        Waits until the element becomes available in DOM tree. \n
-        **Note:** The method requires the use of named arguments.
-
-        **Selenium:**
-
-        - Applied :func:`wait_condition` decorator integrates a 0.1 seconds delay for each iteration
-          during the waiting process.
-
-        **Appium:**
-
-        - Applied :func:`wait_condition` decorator integrates an exponential delay
-          (starting at 0.1 seconds, up to a maximum of 1.6 seconds) which increases
-          with each iteration during the waiting process.
-
-        :param timeout: The maximum time to wait for the condition (in seconds). Default: :obj:`WAIT_EL`.
-        :type timeout: int
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`CoreElement`
-        """
-        return Result(  # noqa
-            execution_result=self.is_available(),
-            log=f'Wait until presence of "{self.name}"',
-            exc=TimeoutException(f'"{self.name}" not available in DOM', info=self),
-        )
-
     # Element state
-
-    def scroll_into_view(
-            self,
-            block: ScrollTo = ScrollTo.CENTER,
-            behavior: ScrollTypes = ScrollTypes.INSTANT,
-            sleep: Union[int, float] = 0,
-            silent: bool = False,
-    ) -> CoreElement:
-        """
-        Scrolls the element into view using a JavaScript script.
-
-        :param block: The scrolling block alignment. One of the :class:`.ScrollTo` options.
-        :type block: ScrollTo
-        :param behavior: The scrolling behavior. One of the :class:`.ScrollTypes` options.
-        :type behavior: ScrollTypes
-        :param sleep: Delay in seconds after scrolling. Can be an integer or a float.
-        :type sleep: typing.Union[int, float]
-        :param silent: If :obj:`True`, suppresses logging.
-        :type silent: bool
-        :return: :class:`CoreElement`
-        """
-        if not silent:
-            self.log(f'Scroll element "{self.name}" into view')
-
-        assert block in scroll_into_view_blocks, f'Provide one of {scroll_into_view_blocks} option in `block` argument'
-
-        self.execute_script(f'arguments[0].scrollIntoView({{block: "{block}", behavior: "{behavior}"}});')
-
-        if sleep:
-            time.sleep(sleep)
-
-        return self
 
     def screenshot_image(self, screenshot_base: bytes = None) -> Image:
         """
@@ -351,8 +222,9 @@ class CoreElement(ElementABC, ABC):
         :type screenshot_base: bytes
         :return: :class:`PIL.Image.Image`
         """
+        element_size = self.size.width
         screenshot_base = screenshot_base if screenshot_base else self.screenshot_base
-        return _scaled_screenshot(screenshot_base, self.size.width)
+        return _scaled_screenshot(screenshot_base, element_size)
 
     @property
     def screenshot_base(self) -> bytes:
@@ -361,16 +233,19 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`bytes` - screenshot binary
         """
+        self.execute_script(hide_caret_js_script)
+
         return self.element.screenshot_as_png
 
     @property
+    @retry(SeleniumStaleElementReferenceException)
     def text(self) -> str:
         """
         Returns the text of the element.
 
         :return: :class:`str` - element text
         """
-        element = self._get_element(wait=self.wait_availability)
+        element = self._get_element(wait_strategy=self.wait_availability)
 
         if self.driver_wrapper.is_safari:
             return element.get_attribute('innerText')
@@ -402,12 +277,15 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`bool` - :obj:`True` if present in DOM
         """
+        if self._element:
+            return self._is_element_still_available(self._element)
+
         try:
-            element = safe_call(self._find_element, wait_parent=False)
+            element = bool(safe_call(self._find_element, wait_parent=False))
         except SeleniumInvalidSelectorException as exc:
             raise InvalidSelectorException(exc.msg)
 
-        return bool(element)
+        return element
 
     def is_displayed(self, silent: bool = False) -> bool:
         """
@@ -417,13 +295,14 @@ class CoreElement(ElementABC, ABC):
         :type silent: bool
         :return: :class:`bool`
         """
-        if not silent:
-            self.log(f'Check displaying of "{self.name}"')
-
         is_displayed = self.is_available()
 
         if is_displayed:
-            is_displayed = safe_call(self._cached_element.is_displayed)
+            desired_element = self._element or self._cached_element
+            is_displayed = bool(safe_call(desired_element.is_displayed))
+
+        if not silent:
+            self.log(f'Check displaying of "{self.name}" - {is_displayed}')
 
         return is_displayed
 
@@ -435,11 +314,14 @@ class CoreElement(ElementABC, ABC):
         :type silent: bool
         :return: :class:`bool`
         """
+        status = not self.is_displayed(silent=True)
+
         if not silent:
-            self.log(f'Check invisibility of "{self.name}"')
+            self.log(f'Check invisibility of "{self.name}" - {status}')
 
-        return not self.is_displayed(silent=True)
+        return status
 
+    @retry(SeleniumStaleElementReferenceException)
     def get_attribute(self, attribute: str, silent: bool = False) -> str:
         """
         Retrieve a specific attribute from the current element.
@@ -467,6 +349,7 @@ class CoreElement(ElementABC, ABC):
             self.log(f'Get all texts from "{self.name}"')
 
         self.wait_visibility(silent=True)
+
         return list(element_item.text for element_item in self.all_elements)
 
     def get_elements_count(self, silent: bool = False) -> int:
@@ -492,6 +375,7 @@ class CoreElement(ElementABC, ABC):
         return dict(sorted_items)
 
     @property
+    @retry(SeleniumStaleElementReferenceException)
     def size(self) -> Size:
         """
         Get the size of the current element, including width and height.
@@ -501,6 +385,7 @@ class CoreElement(ElementABC, ABC):
         return Size(**self.execute_script(get_element_size_js))
 
     @property
+    @retry(SeleniumStaleElementReferenceException)
     def location(self) -> Location:
         """
         Get the location of the current element, including the x and y coordinates.
@@ -528,7 +413,7 @@ class CoreElement(ElementABC, ABC):
 
         :return: :class:`bool` - :obj:`True` if the checkbox or radio button is checked, :obj:`False` otherwise.
         """
-        return self._get_element(wait=self.wait_availability).is_selected()
+        return self._get_element(wait_strategy=self.wait_availability).is_selected()
 
     # Mixin
 
@@ -549,18 +434,20 @@ class CoreElement(ElementABC, ABC):
         """
         return ActionChains(self.driver)
 
-    def _get_element(self, wait: Union[bool, Callable] = True, force_wait: bool = False) -> SeleniumWebElement:
+    def _get_element(self, wait_strategy: Union[bool, Callable] = True, force_wait: bool = False) -> SeleniumWebElement:
         """
         Get selenium element from driver or parent element
 
-        :param wait: wait strategy for element and/or element parent before grab
+        :param wait_strategy: wait strategy for element and/or element parent before grab
         :param force_wait: force wait for some element
         :return: SeleniumWebElement
         """
-        element = self._element
+        element = None
+        if self._is_element_still_available(self._element):
+            element = self._element
 
-        if wait is True:
-            wait = self.wait_visibility
+        if wait_strategy is True:
+            wait_strategy = self.wait_visibility
 
         if not element:
 
@@ -569,8 +456,8 @@ class CoreElement(ElementABC, ABC):
                 element = safe_call(self._find_element, wait_parent=False)
 
             # Wait for element if it is not found instantly
-            if (not element and wait) or force_wait:
-                element = self._get_cached_element(safe_call(wait, silent=True))
+            if (not element and wait_strategy) or force_wait:
+                element = self._get_cached_element(safe_call(wait_strategy, silent=True))
 
         if not element:
             element_info = f'"{self.name}" {self.__class__.__name__}'
@@ -588,7 +475,7 @@ class CoreElement(ElementABC, ABC):
 
         return element
 
-    def _get_base(self, wait: Union[bool, Callable] = True) -> Union[SeleniumWebDriver, SeleniumWebElement]:
+    def _get_base(self, wait_strategy: Union[bool, Callable] = True) -> Union[SeleniumWebDriver, SeleniumWebElement]:
         """
         Get driver with depends on parent element if available
 
@@ -604,7 +491,7 @@ class CoreElement(ElementABC, ABC):
                 return base
 
         if self.parent:
-            base = self.parent._get_element(wait=wait)
+            base = self.parent._get_element(wait_strategy=wait_strategy)
 
         return base
 
@@ -615,7 +502,7 @@ class CoreElement(ElementABC, ABC):
         :param wait_parent: wait for base(parent) element
         :return: SeleniumWebElement or AppiumWebElement
         """
-        base = self._get_base(wait=wait_parent)
+        base = self._get_base(wait_strategy=wait_parent)
         self._cached_element = None
 
         try:
@@ -634,7 +521,7 @@ class CoreElement(ElementABC, ABC):
         :param wait_parent: wait for base(parent) element
         :return: list of SeleniumWebElement or AppiumWebElement
         """
-        base = self._get_base(wait=wait_parent)
+        base = self._get_base(wait_strategy=wait_parent)
         self._cached_element = None
 
         try:
@@ -689,3 +576,15 @@ class CoreElement(ElementABC, ABC):
         :return: None, SeleniumWebElement, AppiumWebElement
         """
         return getattr(obj, '_cached_element', None)
+
+    def _is_element_still_available(self, element: Union[None, SeleniumWebElement, AppiumWebElement]) -> bool:
+        """
+        Check is the element still available on page
+
+        :param element: SeleniumWebElement, AppiumWebElement object
+        :return: bool
+        """
+        if not element:
+            return False
+
+        return bool(safe_call(self.driver_wrapper.execute_script, 'return arguments[0];', element))

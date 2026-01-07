@@ -2,6 +2,70 @@
 
 <br>
 
+## v3.3.1
+*Release date: 2026-01-05*
+
+### Changed
+- `safe_call` exceptions list
+
+## v3.3.0
+*Release date: 2026-01-05*
+
+### Added
+- `DriverWrapper.wait`: `reason` arg
+- `DriverWrapper.get_scroll_position` method
+- `Element.show` method
+- `VisualComparison.always_hide` attribute
+- `Locator.tap` instead of `Locator.click` for playwright on mobile resolution
+- `WebElement` methods retry logic on `JavascriptException`
+
+### Changed
+- Playwright's `scroll_into_view` logic moved to js (same as Selenium)
+- `NativeSafari` locators
+
+### Fixed
+- Parent element cache drop
+
+---
+
+## Patch: v3.1.1, v3.2.1 
+*Release date: 2025-07-18*
+
+### Added
+- Appium related locator types in `LocatorType` class
+
+### Changed
+- Selenium only: `DriverWrapper.set_window_size` inner viewport calculation skipped for mobile resolution
+
+### Removed
+- Automatic locator type detection for text based locators 
+
+### Fixed
+- Visual comparison dummy element class name
+- Visual comparison error traceback
+
+---
+
+## v3.2.0
+*Release date: 2025-03-31*
+
+### Added
+- Continuous verification waits for `Element.wait_visibility` and `Element.wait_hidden`
+- `ContinuousWaitException` for continuous verification errors in wait methods
+- Caret hiding for screenshots in Selenium / Appium
+- `is_displayed` / `is_hidden` execution results logged
+- Retry decorator for Selenium / Appium methods to handle `StaleElementReferenceException`
+
+### Changed
+- Playwright's `wait_visibility`, `wait_hidden`, and `wait_availability` logic moved to MOPS methods
+
+### Fixed
+- Small bug in the documentation example
+- Bug in the `assert_screenshot` method with the `remove` argument for certain popups
+- `StaleElementReferenceException` handler during wait/gathering of `Element.text`
+
+---
+
 ## v3.1.0
 *Release date: 2025-01-29*
 

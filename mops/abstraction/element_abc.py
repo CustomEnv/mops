@@ -165,10 +165,19 @@ class ElementABC(MixinABC, ABC):
         """
         raise NotImplementedError()
 
-    def wait_visibility(self, *, timeout: int = WAIT_EL, silent: bool = False) -> Element:
+    def wait_visibility(
+            self,
+            *,
+            timeout: int = WAIT_EL,
+            silent: bool = False,
+            continuous: Union[bool, int, float] = False,
+    ) -> Element:
         """
         Waits until the element becomes visible.
-        **Note:** The method requires the use of named arguments.
+         **Note:** The method requires the use of named arguments.
+
+        A continuous visibility verification may be applied for given
+        or default amount of time after the first condition is met.
 
         **Selenium:**
 
@@ -185,14 +194,26 @@ class ElementABC(MixinABC, ABC):
         :type timeout: int
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
+        :param continuous: If :obj:`True`, a continuous visibility verification applied for another 2.5 seconds.
+          An :obj:`int` or :obj:`float` modifies the continuous wait timeout.
+        :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
         raise NotImplementedError()
 
-    def wait_hidden(self, *, timeout: int = WAIT_EL, silent: bool = False) -> Element:
+    def wait_hidden(
+            self,
+            *,
+            timeout: int = WAIT_EL,
+            silent: bool = False,
+            continuous: Union[bool, int, float] = False,
+    ) -> Element:
         """
         Waits until the element becomes hidden.
-        **Note:** The method requires the use of named arguments.
+         **Note:** The method requires the use of named arguments.
+
+        A continuous invisibility verification may be applied for given
+        or default amount of time after the first condition is met.
 
         **Selenium:**
 
@@ -209,6 +230,9 @@ class ElementABC(MixinABC, ABC):
         :type timeout: int
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
+        :param continuous: If :obj:`True`, a continuous invisibility verification applied for another 2.5 seconds.
+          An :obj:`int` or :obj:`float` modifies the continuous wait timeout.
+        :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
         raise NotImplementedError()
@@ -216,7 +240,7 @@ class ElementABC(MixinABC, ABC):
     def wait_availability(self, *, timeout: int = WAIT_EL, silent: bool = False) -> Element:
         """
         Waits until the element becomes available in DOM tree. \n
-        **Note:** The method requires the use of named arguments.
+         **Note:** The method requires the use of named arguments.
 
         **Selenium:**
 
@@ -256,22 +280,34 @@ class ElementABC(MixinABC, ABC):
         """
         raise NotImplementedError()
 
-    def hide(self) -> Element:
+    def hide(self, silent: bool = False) -> Element:
         """
-        Hides the element.
+        Make the element invisible by setting its opacity to 0.
 
+        :param silent: If :obj:`True`, suppresses logging.
+        :type silent: bool
         :return: :class:`Element`
         """
         raise NotImplementedError()
 
-    def execute_script(self, script: str, *args) -> Any:
+    def show(self, silent: bool = False) -> Element:
+        """
+        Make the element visible by setting its opacity to 1.
+
+        :param silent: If :obj:`True`, suppresses logging.
+        :type silent: bool
+        :return: :class:`Element`
+        """
+        raise NotImplementedError()
+
+    def execute_script(self, script: str, *args: Any) -> Any:
         """
         Executes a JavaScript script on the element.
 
         :param script: JavaScript code to be executed, referring to the element as ``arguments[0]``.
         :type script: str
-        :param args: Additional arguments for the script,
-          that appear in script as ``arguments[1]`` ``arguments[2]`` etc.
+        :param args: Any arguments to pass to the JavaScript.
+        :type args: :obj:`typing.Any`
         :return: :obj:`typing.Any` result from the script.
         """
         raise NotImplementedError()
@@ -596,12 +632,15 @@ class ElementABC(MixinABC, ABC):
             self,
             *,
             timeout: Union[int, float] = QUARTER_WAIT_EL,
-            silent: bool = False
+            silent: bool = False,
+            continuous: Union[bool, int, float] = False,
     ) -> Element:
         """
         Wait for the element to become visible, without raising an error if it does not.
+         **Note:** The method requires the use of named arguments.
 
-        **Note:** The method requires the use of named arguments.
+        A continuous visibility verification may be applied for given
+        or default amount of time after the first condition is met.
 
         **Selenium & Playwright:**
 
@@ -618,6 +657,9 @@ class ElementABC(MixinABC, ABC):
         :type timeout: typing.Union[int, float]
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
+        :param continuous: If :obj:`True`, a continuous visibility verification applied for another 2.5 seconds.
+          An :obj:`int` or :obj:`float` modifies the continuous wait timeout.
+        :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
         raise NotImplementedError()
@@ -626,12 +668,15 @@ class ElementABC(MixinABC, ABC):
             self,
             *,
             timeout: Union[int, float] = QUARTER_WAIT_EL,
-            silent: bool = False
+            silent: bool = False,
+            continuous: Union[bool, int, float] = False,
     ) -> Element:
         """
         Wait for the element to become hidden, without raising an error if it does not.
+         **Note:** The method requires the use of named arguments.
 
-        **Note:** The method requires the use of named arguments.
+        A continuous invisibility verification may be applied for given
+        or default amount of time after the first condition is met.
 
         **Selenium & Playwright:**
 
@@ -648,6 +693,9 @@ class ElementABC(MixinABC, ABC):
         :type timeout: typing.Union[int, float]
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
+        :param continuous: If :obj:`True`, a continuous invisibility verification applied for another 2.5 seconds.
+          An :obj:`int` or :obj:`float` modifies the continuous wait timeout.
+        :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
         raise NotImplementedError()

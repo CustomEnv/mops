@@ -6,13 +6,13 @@ from tests.adata.pages.mouse_event_page import MouseEventPageWithUnexpectedWait
 
 
 @pytest.mark.parametrize('with_elements_case', (True, False), ids=['with elements', 'without elements'])
-def test_page_loaded_positive(mouse_event_page, with_elements_case):
-    mouse_event_page.wait_page_loaded()
-    assert mouse_event_page.is_page_opened(with_elements=with_elements_case)
+def test_page_loaded_positive(mouse_event_page_v2, with_elements_case):
+    mouse_event_page_v2.wait_page_loaded()
+    assert mouse_event_page_v2.is_page_opened(with_elements=with_elements_case)
 
 
 @pytest.mark.parametrize('with_elements_case', (True, False), ids=['with elements', 'without elements'])
-def test_page_loaded_negative(mouse_event_page, with_elements_case):
+def test_page_loaded_negative(mouse_event_page_v2, with_elements_case):
     page = MouseEventPageWithUnexpectedWait()
     try:
         page.wait_page_loaded(timeout=0.1)

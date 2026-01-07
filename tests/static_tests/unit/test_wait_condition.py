@@ -4,7 +4,8 @@ from typing import Union
 
 import pytest
 from mops.exceptions import TimeoutException
-from mops.utils.internal_utils import wait_condition, WAIT_METHODS_DELAY
+from mops.utils.internal_utils import WAIT_METHODS_DELAY
+from mops.utils.decorators import wait_condition
 from mops.utils.logs import autolog
 from mops.mixins.objects.wait_result import Result
 
@@ -125,19 +126,23 @@ def test_wait_condition_silent_unexpected_value(silent):
 
 
 def test_wait_condition_mobile_delay_increasing():
+    """ sleep for 0.1, 0.2, 0.4 seconds between iterations """
     namespace = MockNamespace('wait some condition', call_count=3, is_mobile=True)
     start_time = time.time()
     namespace.wait_something()
     end_time = time.time() - start_time
     assert end_time > 0.7
-    assert end_time < 0.8
+    print(end_time)
+    assert end_time < 0.75
 
 
 
 def test_wait_condition_desktop_default_delay():
-    namespace = MockNamespace('wait some condition', call_count=5, is_mobile=False)
+    """ sleep for 0.1 seconds between iterations """
+    namespace = MockNamespace('wait some condition', call_count=6, is_mobile=False)
     start_time = time.time()
     namespace.wait_something()
     end_time = time.time() - start_time
-    assert end_time < 0.6
-    assert end_time > 0.5
+    assert end_time > 0.6
+    print(end_time)
+    assert end_time < 0.65

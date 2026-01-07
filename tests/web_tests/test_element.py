@@ -15,7 +15,7 @@ from tests.adata.pages.keyboard_page import KeyboardPage
 )
 def test_multiple_parents_found_positive(expected_condition_page):
     """ There should not be any exception if element found even there are multiple parents for him """
-    WaitValueCardBroken().any_row._get_element(wait=False)
+    WaitValueCardBroken().any_row._get_element(wait_strategy=False)
 
 
 def test_element_displayed_positive(base_playground_page):
@@ -45,12 +45,12 @@ def test_type_clear_text_get_value(pizza_order_page):
 
 
 @pytest.mark.xfail_platform('selenium-safari', reason='Fail in CI env')
-def test_hover(mouse_event_page):
-    initial_not_displayed = not mouse_event_page.dropdown.is_displayed()
-    mouse_event_page.choose_language_button.scroll_into_view(sleep=0.1).hover()
-    after_hover_displayed = mouse_event_page.dropdown.wait_visibility_without_error().is_displayed()
-    mouse_event_page.choose_language_button.hover_outside()
-    after_outside_hover_displayed = not mouse_event_page.dropdown.wait_hidden().is_displayed()
+def test_hover(mouse_event_page_v2):
+    initial_not_displayed = not mouse_event_page_v2.dropdown.is_displayed()
+    mouse_event_page_v2.choose_language_button.scroll_into_view(sleep=0.1).hover()
+    after_hover_displayed = mouse_event_page_v2.dropdown.wait_visibility_without_error().is_displayed()
+    mouse_event_page_v2.choose_language_button.hover_outside()
+    after_outside_hover_displayed = not mouse_event_page_v2.dropdown.wait_hidden().is_displayed()
     assert all((initial_not_displayed, after_hover_displayed, after_outside_hover_displayed))
 
 
@@ -113,7 +113,7 @@ def test_element_execute_script(forms_page, driver_wrapper):
     forms_page.controls_form.german_slider.execute_script('arguments[0].textContent = arguments[1];', new_text)
     assert forms_page.controls_form.german_slider.text == new_text
 
-def test_element_locator_check(mouse_event_page, driver_wrapper):
+def test_element_locator_check(mouse_event_page_v2, driver_wrapper):
     # Let's keep Elements here, for encapsulation purposes
     # Reformat test if any trouble occur
     locators = (
@@ -154,7 +154,6 @@ def test_element_locator_check(mouse_event_page, driver_wrapper):
     locators = (choose_lang_button_name, )
     invalid_prefixes = ('css', 'xpath', 'id')
     for locator in locators:
-        assert Element(locator).is_displayed()
         assert Element(f'text={locator}').is_displayed()
         # if locator == choose_lang_button_name:  # TODO: Move to separate test
         #     assert not Element('.dropdown-content').is_displayed()

@@ -53,6 +53,14 @@ def test_screenshot_remove(colored_blocks_page):
     )
 
 
+@pytest.mark.low
+def test_screenshot_popup_with_remove(popups_page, driver_wrapper):
+    overlay_popup = popups_page.open_popup()
+    overlay_popup.assert_screenshot(
+        remove=[overlay_popup.popup_text],
+    )
+
+
 @pytest.fixture
 def file(request):
     initial_reruns_count = request.node.session.config.option.reruns
@@ -133,7 +141,6 @@ def test_assert_screenshot_negative_different_sizes(second_playground_page, driv
     filename = vc._get_screenshot_name()
     vc._save_screenshot(
         screenshot_name=f'tests/adata/visual/reference/{filename}.png',
-        delay=1,
         remove=[],
         fill_background=False,
         cut_box=None,
@@ -153,7 +160,6 @@ def test_assert_screenshot_negative_missmatch(second_playground_page, driver_wra
     filename = vc._get_screenshot_name()
     vc._save_screenshot(
         screenshot_name=f'tests/adata/visual/reference/{filename}.png',
-        delay=1,
         remove=[],
         fill_background=False,
         cut_box=None,

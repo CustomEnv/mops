@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import sys
 import inspect
-import time
 from copy import copy
-from functools import lru_cache, wraps
-from typing import Any, Union, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
+from functools import lru_cache
+from typing import Any, Union, Callable
 
-from selenium.common.exceptions import StaleElementReferenceException as SeleniumStaleElementReferenceException
+from selenium.common.exceptions import WebDriverException as SeleniumWebDriverException
 
+from mops.exceptions import DriverWrapperException as MopsDriverWrapperException
 from mops.mixins.objects.size import Size
-from mops.mixins.objects.wait_result import Result
-from mops.exceptions import NoSuchElementException, InvalidSelectorException, TimeoutException, NoSuchParentException
 
 if TYPE_CHECKING:
     from mops.base.element import Element
@@ -29,7 +28,7 @@ WAIT_PAGE = 15
 
 all_tags = {'h1', 'h2', 'h3', 'h4', 'h5', 'head', 'body', 'input', 'section', 'button', 'a', 'link', 'header', 'div',
             'textarea', 'svg', 'circle', 'iframe', 'label', 'p', 'tr', 'th', 'table', 'tbody', 'td', 'select', 'nav',
-            'li', 'form', 'footer', 'frame', 'area', 'span'}
+            'li', 'form', 'footer', 'frame', 'area', 'span', 'video'}
 
 
 def get_dict(obj: Any):
@@ -46,11 +45,8 @@ def safe_call(func: Callable, *args, **kwargs) -> Union[Any, None]:
     :return: None or function return
     """
     exceptions = (
-        NoSuchElementException,
-        InvalidSelectorException,
-        TimeoutException,
-        NoSuchParentException,
-        SeleniumStaleElementReferenceException,
+        MopsDriverWrapperException,
+        SeleniumWebDriverException,
     )
 
     try:
@@ -293,34 +289,3 @@ def increase_delay(delay, max_delay: Union[int, float] = 1.5) -> Union[int, floa
     if delay < max_delay:
         return delay + delay
     return delay
-
-
-def wait_condition(method: Callable):
-
-    @wraps(method)
-    def wrapper(self, *args, timeout: Union[int, float] = WAIT_EL, silent: bool = False, **kwargs):
-        validate_timeout(timeout)
-        validate_silent(silent)
-
-        start_time = time.time()
-        result: Result = method(self, *args, **kwargs)
-
-        if not silent:
-            self.log(result.log)
-
-        should_increase_delay = self.driver_wrapper.is_appium
-        delay = WAIT_METHODS_DELAY
-
-        while time.time() - start_time < timeout and not result.execution_result:
-            time.sleep(delay)
-            result: Result = method(self, *args, **kwargs)
-            if should_increase_delay:
-                delay = increase_delay(delay)
-
-        if result.execution_result:
-            return self
-
-        result.exc._timeout = timeout  # noqa
-        raise result.exc
-
-    return wrapper

@@ -13,6 +13,7 @@ from playwright.sync_api import (
 
 from mops.mixins.objects.box import Box
 from mops.mixins.objects.driver import Driver
+from mops.mixins.objects.visual_comaprison_mixin import hide_before_screenshot, reveal_after_screenshot
 from mops.visual_comparison import VisualComparison
 from mops.abstraction.driver_wrapper_abc import DriverWrapperABC
 from mops.playwright.play_driver import PlayDriver
@@ -220,6 +221,14 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
 
         return image_object
 
+    def get_scroll_position(self) -> int:
+        """
+        Returns the current vertical scroll position of the page.
+
+        :return: :class:`int` - Current vertical scroll offset in pixels.
+        """
+        return self.execute_script('return window.pageYOffset')
+
     def assert_screenshot(
             self,
             filename: str = '',
@@ -263,16 +272,16 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
         delay = delay or VisualComparison.default_delay
         remove = [remove] if type(remove) is not list and remove else remove
 
-        if hide:
-            if not isinstance(hide, list):
-                hide = [hide]
-            for object_to_hide in hide:
-                object_to_hide.hide()
+        hide_before_screenshot(hide, is_optional=False, dw=self)
+        self.wait(delay)
+        hide_before_screenshot(VisualComparison.always_hide, is_optional=True, dw=self)
 
         VisualComparison(self).assert_screenshot(
-            filename=filename, test_name=test_name, name_suffix=name_suffix, threshold=threshold, delay=delay,
-            scroll=False, remove=remove, fill_background=False, cut_box=cut_box
+            filename=filename, test_name=test_name, name_suffix=name_suffix, threshold=threshold,
+            remove=remove, fill_background=False, cut_box=cut_box
         )
+
+        reveal_after_screenshot(VisualComparison.always_hide, dw=self)
 
     def soft_assert_screenshot(
             self,

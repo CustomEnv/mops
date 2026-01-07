@@ -1,0 +1,4 @@
+CUSTOM_TOP_BAR_LOCATOR_CAPABILITY = 'mops:customTopBarLocator'
+CUSTOM_BOTTOM_BAR_LOCATOR_CAPABILITY = 'mops:customBottomBarLocator'
+CUSTOM_DONE_BUTTON_LOCATOR_CAPABILITY = 'mops:customDoneButtonLocator'
+CUSTOM_DEVICE_NAME_CAPABILITY = 'mops:customDeviceName'

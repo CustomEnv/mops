@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from typing import List
 
-from selenium.webdriver.common.by import By
 
 from mops.base.element import Element
 from mops.base.group import Group
 from mops.base.page import Page
-from mops.mixins.objects.locator import Locator
 from tests.adata.pages.expected_condition_page import ExpectedConditionPage
 from tests.adata.pages.keyboard_page import KeyboardPage
 from tests.settings import domain_name, automation_playground_repo_name

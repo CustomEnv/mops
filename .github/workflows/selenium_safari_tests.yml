@@ -13,7 +13,7 @@ on:
       - '.gitignore'
 jobs:
   selenium-safari:
-    runs-on: macos-13
+    runs-on: macos-26
 
     strategy:
       fail-fast: false

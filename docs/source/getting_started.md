@@ -160,7 +160,7 @@ def test_example(driver_wrapper):
     
     forms_page.controls_section.python_checkbox.click()
     
-    assert forms_page.controls_section.checkbox_label == 'PYTHON'
+    assert forms_page.controls_section.checkbox_label.text == 'PYTHON'
 ```
 
 ---

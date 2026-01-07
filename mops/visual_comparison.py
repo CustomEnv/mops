@@ -13,6 +13,8 @@ from urllib.parse import urljoin
 from typing import Union, List, Any, Tuple, Optional, TYPE_CHECKING
 from string import punctuation
 
+from mops.mixins.capabilities import CUSTOM_DEVICE_NAME_CAPABILITY
+
 try:
     import cv2.cv2 as cv2  # ~cv2@4.5.5.62 + python@3.8/9/10
 except ImportError:
@@ -67,6 +69,9 @@ class VisualComparison:
     default_delay: Union[int, float] = 0.75
     """The default delay before taking a screenshot."""
 
+    always_hide: List[Element] = []
+    """Always hide before screenshot"""
+
     default_threshold: Union[int, float] = 0
     """The default threshold for image comparison."""
 
@@ -113,8 +118,6 @@ class VisualComparison:
             test_name: str,
             name_suffix: str,
             threshold: Union[int, float],
-            delay: Union[int, float],
-            scroll: bool,
             remove: List[Any],
             fill_background: Union[str, bool],
             cut_box: Optional[Box]
@@ -130,10 +133,6 @@ class VisualComparison:
         :type name_suffix: str
         :param threshold: Possible threshold for image comparison.
         :type threshold: float
-        :param delay: Delay before taking the screenshot.
-        :type delay: float
-        :param scroll: Whether to scroll to the element before taking the screenshot.
-        :type scroll: bool
         :param remove: Whether to remove elements from the screenshot.
         :type remove: bool
         :param fill_background: Whether to fill the background with a given color or black by default.
@@ -146,21 +145,13 @@ class VisualComparison:
             return self
 
         remove = remove if remove else []
-        screenshot_params = dict(delay=delay, remove=remove, fill_background=fill_background, cut_box=cut_box)
+        screenshot_params = dict(remove=remove, fill_background=fill_background, cut_box=cut_box)
 
-        if filename:
-            if name_suffix:
-                filename = f'{filename}_{name_suffix}'
-            self.screenshot_name = filename
-        else:
-            self.screenshot_name = self._get_screenshot_name(test_name, name_suffix)
+        self.screenshot_name = self._get_screenshot_name(filename, test_name, name_suffix)
 
         reference_file = f'{self.reference_directory}{self.screenshot_name}.png'
         output_file = f'{self.output_directory}{self.screenshot_name}.png'
         diff_file = f'{self.diff_directory}diff_{self.screenshot_name}.png'
-
-        if scroll:
-            self.element_wrapper.scroll_into_view()
 
         if self.hard_visual_reference_generation:
             self._save_screenshot(reference_file, **screenshot_params)
@@ -220,13 +211,10 @@ class VisualComparison:
     def _save_screenshot(
             self,
             screenshot_name: str,
-            delay: Union[int, float],
             remove: list,
             fill_background: bool,
             cut_box: Optional[Box],
     ):
-        time.sleep(delay)
-
         self._fill_background(fill_background)
         self._appends_dummy_elements(remove)
 
@@ -319,8 +307,8 @@ class VisualComparison:
             scaled_image = cv2.resize(output_image, (width, height))
             cv2.imwrite(diff_file, scaled_image)
             raise AssertionError(f"↓\nImage size (width, height) is not same for '{self.screenshot_name}':"
-                                 f"\nExpected: {reference_image.shape[0:2]};"
-                                 f"\nActual: {output_image.shape[0:2]}.") from None
+                                 f"\nExpected: {self._get_image_size_from_shape(reference_image.shape)};"
+                                 f"\nActual: {self._get_image_size_from_shape(output_image.shape)}.") from None
 
         diff, actual_threshold = self._get_difference(reference_image, output_image, threshold)
         is_different = actual_threshold > threshold
@@ -343,12 +331,17 @@ class VisualComparison:
 
         return self
 
-    def _get_screenshot_name(self, test_function_name: str = '', name_suffix: str = '') -> str:
+    def _get_screenshot_name(self, filename: str = '', test_function_name: str = '', name_suffix: str = '') -> str:
         """
         Get screenshot name
 
-        :param test_function_name: execution test name. Will try to find it automatically if empty string given
-        :return: custom screenshot filename:
+        :param filename: The full screenshot name. A custom filename will be used if an empty string is given.
+        :type filename: str
+        :param test_function_name: Test name for the custom filename.
+         It will try to find it automatically if an empty string is given.
+        :type test_function_name: str
+        :param name_suffix: Filename suffix. Useful for the same element with positive/negative cases.
+        :type name_suffix: str
           :::
           - playwright: test_screenshot_rubiks_cube_playwright_chromium
           - selenium: test_screenshot_rubiks_cube_mac_os_x_selenium_chrome
@@ -356,6 +349,11 @@ class VisualComparison:
           - appium android: test_screenshot_rubiks_cube_pixel5_v_12_appium_chrome
           :::
         """
+        if filename:
+            if name_suffix:
+                filename = f'{filename}_{name_suffix}'
+            return filename
+
         test_function_name = test_function_name if test_function_name else getattr(self.test_item, 'name', '')
         if not test_function_name:
             raise Exception('Draft: provide test item self.test_item')
@@ -364,7 +362,7 @@ class VisualComparison:
 
         if self.driver_wrapper.is_android or self.driver_wrapper.is_ios:
             caps = self.driver_wrapper.driver.caps
-            device_name = caps.get('customDeviceName', '')
+            device_name = caps.get(CUSTOM_DEVICE_NAME_CAPABILITY, '')
 
             if self.driver_wrapper.is_android and not device_name:
                 device_name = caps.get('avd', f'{caps.get("deviceManufacturer")}_{caps.get("deviceModel", "none")}')
@@ -503,3 +501,12 @@ class VisualComparison:
         :return: test_screenshot__data___name -> test_screenshot_data_name
         """
         return re.sub(r'_{2,}', '_', text)
+
+    def _get_image_size_from_shape(self, shape: tuple) -> tuple:
+        """
+        Get image size (width, height) from shape
+
+        :param shape: shape tuple from numpy.ndarray
+        :return: (width, height)
+        """
+        return shape[1], shape[0]
