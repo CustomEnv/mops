@@ -170,6 +170,10 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
 
         return self._log_locator
 
+    @log_locator.setter
+    def log_locator(self, value: str) -> None:
+        self._log_locator = value
+
     # Following methods works same for both Selenium/Appium and Playwright APIs using internal methods
 
     # Elements interaction

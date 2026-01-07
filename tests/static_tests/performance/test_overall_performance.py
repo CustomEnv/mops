@@ -89,10 +89,10 @@ def test_performance_element_initialisation(mocked_selenium_driver, case, set_el
         expected_init_duration = 0.4
     if sys.version_info >= (3, 11):
         expected_peak_mem = 4.0
-        expected_init_duration = 0.6
+        expected_init_duration = 0.4
     if sys.version_info >= (3, 12):
         expected_peak_mem = 3.8
-        expected_init_duration = 0.45
+        expected_init_duration = 0.4
 
     assert init_without_profiling_stop_timestamp < init_without_profiling_expected,\
         f'Execution without profiling takes too much time: {init_without_profiling_stop_timestamp}'
@@ -153,7 +153,7 @@ def test_performance_group_initialisation(mocked_selenium_driver, case, set_grou
 
     if sys.version_info >= (3, 9):
         expected_peak_mem = 3.5
-        expected_init_duration = 0.5
+        expected_init_duration = 0.4
 
     if sys.version_info >= (3, 10):
         expected_peak_mem = 3.3
@@ -161,11 +161,11 @@ def test_performance_group_initialisation(mocked_selenium_driver, case, set_grou
 
     if sys.version_info >= (3, 11):
         expected_peak_mem = 2.6
-        expected_init_duration = 0.75
+        expected_init_duration = 0.4
 
     if sys.version_info >= (3, 12):
         expected_peak_mem = 2.5
-        expected_init_duration = 0.6
+        expected_init_duration = 0.4
 
     assert init_without_profiling_stop_timestamp < 0.15,\
         f'Execution without profiling takes too much time: {init_without_profiling_stop_timestamp}'
