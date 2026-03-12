@@ -194,7 +194,7 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
 
         result &= self.anchor.is_displayed()
 
-        if self.url and with_url:
+        if with_url:
             result &= self.driver_wrapper.current_url == self.url
 
         return result

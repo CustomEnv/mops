@@ -37,6 +37,9 @@ def get_all_static_attributes(cls: Any) -> dict:
 def get_driver_instance(driver, instance) -> bool:
     return isinstance(driver, instance)
 
+_last_static_cls_for: dict = {}
+
+
 class InternalMixin:
 
     driver: None
@@ -55,11 +58,17 @@ class InternalMixin:
         :return: None
         """
         current_obj_cls = self.__class__
+
+        if _last_static_cls_for.get(current_obj_cls) is cls:
+            return
+
         existing_attrs = set(get_all_static_attributes(current_obj_cls))
 
         for name, value in get_static_attributes(cls).items():
             if name not in existing_attrs:
                 setattr(current_obj_cls, name, value)
+
+        _last_static_cls_for[current_obj_cls] = cls
 
     def _repr_builder(self: Any):
         class_name = self.__class__.__name__

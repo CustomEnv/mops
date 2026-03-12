@@ -26,9 +26,9 @@ QUARTER_WAIT_EL = HALF_WAIT_EL / 2
 WAIT_PAGE = 15
 
 
-all_tags = {'h1', 'h2', 'h3', 'h4', 'h5', 'head', 'body', 'input', 'section', 'button', 'a', 'link', 'header', 'div',
-            'textarea', 'svg', 'circle', 'iframe', 'label', 'p', 'tr', 'th', 'table', 'tbody', 'td', 'select', 'nav',
-            'li', 'form', 'footer', 'frame', 'area', 'span', 'video'}
+all_tags = frozenset({'h1', 'h2', 'h3', 'h4', 'h5', 'head', 'body', 'input', 'section', 'button', 'a', 'link', 'header',
+                      'div', 'textarea', 'svg', 'circle', 'iframe', 'label', 'p', 'tr', 'th', 'table', 'tbody', 'td',
+                      'select', 'nav', 'li', 'form', 'footer', 'frame', 'area', 'span', 'video'})
 
 
 def get_dict(obj: Any):
@@ -124,16 +124,16 @@ def set_parent_for_attr(current_object: Element, with_copy: bool = False):
     :param with_copy: copy child object or not
     :return: self
     """
+    current_is_group = is_group(current_object)
+
     for name, obj in current_object.sub_elements.items():
         if with_copy:
             obj = copy(obj)
-
-        if (is_group(current_object) and obj.parent is None) or is_group(obj.parent):
-            obj.parent = current_object
-
-        if with_copy:
             current_object.sub_elements[name] = obj
             setattr(current_object, name, obj)
+
+        if (current_is_group and obj.parent is None) or is_group(obj.parent):
+            obj.parent = current_object
 
         if obj.sub_elements:
             set_parent_for_attr(obj, with_copy)
@@ -147,15 +147,17 @@ def promote_parent_element(obj: Any, base_obj: Any):
     :param base_obj: base object of element: Page/Group instance
     :return: None
     """
-    initial_parent = getattr(obj, 'parent', None)
+    initial_parent = obj.parent
 
     if not initial_parent:
         return None
 
-    if is_element_instance(initial_parent) and initial_parent != base_obj:
+    if is_element_instance(initial_parent) and initial_parent is not base_obj:
+        parent_id = initial_parent.__base_obj_id
         for el in base_obj.sub_elements.values():
-            if obj.parent.__base_obj_id == el.__base_obj_id:
+            if parent_id == el.__base_obj_id:
                 obj.parent = el
+                break
 
 
 def extract_named_objects(obj: Any, instance: Union[type, tuple] = None) -> dict:
@@ -191,13 +193,15 @@ def extract_all_named_objects(reference_obj: Any) -> dict:
     all_bases = inspect.getmro(reference_class)
 
     for parent_class in all_bases[-2::-1]:  # Skip the reference class itself
-        if 'ABC' in str(parent_class) or parent_class == object:
+        if parent_class is object or 'ABC' in parent_class.__name__:
             continue
 
-        items.update(get_attributes_from_object(parent_class))
+        items.update(parent_class.__dict__)
 
-    items.update(get_attributes_from_object(reference_class))
-    items.update(get_attributes_from_object(reference_obj))
+    items.update(reference_class.__dict__)
+
+    if not inspect.isclass(reference_obj):
+        items.update(reference_obj.__dict__)
 
     return items
 
@@ -215,22 +219,10 @@ def get_main_sub_elements(instance, sub_elements: dict = None):
     return sub_elements
 
 
-def get_attributes_from_object(reference_obj: Any) -> dict:
-    """
-    Get attributes from the given object.
-
-    :param reference_obj: reference object
-    :return: dict of attributes
-    """
-    return dict(reference_obj.__dict__)
-
-
 def is_target_on_screen(x: int, y: int, possible_range: Size):
     """
     Check is given coordinates fit into given range
-    An safe value will be applied:
-      1 - Due to usage of range
-      2 - Due to rounding a number when get size/location of element
+    An safe value will be applied due to rounding a number when get size/location of element
 
     :param x: x coordinate
     :param y: y coordinate
@@ -238,9 +230,7 @@ def is_target_on_screen(x: int, y: int, possible_range: Size):
     :return: bool
     """
     safe_value = 2
-    is_x_on_screen = x in range(possible_range.width + safe_value)
-    is_y_on_screen = y in range(possible_range.height + safe_value)
-    return is_x_on_screen and is_y_on_screen
+    return 0 <= x < possible_range.width + safe_value and 0 <= y < possible_range.height + safe_value
 
 
 def calculate_coordinate_to_click(element: Any, x: int = 0, y: int = 0) -> tuple:

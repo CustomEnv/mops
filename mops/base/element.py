@@ -64,6 +64,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
         set_instance_frame(instance)
         return instance
 
+    def __copy__(self):
+        new = object.__new__(self.__class__)
+        new.__dict__.update(self.__dict__)
+        return new
+
     def __repr__(self):
         return self._repr_builder()
 
