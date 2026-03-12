@@ -169,14 +169,10 @@ def extract_named_objects(obj: Any, instance: Union[type, tuple] = None) -> dict
     """
     elements = {}
 
-    if is_element(instance):
-        elements = get_main_sub_elements(obj)
-
-    if not elements:
-        for attribute, value in extract_all_named_objects(obj).items():
-            if not instance or isinstance(value, instance):
-                if not attribute.startswith('__') and attribute != 'parent':
-                    elements[attribute] = value
+    for attribute, value in extract_all_named_objects(obj).items():
+        if not instance or isinstance(value, instance):
+            if not attribute.startswith('__') and attribute != 'parent':
+                elements[attribute] = value
 
     return elements
 
@@ -202,19 +198,6 @@ def extract_all_named_objects(reference_obj: Any) -> dict:
     items.update(get_attributes_from_object(reference_obj))
 
     return items
-
-
-def get_main_sub_elements(instance, sub_elements: dict = None):
-    if sub_elements is None:
-        sub_elements = {}
-
-    if hasattr(instance, 'sub_elements') and instance.sub_elements:
-        for key, sub_element in instance.sub_elements.items():
-            sub_elements[key] = sub_element
-            if hasattr(sub_element, 'sub_elements') and sub_element.sub_elements:
-                get_main_sub_elements(sub_element, sub_elements)
-
-    return sub_elements
 
 
 def get_attributes_from_object(reference_obj: Any) -> dict:

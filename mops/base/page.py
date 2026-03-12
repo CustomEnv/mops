@@ -23,7 +23,6 @@ from mops.utils.internal_utils import (
     WAIT_PAGE,
     initialize_objects,
     extract_named_objects,
-    is_element_instance,
 )
 
 
