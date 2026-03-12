@@ -196,12 +196,10 @@ def extract_all_named_objects(reference_obj: Any) -> dict:
         if parent_class is object or 'ABC' in parent_class.__name__:
             continue
 
-        items.update(parent_class.__dict__)
+        items.update(get_attributes_from_object(parent_class))
 
-    items.update(reference_class.__dict__)
-
-    if not inspect.isclass(reference_obj):
-        items.update(reference_obj.__dict__)
+    items.update(get_attributes_from_object(reference_class))
+    items.update(get_attributes_from_object(reference_obj))
 
     return items
 
@@ -217,6 +215,16 @@ def get_main_sub_elements(instance, sub_elements: dict = None):
                 get_main_sub_elements(sub_element, sub_elements)
 
     return sub_elements
+
+
+def get_attributes_from_object(reference_obj: Any) -> dict:
+    """
+    Get attributes from the given object.
+
+    :param reference_obj: reference object
+    :return: dict of attributes
+    """
+    return dict(reference_obj.__dict__)
 
 
 def is_target_on_screen(x: int, y: int, possible_range: Size):
