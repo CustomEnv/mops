@@ -39,7 +39,7 @@ def resize_image(image1: str, image2: str, img_format='JPEG') -> bytes:
     img2 = Image.open(image2)
 
     width, height = img2.size
-    img1.resize((width, height), Image.Resampling.LANCZOS)
+    img1 = img1.resize((width, height), Image.Resampling.LANCZOS)
 
     return save_image(img1, img_format)
 
