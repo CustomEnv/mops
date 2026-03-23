@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Union, Type, List, Tuple, TYPE_CHECKING
+from typing import Union, Type, List, Tuple, Optional, Dict, TYPE_CHECKING
 
 from PIL import Image
 from appium.webdriver.webdriver import WebDriver as AppiumDriver
@@ -9,6 +9,7 @@ from playwright.sync_api import (
     Page as PlaywrightDriver,
     Browser as PlaywrightBrowser,
     BrowserContext as PlaywrightContext,
+    sync_playwright,
 )
 
 from mops.mixins.objects.box import Box
@@ -122,6 +123,8 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
     is_simulator: bool = False
     is_real_device: bool = False
 
+    is_cdp: bool = False
+
     browser_name: Union[str, None] = None
 
     def __new__(cls, *args, **kwargs):
@@ -166,6 +169,135 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
             self.is_desktop = False
             self.is_mobile = True
 
+    @classmethod
+    def connect_cdp(
+            cls,
+            endpoint_url: str,
+            engine: str = 'playwright',
+            timeout: int = 30000,
+            page_index: int = 0,
+            viewport_size: Optional[Dict[str, int]] = None,
+    ) -> DriverWrapper:
+        """
+        Connect to a remote browser via Chrome DevTools Protocol.
+
+        Creates a connection to the specified CDP endpoint and wraps the resulting
+        driver in a :class:`DriverWrapper`. Useful for testing Electron applications,
+        connecting to cloud browser services, or attaching to an already-running
+        browser instance.
+
+        **Playwright engine:**
+
+        Starts a Playwright instance internally and connects via
+        ``chromium.connect_over_cdp``. The Playwright instance is stopped
+        automatically when :meth:`quit` is called.
+
+        .. note::
+            Some Playwright features are unavailable in CDP mode:
+            ``record_har_path`` and ``record_video_dir`` cannot be set on pre-existing contexts.
+            Network interception may also be limited.
+
+        **Selenium engine:**
+
+        Creates a Chrome WebDriver with ``debugger_address`` option pointing
+        to the CDP endpoint.
+
+        :param endpoint_url: CDP endpoint URL (e.g., ``"http://localhost:9222"``).
+        :type endpoint_url: str
+        :param engine: The engine to use for the connection. ``"playwright"`` or ``"selenium"``.
+        :type engine: str
+        :param timeout: Connection timeout in milliseconds (Playwright only).
+        :type timeout: int
+        :param page_index: Index of the page to use from the connected context
+          (default: 0, Playwright only).
+        :type page_index: int
+        :param viewport_size: Optional viewport size dict ``{"width": int, "height": int}``.
+        :type viewport_size: typing.Optional[typing.Dict[str, int]]
+        :return: Initialized :class:`DriverWrapper` connected to the remote browser.
+        :rtype: DriverWrapper
+        """
+        if engine == 'playwright':
+            return cls._connect_cdp_playwright(endpoint_url, timeout, page_index, viewport_size)
+        elif engine == 'selenium':
+            return cls._connect_cdp_selenium(endpoint_url, viewport_size)
+        else:
+            raise DriverWrapperException(f'Unsupported engine "{engine}". Use "playwright" or "selenium".')
+
+    @classmethod
+    def _connect_cdp_playwright(
+            cls,
+            endpoint_url: str,
+            timeout: int,
+            page_index: int,
+            viewport_size: Optional[Dict[str, int]],
+    ) -> DriverWrapper:
+        """
+        Create a Playwright CDP connection and wrap it in a :class:`DriverWrapper`.
+
+        :param endpoint_url: CDP endpoint URL.
+        :type endpoint_url: str
+        :param timeout: Connection timeout in milliseconds.
+        :type timeout: int
+        :param page_index: Index of the page to use from the connected context.
+        :type page_index: int
+        :param viewport_size: Optional viewport dimensions.
+        :type viewport_size: typing.Optional[typing.Dict[str, int]]
+        :return: Initialized :class:`DriverWrapper`.
+        :rtype: DriverWrapper
+        """
+        pw = sync_playwright().start()
+        browser = pw.chromium.connect_over_cdp(endpoint_url, timeout=timeout)
+        context = browser.contexts[0]
+        page = context.pages[page_index]
+
+        if viewport_size:
+            page.set_viewport_size(viewport_size)
+
+        driver = Driver(driver=page, context=context, instance=browser)
+        wrapper = cls(driver)
+        wrapper._playwright_instance = pw
+        wrapper.is_cdp = True
+        return wrapper
+
+    @classmethod
+    def _connect_cdp_selenium(
+            cls,
+            endpoint_url: str,
+            viewport_size: Optional[Dict[str, int]],
+    ) -> DriverWrapper:
+        """
+        Create a Selenium CDP connection and wrap it in a :class:`DriverWrapper`.
+
+        Imports are deferred to avoid requiring Chrome-specific Selenium packages
+        when only Playwright is used.
+
+        :param endpoint_url: CDP endpoint URL.
+        :type endpoint_url: str
+        :param viewport_size: Optional viewport dimensions.
+        :type viewport_size: typing.Optional[typing.Dict[str, int]]
+        :return: Initialized :class:`DriverWrapper`.
+        :rtype: DriverWrapper
+        """
+        from selenium.webdriver.chrome.options import Options as ChromeOptions
+        from selenium.webdriver.chrome.webdriver import WebDriver as ChromeWebDriver
+        from urllib.parse import urlparse
+
+        parsed = urlparse(endpoint_url)
+        debugger_address = f'{parsed.hostname}:{parsed.port}'
+
+        options = ChromeOptions()
+        options.debugger_address = debugger_address
+
+        selenium_driver = ChromeWebDriver(options=options)
+
+        if viewport_size:
+            selenium_driver.set_window_size(viewport_size['width'], viewport_size['height'])
+
+        driver = Driver(driver=selenium_driver)
+        wrapper = cls(driver)
+        wrapper.is_cdp = True
+        return wrapper
+
     def quit(self, silent: bool = False, trace_path: str = 'trace.zip'):
         """
         Quit the driver instance.
@@ -190,6 +322,10 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
 
         self._base_cls.quit(self, trace_path)
         self.session.remove_session(self)
+
+        if getattr(self, '_playwright_instance', None):
+            self._playwright_instance.stop()
+            self._playwright_instance = None
 
     def save_screenshot(
             self,

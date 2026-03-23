@@ -174,14 +174,25 @@ class PlayDriver(Logging, DriverWrapperABC):
 
         :return: :obj:`None`
         """
-        if trace_path:
+        if trace_path and not self.is_cdp:
             try:
                 self.context.tracing.stop(path=trace_path)
             except PlaywrightError:
                 pass
 
-        self._base_driver.close()
-        self.context.close()
+        if self.is_cdp:
+            try:
+                self._base_driver.close()
+            except PlaywrightError:
+                pass
+
+            try:
+                self.context.close()
+            except PlaywrightError:
+                pass
+        else:
+            self._base_driver.close()
+            self.context.close()
 
     def set_cookie(self, cookies: List[dict]) -> PlayDriver:
         """
@@ -313,7 +324,10 @@ class PlayDriver(Logging, DriverWrapperABC):
 
         :return: The size of the inner window as a :class:`.Size` object.
         """
-        return Size(**self.driver.viewport_size)
+        viewport = self.driver.viewport_size
+        if viewport is None:
+            return Size(width=0, height=0)
+        return Size(**viewport)
 
     def get_window_size(self) -> Size:
         """

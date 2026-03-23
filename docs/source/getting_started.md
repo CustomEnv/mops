@@ -142,6 +142,60 @@ def driver_wrapper():
 
 ---
 
+<br>
+
+### CDP connection setup
+
+```{note}
+CDP (Chrome DevTools Protocol) connection is useful for testing Electron applications, 
+connecting to cloud browser services, or attaching to an already-running browser instance.
+Both Playwright and Selenium engines are supported.
+```
+
+**Playwright (default):**
+
+```python
+import pytest  # noqa
+from mops.base.driver_wrapper import DriverWrapper
+
+
+@pytest.fixture
+def driver_wrapper():
+    wrapper = DriverWrapper.connect_cdp("http://localhost:9222")
+    yield wrapper
+    wrapper.quit()
+```
+
+**Selenium:**
+
+```python
+import pytest  # noqa
+from mops.base.driver_wrapper import DriverWrapper
+
+
+@pytest.fixture
+def driver_wrapper():
+    wrapper = DriverWrapper.connect_cdp("http://localhost:9222", engine="selenium")
+    yield wrapper
+    wrapper.quit()
+```
+
+```{attention}
+**Playwright CDP limitations:**
+
+- ``record_har_path`` and ``record_video_dir`` cannot be set on pre-existing contexts.
+- Network interception may also be limited.
+- ``viewport_size`` is not set by default — pass it explicitly if your tests rely on ``get_inner_window_size()``.
+- Tab creation via ``create_new_tab()`` may behave differently with CDP contexts.
+
+**Selenium CDP limitations:**
+
+- The browser is managed externally — ``quit()`` will attempt to close it gracefully, 
+  but the browser process may remain if it was started outside the test.
+```
+
+---
+
 ## 4. Write A Test
 
 <br>

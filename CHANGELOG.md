@@ -2,6 +2,17 @@
 
 <br>
 
+## v3.4.0
+
+### Added
+- `DriverWrapper.connect_cdp` class method for connecting to remote browsers via CDP (supports both Playwright and Selenium engines)
+- `DriverWrapper.is_cdp` flag to identify CDP-connected driver instances
+- `PlayDriver.quit` graceful error handling for CDP and pre-existing contexts; tracing skip for CDP
+- `CoreDriver.quit` graceful error handling for externally-managed browsers (CDP)
+- `PlayDriver.get_inner_window_size` null-safe viewport handling for CDP connections
+
+---
+
 ## v3.3.1
 *Release date: 2026-01-05*
 

@@ -223,7 +223,13 @@ class CoreDriver(Logging, DriverWrapperABC):
 
         :return: :obj:`None`
         """
-        self.driver.quit()
+        if self.is_cdp:
+            try:
+                self.driver.quit()
+            except SeleniumWebDriverException:
+                pass
+        else:
+            self.driver.quit()
 
     def set_cookie(self, cookies: List[dict]) -> CoreDriver:
         """
