@@ -55,6 +55,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
     and provides a unified interface for UI interactions.
     """
 
+    #: The original locator as provided to ``__init__``, before any platform resolution
+    #: or framework-specific transformations. Useful for building child locators from
+    #: the original value.
+    source_locator: Union[Locator, str]
+
     _object = 'element'
     _base_cls: Type[PlayElement, MobileElement, WebElement]
     driver_wrapper: DriverWrapper
@@ -115,6 +120,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
                 raise ValueError(error)
 
         self.locator = locator
+        self.source_locator = locator
         self.name = name if name else locator
         self.parent = parent
         self.wait = wait
