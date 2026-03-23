@@ -11,6 +11,7 @@ on:
       - 'CHANGELOG.md'
       - 'LICENSE'
       - '.gitignore'
+  pull_request:
 
 jobs:
   android-tests:
