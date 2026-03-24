@@ -55,9 +55,6 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
     and provides a unified interface for UI interactions.
     """
 
-    #: The original locator as provided to ``__init__``, before any platform resolution
-    #: or framework-specific transformations. Useful for building child locators from
-    #: the original value.
     source_locator: Union[Locator, str]
 
     _object = 'element'

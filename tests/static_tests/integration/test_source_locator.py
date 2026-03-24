@@ -26,7 +26,7 @@ class SourceLocatorGroup(Group):
     def __init__(self):
         super().__init__(xpath_locator, name='source locator group')
 
-    child_element = Element(css_locator, name='child element')
+    sub_element = Element(css_locator, name='sub element')
     multi_element = Element(multi_platform_locator, name='multi element')
 
 
@@ -75,9 +75,9 @@ def test_source_locator_preserved_for_locator_dataclass_mobile(driver, request):
 
 
 @pytest.mark.parametrize('driver', desktop_drivers, ids=desktop_ids)
-def test_source_locator_preserved_in_group_children(driver, request):
+def test_source_locator_preserved_in_sub_elements(driver, request):
     request.getfixturevalue(driver)
     group = SourceLocatorGroup()
     assert group.source_locator == xpath_locator
-    assert group.child_element.source_locator == css_locator
+    assert group.sub_element.source_locator == css_locator
     assert group.multi_element.source_locator is multi_platform_locator

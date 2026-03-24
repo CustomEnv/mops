@@ -50,7 +50,7 @@ The `source_locator` attribute stores the original locator exactly as it was pro
 before any platform-specific resolution or framework-specific transformations.
 
 ```{note}
-For **static** child elements, consider using the built-in parent mechanism instead —
+For **static** sub-elements, consider using the built-in parent mechanism instead —
 `Element` objects defined as class attributes of a `Group` automatically search within
 the Group locator (see {doc}`Group documentation <../group_object/index>`).
 
