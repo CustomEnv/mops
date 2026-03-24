@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import functools
 import time
+from abc import ABCMeta
 from copy import copy
 from functools import cached_property
 from typing import Union, List, Type, Tuple, Optional, TYPE_CHECKING
@@ -44,7 +46,22 @@ if TYPE_CHECKING:
     from mops.base.group import Group
 
 
-class Element(DriverMixin, InternalMixin, Logging, ElementABC):
+class ElementMeta(ABCMeta):
+    def __new__(mcs, name, bases, namespace, **kwargs):
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+        orig_init = cls.__init__
+
+        @functools.wraps(orig_init)
+        def wrapped_init(self, *args, **kw):
+            orig_init(self, *args, **kw)
+            if type(self) is cls and getattr(self, '_initialized', False):
+                self._modify_sub_elements()
+
+        cls.__init__ = wrapped_init
+        return cls
+
+
+class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=ElementMeta):
     """
     Represents a UI element that serves as a central component for interaction.
 
@@ -121,7 +138,6 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
             self.driver_wrapper = get_driver_wrapper_from_object(driver_wrapper)
 
         self._modify_object()
-        self._modify_sub_elements()
 
         if not self._initialized:
             self.__init_base_class__()
@@ -973,6 +989,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
             wrapped_object: Any = copy(self)
             wrapped_object.element = element
             wrapped_object._wrapped = True
+            wrapped_object.sub_elements = dict(self.sub_elements)
             set_parent_for_attr(wrapped_object, with_copy=True)
             wrapped_elements.append(wrapped_object)
 

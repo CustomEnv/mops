@@ -110,8 +110,7 @@ def initialize_objects(current_object: Union[Element, Group, Page], sub_elements
         promote_parent_element(copied_obj, current_object)
         sub_elements[name] = copied_obj
         setattr(current_object, name, copied_obj(driver_wrapper=current_object.driver_wrapper))
-
-        initialize_objects(copied_obj, copied_obj.sub_elements)
+        copied_obj._modify_sub_elements()
 
 
 def set_parent_for_attr(current_object: Element, with_copy: bool = False):
@@ -135,7 +134,7 @@ def set_parent_for_attr(current_object: Element, with_copy: bool = False):
         if (current_is_group and obj.parent is None) or is_group(obj.parent):
             obj.parent = current_object
 
-        if obj.sub_elements:
+        if getattr(obj, 'sub_elements', None):
             set_parent_for_attr(obj, with_copy)
 
 

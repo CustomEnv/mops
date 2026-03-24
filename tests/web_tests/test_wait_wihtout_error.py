@@ -53,12 +53,12 @@ def test_wait_continuous_visibility_without_error_positive(expected_condition_pa
 def test_wait_continuous_hidden_without_error_negative(expected_condition_page, caplog):
     expected_condition_page.blinking_card.set_interval()
     expected_condition_page.blinking_card.blinking_panel.wait_hidden_without_error(continuous=True)
-    assert 'The continuous "wait_hidden" of the "blinking panel" is no met after 0.' in str(caplog.messages)
+    assert 'The continuous "wait_hidden" of the "blinking panel" is not met after 0.' in str(caplog.messages)
     assert expected_condition_page.blinking_card.blinking_panel.is_displayed()
 
 
 def test_wait_continuous_visibility_without_error_negative(expected_condition_page, caplog):
     expected_condition_page.blinking_card.set_interval()
     expected_condition_page.blinking_card.blinking_panel.wait_visibility_without_error(continuous=True)
-    assert 'The continuous "wait_visibility" of the "blinking panel" is no met after 0.' in str(caplog.messages)
+    assert 'The continuous "wait_visibility" of the "blinking panel" is not met after 0.' in str(caplog.messages)
     assert expected_condition_page.blinking_card.blinking_panel.is_hidden()

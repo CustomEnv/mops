@@ -106,7 +106,7 @@ def test_wait_continuous_hidden_negative(expected_condition_page, caplog):
     try:
         expected_condition_page.blinking_card.blinking_panel.wait_hidden(continuous=True)
     except ContinuousWaitException as exc:
-        assert 'The continuous "wait_hidden" of the "blinking panel" is no met after 0.' in exc.msg
+        assert 'The continuous "wait_hidden" of the "blinking panel" is not met after 0.' in exc.msg
     else:
         raise Exception('Unexpected behaviour. Case not covered')
 
@@ -116,6 +116,6 @@ def test_wait_continuous_visibility_negative(expected_condition_page, caplog):
     try:
         expected_condition_page.blinking_card.blinking_panel.wait_visibility(continuous=True)
     except ContinuousWaitException as exc:
-        assert 'The continuous "wait_visibility" of the "blinking panel" is no met after 0.' in exc.msg
+        assert 'The continuous "wait_visibility" of the "blinking panel" is not met after 0.' in exc.msg
     else:
         raise Exception('Unexpected behaviour. Case not covered')

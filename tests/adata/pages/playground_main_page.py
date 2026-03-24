@@ -58,5 +58,6 @@ class SecondPlaygroundMainPage(Page):
 class Card(Group):
     def __init__(self, driver_wrapper=None):
         super().__init__('.card', name='action cards', driver_wrapper=driver_wrapper)
+        self.any_button = Element('a', name='any button')
 
     button = Element('a', name='proceed card button')

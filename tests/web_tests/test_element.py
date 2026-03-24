@@ -99,6 +99,15 @@ def test_element_group_all_elements_child(second_playground_page):
     assert KeyboardPage().wait_page_loaded().is_page_opened()
 
 
+def test_all_elements_inside_all_elements(second_playground_page):
+    """ all_elements when parent of Element is Group """
+    all_cards = second_playground_page.get_all_cards()
+    for card in all_cards:
+        for button in card.any_button.all_elements:
+            assert button.parent is not None
+        assert card.button.get_elements_count() == 1
+
+
 def test_all_elements_recursion(base_playground_page):
     try:
         base_playground_page.kube.all_elements[0].all_elements
