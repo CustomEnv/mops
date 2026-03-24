@@ -11,6 +11,8 @@ on:
       - 'CHANGELOG.md'
       - 'LICENSE'
       - '.gitignore'
+  pull_request:
+
 jobs:
   selenium-safari:
     runs-on: macos-26
