@@ -3,7 +3,7 @@ name: Selenium Selenoid Tests
 on:
   push:
     branches:
-      - '**'
+      - 'master'
     paths-ignore:
       - 'docs/**'
       - 'tests/static_tests/**'
@@ -11,6 +11,8 @@ on:
       - 'CHANGELOG.md'
       - 'LICENSE'
       - '.gitignore'
+  pull_request:
+
 
 jobs:
   selenium-selenoid:

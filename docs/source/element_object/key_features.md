@@ -39,3 +39,56 @@ particularly for negative checks (i.e., when an element is not present on the pa
 ## 3. Built-in waits
 Most methods automatically wait for specific element states.
 For example, the framework will wait until a web element becomes clickable before executing `click` method on it.
+
+---
+
+<br>
+
+
+## 4. Original locator preservation
+The `source_locator` attribute stores the original locator exactly as it was provided to `Element.__init__`,
+before any platform-specific resolution or framework-specific transformations.
+
+```{note}
+For **static** sub-elements, consider using the built-in parent mechanism instead —
+`Element` objects defined as class attributes of a `Group` automatically search within
+the Group locator (see {doc}`Group documentation <../group_object/index>`).
+
+`source_locator` is designed for cases where you need the **raw locator string** for
+dynamic XPath construction at runtime — something the parent mechanism cannot do.
+```
+
+**Example — dynamic table parsing:**
+
+```python
+from mops.base.group import Group
+from mops.base.element import Element
+
+
+class DataTable(Group):
+
+    def load(self):
+        row_locator = f'{self.source_locator}//tr'
+        row_elements = Element(row_locator, f'{self.name}: Rows').all_elements
+
+        self.rows = []
+        for index, _ in enumerate(row_elements):
+            cell_locator = f'({row_locator})[{index + 1}]/td'
+            cells = Element(cell_locator, f'{self.name}: Row {index} cells')
+            self.rows.append(cells)
+```
+
+Here `source_locator` is used to dynamically compose new XPath expressions
+via string concatenation. This cannot be achieved with the parent mechanism because:
+
+- The XPath grouping operator `(…)[n]` requires building the full expression as a single string.
+- New `Element` objects are created at runtime, not as class-level attributes.
+- After initialization, `locator` is transformed with platform prefixes
+  (e.g., `xpath=` for Playwright), making it unsuitable for string concatenation.
+
+```{note}
+`source_locator` preserves the exact type passed in: if a `Locator` dataclass was given, it stays a `Locator`;
+if a string was given, it stays the original string.
+The `locator` attribute, by contrast, is resolved to a platform-specific string and may be further modified
+(e.g., prefixed with `xpath=` for Playwright or converted to a CSS selector for ID-based locators in Selenium).
+```

@@ -2,6 +2,14 @@
 
 <br>
 
+## v3.3.2
+*Release date: 2026-03-24*
+
+### Added
+- `Element.source_locator` attribute that preserves the original locator before platform-specific transformations
+
+---
+
 ## v3.3.1
 *Release date: 2026-01-05*
 

@@ -3,13 +3,15 @@ name: Static Tests
 on:
   push:
     branches:
-      - '**'
+      - 'master'
     paths-ignore:
       - 'docs/**'
       - 'README.md'
       - 'CHANGELOG.md'
       - 'LICENSE'
       - '.gitignore'
+  pull_request:
+
 
 jobs:
   static:

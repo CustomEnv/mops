@@ -70,11 +70,12 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
     It dynamically adapts to different driver types (Playwright, Appium, Selenium)
     and provides a unified interface for UI interactions.
     """
-
     _object: str = 'element'
     _initialized: bool = False
     _is_locator_configured: bool = False
     _base_cls: Type[PlayElement, MobileElement, WebElement]
+
+    source_locator: Union[Locator, str]
 
     def __new__(cls, *args, **kwargs):
         instance = super(Element, cls).__new__(cls)
@@ -121,6 +122,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         """
         self.driver_wrapper = get_driver_wrapper_from_object(driver_wrapper)
 
+        self.source_locator = locator
         self.locator = locator
         self.name = name or locator
         self.parent = parent
