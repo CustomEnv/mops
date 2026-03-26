@@ -57,11 +57,16 @@ class InternalMixin:
         """
         current_obj_cls = self.__class__
 
+        if current_obj_cls.__dict__.get('_configured'):
+            return
+
         existing_attrs = set(get_all_static_attributes(current_obj_cls))
 
         for name, value in get_static_attributes(cls).items():
             if name not in existing_attrs:
                 setattr(current_obj_cls, name, value)
+
+        current_obj_cls._configured = True
 
     def _repr_builder(self: Any):
         class_name = self.__class__.__name__

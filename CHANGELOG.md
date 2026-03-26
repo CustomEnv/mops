@@ -13,7 +13,6 @@ previously such elements did not receive `parent` argument
 - `Element.sub_elements` dict — collected once and reused instead of rescanning on every access
 - `ElementMeta` metaclass — triggers `_modify_sub_elements` automatically after `__init__` of the final class
 - `get_static_attributes` / `get_all_static_attributes` with `lru_cache` — replaces repeated attribute scanning
-- `_last_static_cls_for` guard in `_set_static` — skips redundant `setattr` calls when the class is already configured
 - `get_driver_instance` with `lru_cache` — caches `isinstance` results for driver type checks
 - `_driver_is_instance` method on `InternalMixin` — single cached entry point for driver type detection
 
