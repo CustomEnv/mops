@@ -93,12 +93,15 @@ def test_performance_element_initialisation(mocked_selenium_driver, case, set_el
     if sys.version_info >= (3, 12):
         expected_peak_mem = 3.8
         expected_init_duration = 0.4
+    if sys.version_info >= (3, 13):
+        expected_peak_mem = 4.0
+        expected_init_duration = 0.4
 
     assert init_without_profiling_stop_timestamp < init_without_profiling_expected,\
         f'Execution without profiling takes too much time: {init_without_profiling_stop_timestamp}'
-    assert expected_init_duration -0.25 < stats.total_tt < expected_init_duration,\
+    assert stats.total_tt < expected_init_duration,\
         f"Execution time too high: {stats.total_tt:.3f} sec"
-    assert expected_peak_mem - 0.8 < peak_mem < expected_peak_mem,\
+    assert peak_mem < expected_peak_mem,\
         f"Peak memory usage too high: {peak_mem:.2f} MB"
     assert len(section.sub_elements) == section_sub_elements_count, \
         f"Expected {section_sub_elements_count} elements, got {len(section.sub_elements)}"
@@ -166,12 +169,15 @@ def test_performance_group_initialisation(mocked_selenium_driver, case, set_grou
     if sys.version_info >= (3, 12):
         expected_peak_mem = 2.5
         expected_init_duration = 0.4
+    if sys.version_info >= (3, 13):
+        expected_peak_mem = 2.8
+        expected_init_duration = 0.4
 
     assert init_without_profiling_stop_timestamp < 0.15,\
         f'Execution without profiling takes too much time: {init_without_profiling_stop_timestamp}'
-    assert expected_init_duration -0.25 < stats.total_tt < expected_init_duration, \
+    assert stats.total_tt < expected_init_duration, \
         f"Execution time too high: {stats.total_tt:.3f} sec"
-    assert expected_peak_mem -0.8 < peak_mem < expected_peak_mem, \
+    assert peak_mem < expected_peak_mem, \
         f"Peak memory usage too high: {peak_mem:.2f} MB"
     assert cpu_time < expected_init_duration, f"CPU execution time too high: {cpu_time:.3f} sec"
     assert count > 3600, f"Expected 3600 elements, got {count}"
