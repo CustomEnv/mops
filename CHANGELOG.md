@@ -2,6 +2,35 @@
 
 <br>
 
+## v3.4.0 (Performance improvement)
+*Release date: 2026-03-26*
+
+### Breaking Changes
+- **`Group` subclasses**: `parent` is now correctly set on sub-elements defined after `super().__init__()` — 
+previously such elements did not receive `parent` argument
+
+### Added
+- `Element.sub_elements` dict — collected once and reused instead of rescanning on every access
+- `ElementMeta` metaclass — triggers `_modify_sub_elements` automatically after `__init__` of the final class
+- `get_static_attributes` / `get_all_static_attributes` with `lru_cache` — replaces repeated attribute scanning
+- `_last_static_cls_for` guard in `_set_static` — skips redundant `setattr` calls when the class is already configured
+- `get_driver_instance` with `lru_cache` — caches `isinstance` results for driver type checks
+- `_driver_is_instance` method on `InternalMixin` — single cached entry point for driver type detection
+
+### Changed
+- `all_tags` converted to `frozenset` for O(1) membership checks
+- `initialize_objects` no longer recurses manually — delegates to `_modify_sub_elements` on each child
+- `set_parent_for_attr` uses `sub_elements` dict instead of rescanning object attributes
+- `get_child_elements_with_names` / `safe_getattribute` removed, replaced by `extract_named_objects` / `extract_all_named_objects`
+- `locator`, `locator_type`, `log_locator` on `Element` converted to lazy properties — resolved on first access
+- `__copy__` added to `Element` for explicit shallow copy control
+- `__getattribute__` override removed from `Element` — initialization guard moved to `CoreElement`/`PlayElement`
+
+### Fixed
+- Error messages for unsupported driver type now include the actual driver class name and list expected types
+
+---
+
 ## v3.3.2
 *Release date: 2026-03-24*
 
@@ -15,6 +44,8 @@
 
 ### Changed
 - `safe_call` exceptions list
+
+---
 
 ## v3.3.0
 *Release date: 2026-01-05*
