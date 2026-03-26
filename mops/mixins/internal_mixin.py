@@ -29,13 +29,13 @@ def get_element_info(element: Any, label: str = 'Selector=') -> str:
 def get_static_attributes(cls: Any) -> dict:
     return extract_named_objects(cls)
 
-@lru_cache(maxsize=64)
+@lru_cache(maxsize=32)
 def get_all_static_attributes(cls: Any) -> dict:
     return extract_all_named_objects(cls)
 
 @lru_cache(maxsize=16)
-def get_driver_instance(driver, instance) -> bool:
-    return isinstance(driver, instance)
+def get_driver_instance(driver_type, instance) -> bool:
+    return issubclass(driver_type, instance)
 
 
 class InternalMixin:
@@ -43,7 +43,7 @@ class InternalMixin:
     driver: None
 
     def _driver_is_instance(self, instance):
-        return get_driver_instance(self.driver, instance)
+        return get_driver_instance(type(self.driver), instance)
 
     def _safe_setter(self, var: str, value: Any):
         if not hasattr(self, var):
