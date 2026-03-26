@@ -157,7 +157,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         elif self._driver_is_instance(SeleniumDriver):
             self._base_cls = WebElement
         else:
-            raise DriverWrapperException(f'Cant specify {self.__class__.__name__}')
+            raise DriverWrapperException(
+                f'Cannot initialize {self.__class__.__name__}: '
+                f'unsupported driver type "{type(self.driver).__name__}". '
+                f'Expected Playwright, Appium or Selenium driver instance'
+            )
 
         self._set_static(self._base_cls)
         self._base_cls.__init__(self)

@@ -95,7 +95,11 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
         elif self._driver_is_instance(SeleniumDriver):
             self._base_cls = WebPage
         else:
-            raise DriverWrapperException(f'Cant specify {Page.__name__}')
+            raise DriverWrapperException(
+                f'Cannot initialize {Page.__name__}: '
+                f'unsupported driver type "{type(self.driver).__name__}". '
+                f'Expected Playwright, Appium or Selenium driver instance'
+            )
 
         self._set_static(self._base_cls)
         self._base_cls.__init__(self)

@@ -348,7 +348,11 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
             self.is_selenium = True
             self._base_cls = WebDriver
         else:
-            raise DriverWrapperException(f'Cant specify {self.__class__.__name__}')
+            raise DriverWrapperException(
+                f'Cannot initialize {self.__class__.__name__}: '
+                f'unsupported driver type "{type(source_driver).__name__}". '
+                f'Expected Playwright, Appium or Selenium driver instance'
+            )
 
         self._set_static(self._base_cls)
         self._base_cls.__init__(self, driver_container=self.__driver_container)
