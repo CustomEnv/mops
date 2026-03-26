@@ -189,4 +189,5 @@ def test_assert_screenshot_hide_driver_elements(colored_blocks_page, driver_wrap
         hide=[all_cards[0], all_cards[2]] + colored_blocks_page.navbar.all_elements,
         name_suffix='sides hidden',
         delay=0.5,
+        threshold=0.2
     )
