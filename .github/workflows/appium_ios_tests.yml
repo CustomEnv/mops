@@ -3,7 +3,7 @@ name: Appium iOS Safari Tests
 on:
   push:
     branches:
-      - '**'
+      - 'master'
     paths-ignore:
       - 'docs/**'
       - 'tests/static_tests/**'
