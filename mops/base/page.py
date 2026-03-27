@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Union, Any, List, Type
+from functools import cached_property
+from typing import Union, Any, Type
 
 from playwright.sync_api import Page as PlaywrightDriver
 from appium.webdriver.webdriver import WebDriver as AppiumDriver
@@ -21,9 +22,7 @@ from mops.utils.previous_object_driver import PreviousObjectDriver, set_instance
 from mops.utils.internal_utils import (
     WAIT_PAGE,
     initialize_objects,
-    get_child_elements_with_names,
-    get_child_elements,
-    is_element_instance,
+    extract_named_objects,
 )
 
 
@@ -43,7 +42,9 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
     _object = 'page'
     _base_cls: Type[PlayPage, MobilePage, WebPage]
 
-    anchor: Element
+    url: str
+    log_locator: Union[str, None] = None
+    locator_type: Union[str, None] = None
 
     def __new__(cls, *args, **kwargs):
         instance = super(Page, cls).__new__(cls)
@@ -70,24 +71,14 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
          an object containing it to be used for entire page.
         :type driver_wrapper: typing.Union[DriverWrapper, typing.Any]
         """
-        self._validate_inheritance()
-
         self.driver_wrapper = get_driver_wrapper_from_object(driver_wrapper)
-        
-        self.anchor = Element(locator, name=name, driver_wrapper=self.driver_wrapper)
-        self.locator = self.anchor.locator
-        self.locator_type = self.anchor.locator_type
-        self.log_locator = self.anchor.log_locator
-        self.name = self.anchor.name
 
-        self.url = getattr(self, 'url', '')
+        self.locator = locator
+        self.name = name
 
-        self._init_locals = locals()
         self._modify_page_driver_wrapper(driver_wrapper)
-        self._modify_children()
+        self._modify_sub_elements()
         self._safe_setter('__base_obj_id', id(self))
-
-        self.page_elements: List[Element] = get_child_elements(self, Element)
 
         self.__init_base_class__()
 
@@ -97,17 +88,36 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
 
         :return: None
         """
-        if isinstance(self.driver, PlaywrightDriver):
+        if self._driver_is_instance(PlaywrightDriver):
             self._base_cls = PlayPage
-        elif isinstance(self.driver, AppiumDriver):
+        elif self._driver_is_instance(AppiumDriver):
             self._base_cls = MobilePage
-        elif isinstance(self.driver, SeleniumDriver):
+        elif self._driver_is_instance(SeleniumDriver):
             self._base_cls = WebPage
         else:
-            raise DriverWrapperException(f'Cant specify {Page.__name__}')
+            raise DriverWrapperException(
+                f'Cannot initialize {Page.__name__}: '
+                f'unsupported driver type "{type(self.driver).__name__}". '
+                f'Expected Playwright, Appium or Selenium driver instance'
+            )
 
         self._set_static(self._base_cls)
         self._base_cls.__init__(self)
+
+    @cached_property
+    def anchor(self) -> Element:
+        """
+        Return the anchor element of the page
+
+        :return: :base:`.Element`
+        """
+        anchor = Element(self.locator, name=self.name, driver_wrapper=self.driver_wrapper)
+        self.locator = anchor.locator
+        self.name = anchor.name
+        self.locator_type = anchor.locator_type
+        self.log_locator = anchor.log_locator
+
+        return anchor
 
     # Following methods works same for both Selenium/Appium and Playwright APIs using internal methods
 
@@ -159,7 +169,7 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
 
         self.anchor.wait_visibility(timeout=timeout, silent=True)
 
-        for element in self.page_elements:
+        for element in self.sub_elements.values():
             if getattr(element, 'wait') is False:
                 element.wait_hidden(timeout=timeout, silent=True)
             elif getattr(element, 'wait') is True:
@@ -179,7 +189,7 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
         result = True
 
         if with_elements:
-            for element in self.page_elements:
+            for element in self.sub_elements.values():
                 if getattr(element, 'wait'):
                     result &= element.is_displayed(silent=True)
                     if not result:
@@ -187,17 +197,18 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
 
         result &= self.anchor.is_displayed()
 
-        if self.url and with_url:
+        if with_url:
             result &= self.driver_wrapper.current_url == self.url
 
         return result
 
-    def _modify_children(self):
+    def _modify_sub_elements(self):
         """
         Initializing of attributes with type == Element.
         Required for classes with base == Page.
         """
-        initialize_objects(self, get_child_elements_with_names(self, Element), Element)
+        self.sub_elements = extract_named_objects(self, Element)
+        initialize_objects(self, self.sub_elements)
 
     def _modify_page_driver_wrapper(self, driver_wrapper: Any):
         """
@@ -206,12 +217,3 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
         """
         if not driver_wrapper:
             PreviousObjectDriver().set_driver_from_previous_object(self)
-
-    def _validate_inheritance(self):
-        cls = self.__class__
-        mro = cls.__mro__
-
-        for item in mro:
-            if is_element_instance(item):
-                raise TypeError(
-                    f"You cannot make an inheritance for {cls.__name__} from both Page and Group/Element objects")

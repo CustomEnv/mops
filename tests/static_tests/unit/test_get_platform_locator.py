@@ -21,7 +21,7 @@ driver_wrapper_mock = SimpleNamespace(
 @pytest.mark.parametrize('locator', ['tablet', 'android', 'ios', 'mobile', 'desktop'])
 def test_missed_platform_locator(locator):
     locator = {locator: None}
-    element_obj = SimpleNamespace(driver_wrapper=driver_wrapper_mock, locator=Locator(**locator))
+    element_obj = SimpleNamespace(driver_wrapper=driver_wrapper_mock, _locator=Locator(**locator))
     try:
         get_platform_locator(element_obj)
     except InvalidLocatorException as exc:

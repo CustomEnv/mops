@@ -80,10 +80,9 @@ class NativeSafari:
         if not self.custom_bottom_bar_locator:
             ios_version = float(self.driver_wrapper.driver.caps.get('platformVersion', 18.2))
 
-            if ios_version >= 18.2:
-                self.bottom_bar.locator = self.ios_18_bottom_bar_locator
-            elif ios_version >= 26.0:
+            if ios_version >= 26.0:
                 self.bottom_bar.locator = self.ios_26_bottom_bar_locator
-
+            elif ios_version >= 18.2:
+                self.bottom_bar.locator = self.ios_18_bottom_bar_locator
 
         return self.bottom_bar.size.height

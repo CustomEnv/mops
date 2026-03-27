@@ -158,7 +158,7 @@ class VisualComparison:
             return self
 
         image = cv2.imread(reference_file)
-        if isinstance(image, type(None)):
+        if image is None:
             self._save_screenshot(reference_file, **screenshot_params)
 
             if self.visual_reference_generation or self.soft_visual_reference_generation:

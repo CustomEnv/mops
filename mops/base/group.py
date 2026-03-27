@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, Union, List, Optional
+from typing import Any, Union, Optional
 
 from mops.base.driver_wrapper import DriverWrapper
 from mops.base.element import Element
 from mops.mixins.objects.locator import Locator
 from mops.utils.internal_utils import (
     set_parent_for_attr,
-    get_child_elements,
     initialize_objects,
-    get_child_elements_with_names
+    extract_named_objects
 )
 
 
@@ -27,11 +26,7 @@ class Group(Element):
     This class provides functionality for handling element locators,
     initialization with respect to the driver, and managing sub-elements within the group.
     """
-
-    _object = 'group'
-
-    def __repr__(self):
-        return self._repr_builder()
+    _object: str = 'group'
 
     def __init__(
             self,
@@ -63,7 +58,6 @@ class Group(Element):
          an object containing it to be used for entire group.
         :type driver_wrapper: typing.Union[DriverWrapper, typing.Any]
         """
-        self._init_locals = locals()
         super().__init__(
             locator=locator,
             name=name,
@@ -72,11 +66,11 @@ class Group(Element):
             driver_wrapper=driver_wrapper,
         )
 
-    def _modify_children(self) -> None:
+    def _modify_sub_elements(self) -> None:
         """
         Initializing of attributes with type == Group/Element.
         Required for classes with base == Group.
         """
-        initialize_objects(self, get_child_elements_with_names(self, Element), Element)
-        set_parent_for_attr(self, Element)
-        self.child_elements: List[Element] = get_child_elements(self, Element)
+        self.sub_elements = extract_named_objects(self, Element)
+        initialize_objects(self, self.sub_elements)
+        set_parent_for_attr(self)

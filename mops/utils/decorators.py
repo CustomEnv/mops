@@ -116,7 +116,7 @@ def wait_continuous(method: Callable):
 
             if not result.execution_result:
                 raise ContinuousWaitException(
-                    f'The continuous "{method.__name__}" of the "{self.name}" is no met ' 
+                    f'The continuous "{method.__name__}" of the "{self.name}" is not met ' 
                     f'after {(time.time() - start_time):.2f} seconds'
                 )
 

@@ -99,8 +99,8 @@ class DownloadArtifacts:
             print(f"Finding PR associated with commit {self.launch_args.commit_sha}...")
             pr_number = self._api_request(f"{bae_api_url}/search/issues?q=repo:{REPO}+sha:{self.launch_args.commit_sha}+is:pr")['items'][0]['number']
             branch_name = self._api_request(f"{repos_url}/{REPO}/pulls/{pr_number}")['head']['ref']
-            runs_response = self._api_request(f"{repos_url}/{REPO}/actions/runs?per_page=100&event=push&branch={branch_name}")
-            run_ids = [run["id"] for run in runs_response.get("workflow_runs", []) if any(pr.get("number") == pr_number for pr in run.get("pull_requests", []))]
+            runs_response = self._api_request(f"{repos_url}/{REPO}/actions/runs?per_page=100&branch={branch_name}&head_sha={self.launch_args.commit_sha}")
+            run_ids = [run["id"] for run in runs_response.get("workflow_runs", [])]
             for run_id in run_ids:
                 artifacts_response = self._api_request(f"{repos_url}/{REPO}/actions/runs/{run_id}/artifacts")
                 for artifact in artifacts_response.get("artifacts", []):
