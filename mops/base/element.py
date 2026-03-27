@@ -5,7 +5,7 @@ from copy import copy
 import functools
 from functools import cached_property
 import time
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any
 
 from appium.webdriver.webdriver import WebDriver as AppiumDriver
 from playwright.sync_api import Page as PlaywrightDriver
@@ -45,6 +45,8 @@ from mops.utils.previous_object_driver import PreviousObjectDriver, set_instance
 from mops.visual_comparison import VisualComparison
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from PIL.Image import Image
 
     from mops.base.driver_wrapper import DriverWrapper

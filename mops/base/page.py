@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any
 
 from appium.webdriver.webdriver import WebDriver as AppiumDriver
 from playwright.sync_api import Page as PlaywrightDriver
@@ -24,6 +24,8 @@ from mops.utils.logs import Logging
 from mops.utils.previous_object_driver import PreviousObjectDriver, set_instance_frame
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from mops.base.driver_wrapper import DriverWrapper
     from mops.mixins.objects.locator import Locator
 

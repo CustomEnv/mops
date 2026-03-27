@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from appium.webdriver.webdriver import WebDriver as AppiumDriver
 from playwright.sync_api import (
@@ -22,6 +22,8 @@ from mops.utils.logs import Logging, LogLevel
 from mops.visual_comparison import VisualComparison
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from PIL import Image
 
     from mops.base.element import Element
