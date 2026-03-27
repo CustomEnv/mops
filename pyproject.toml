@@ -15,8 +15,6 @@ authors = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -61,7 +59,7 @@ dev-dependencies = [
     "furo==2024.8.6",
     "sphinx==7.1.2",
     "myst-parser==3.0.1",
-    "ruff==0.14.10",
+    "ruff==0.15.8",
 ]
 
 [project.urls]
@@ -91,25 +89,28 @@ target-version = "py310"
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+    "D107",  # Missing docstring in __init__
+    "D101",  # Missing docstring in public class
+    "D403",  # First word of docstring should be capitalized (conflicts with iOS branding)
     "D415",  # First line should end with a period, question mark, or exclamation point
     "D212",  # Multi-line docstring summary should start at the first line
     "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed
     "D400",  # First line should end with a period
-    "D100",
+    "D100",  # Missing docstring in public module
     "D105",  # Missing docstring in magic method
     "ANN204",  # Missing return type annotation for special method
-    "INP001",
-    "UP006",  # Use `list` instead of `List` for type annotation
-    "D203",
-    "D205",  #  1 blank line required between summary line and description
-    "D213",
-    "B904",  # raise exceptions with `raise ... from err` or `raise ... from None`
+    "INP001",  # File is part of an implicit namespace package
+    "D203",  # 1 blank line required before class docstring (conflicts with D211)
+    "D205",  # 1 blank line required between summary line and description
+    "D213",  # Multi-line docstring summary should start at the second line (conflicts with D212)
+    "B024",  # Abstract base class without abstract methods (framework pattern)
+    "SLF001",  # Private member accessed
     "FBT001",  # Boolean-typed positional argument in function definition
-    "FBT002",  #  Boolean default positional argument in function definition
-    "SIM114",  #  Boolean default positional argument in function definition
-    "TD",  #  flake8-todos (TD)
-    "FIX",  #  flake8-fixme (FIX)
-    "PTH",  #  flake8-use-pathlib (PTH)
+    "FBT002",  # Boolean default positional argument in function definition
+    "ARG002",  # Unused method argument
+    "ARG004",  # Unused static method argument
+    "TD",  # flake8-todos (TD)
+    "FIX",  # flake8-fixme (FIX)
 ]
 
 [tool.ruff.lint.flake8-quotes]
