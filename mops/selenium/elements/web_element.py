@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC
+from typing import Any
 
 from selenium.common import JavascriptException
 
-from mops.selenium.core.core_element import CoreElement
 from mops.js_scripts import js_click
+from mops.selenium.core.core_element import CoreElement
 from mops.utils.decorators import retry
 from mops.utils.internal_utils import calculate_coordinate_to_click
 from mops.utils.selector_synchronizer import get_platform_locator, set_selenium_selector
@@ -13,7 +14,7 @@ from mops.utils.selector_synchronizer import get_platform_locator, set_selenium_
 
 class WebElement(CoreElement, ABC):
 
-    def click(self, *, force_wait: bool = True, **kwargs) -> WebElement:
+    def click(self, *, force_wait: bool = True, **kwargs: Any) -> WebElement:
         """
         Clicks on the element.
 
@@ -122,7 +123,7 @@ class WebElement(CoreElement, ABC):
         self.driver_wrapper.click_by_coordinates(x=x, y=y, silent=True)
         return self
 
-    def _set_locator(self):
+    def _set_locator(self) -> None:
         self.locator = get_platform_locator(self)
         set_selenium_selector(self)
         self._is_locator_configured = True

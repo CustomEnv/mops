@@ -1,21 +1,27 @@
 from __future__ import annotations
 
-from typing import Union, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from appium.webdriver.applicationstate import ApplicationState
-from appium.webdriver.webdriver import WebDriver as AppiumDriver
 
-from mops.selenium.core.core_driver import CoreDriver
+from mops.exceptions import DriverWrapperException
 from mops.mixins.native_context import NativeContext, NativeSafari
+from mops.selenium.core.core_driver import CoreDriver
+
+if TYPE_CHECKING:
+    from appium.webdriver.webdriver import WebDriver as AppiumDriver
+    from PIL import Image
+
+    from mops.mixins.objects.driver import Driver
 
 
 class MobileDriver(CoreDriver):
 
-    bundle_id: Optional[str]
+    bundle_id: str | None
 
-    def __init__(self, driver_container: Driver, *args, **kwargs):  # noqa
+    def __init__(self, driver_container: Driver, *args: Any, **kwargs: Any) -> None:
         """
-        Initializing of mobile driver with appium
+        Initialize mobile driver with appium.
 
         :param driver_container: Driver that contains appium driver object
         """
@@ -122,7 +128,7 @@ class MobileDriver(CoreDriver):
         self.__is_web_context = True
         return self
 
-    def get_web_view_context(self) -> Union[None, str]:
+    def get_web_view_context(self) -> None | str:
         """
         Appium only: Get the WEBVIEW context name.
 
@@ -132,6 +138,7 @@ class MobileDriver(CoreDriver):
         for context in self.get_all_contexts():
             if 'WEBVIEW' in context:
                 return context
+        return None
 
     def get_current_context(self) -> str:
         """
@@ -194,7 +201,7 @@ class MobileDriver(CoreDriver):
 
         return self._bottom_bar_height
 
-    def get_all_contexts(self) -> List[str]:
+    def get_all_contexts(self) -> list[str]:
         """
         Appium only: Get all contexts within the current session.
 
@@ -203,9 +210,9 @@ class MobileDriver(CoreDriver):
         """
         return self.driver.contexts
 
-    def screenshot_image(self, screenshot_base: bytes = None):
+    def screenshot_image(self, screenshot_base: bytes | None = None) -> Image:
         """
-        Returns a :class:`PIL.Image.Image` object representing the screenshot of the web page.
+        Return a :class:`PIL.Image.Image` object representing the screenshot of the web page.
         Appium iOS: Removes native controls from image manually
 
         :param screenshot_base: Screenshot binary data (optional).
@@ -224,7 +231,7 @@ class MobileDriver(CoreDriver):
 
         return image
 
-    def hide_keyboard(self, **kwargs) -> MobileDriver:
+    def hide_keyboard(self, **kwargs: Any) -> MobileDriver:
         """
         Appium only: Hide the keyboard on a real device.
 
@@ -264,7 +271,7 @@ class MobileDriver(CoreDriver):
         return self
 
 
-def _set_static(obj) -> None:
+def _set_static(obj: Any) -> None:
     """
     Set static attributes for Appium driver wrapper
 
@@ -290,4 +297,5 @@ def _set_static(obj) -> None:
         elif obj.is_android:
             obj.bundle_id = obj.caps.get('appPackage', 'undefined: appPackage')
         else:
-            raise Exception('Make sure that correct "platformName" capability specified')
+            msg = 'Make sure that correct "platformName" capability specified'
+            raise DriverWrapperException(msg)

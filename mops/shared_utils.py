@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import io
 import logging
-from subprocess import Popen, PIPE, run
+from subprocess import PIPE, Popen, run
+from typing import Any
 
 from PIL import Image
 
@@ -23,18 +26,21 @@ def _scaled_screenshot(screenshot_binary: bytes, width: int) -> Image:
     return img_binary
 
 
-def get_image(screenshot_binary: bytes):
+def get_image(screenshot_binary: bytes) -> Image.Image:
+    """Open a PIL Image from raw screenshot bytes."""
     return Image.open(io.BytesIO(screenshot_binary))
 
 
-def rescale_image(screenshot_binary: bytes, scale=3, img_format='JPEG') -> bytes:
+def rescale_image(screenshot_binary: bytes, scale: int = 3, img_format: str = 'JPEG') -> bytes:
+    """Rescale the given screenshot binary by the given scale factor and return new bytes."""
     img = get_image(screenshot_binary)
     img = img.resize((img.width // scale, img.height // scale), Image.Resampling.LANCZOS)
 
     return save_image(img, img_format)
 
 
-def resize_image(image1: str, image2: str, img_format='JPEG') -> bytes:
+def resize_image(image1: str, image2: str, img_format: str = 'JPEG') -> bytes:
+    """Resize image1 to match the dimensions of image2 and return the result as bytes."""
     img1 = Image.open(image1)
     img2 = Image.open(image2)
 
@@ -44,18 +50,21 @@ def resize_image(image1: str, image2: str, img_format='JPEG') -> bytes:
     return save_image(img1, img_format)
 
 
-def save_image(img: Image, img_format='JPEG'):
+def save_image(img: Image.Image, img_format: str = 'JPEG') -> bytes:
+    """Convert and save the given image to bytes in the specified format."""
     result_img_binary = io.BytesIO()
     img.convert('RGB').save(result_img_binary, format=img_format, optimize=True)
     return result_img_binary.getvalue()
 
 
-def shell_running_command(cmd, **kwargs):
-    return Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE, close_fds=True, **kwargs)
+def shell_running_command(cmd: str, **kwargs: Any) -> Popen:
+    """Start a shell command as a background process and return the Popen object."""
+    return Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE, close_fds=True, **kwargs)  # noqa: S602
 
 
-def shell_command(cmd,  **kwargs):
-    process = run(cmd, shell=True, **kwargs)
+def shell_command(cmd: str, **kwargs: Any) -> Any:
+    """Run a shell command synchronously and return the completed process object."""
+    process = run(cmd, shell=True, check=False, **kwargs)  # noqa: S602
 
     if process.stdout:
         process.output = process.stdout.decode('utf8').replace('\n', '')
@@ -67,12 +76,13 @@ def shell_command(cmd,  **kwargs):
     return process
 
 
-def get_all_sub_elements(instance, sub_elements: list = None) -> list:
+def get_all_sub_elements(instance: Any, sub_elements: list | None = None) -> list:
+    """Recursively collect all sub-elements from the given instance into a flat list."""
     if sub_elements is None:
         sub_elements = []
 
     if hasattr(instance, 'sub_elements') and instance.sub_elements:
-        for key, sub_element in instance.sub_elements.items():
+        for sub_element in instance.sub_elements.values():
             sub_elements.append(sub_element)
             if hasattr(sub_element, 'sub_elements') and sub_element.sub_elements:
                 get_all_sub_elements(sub_element, sub_elements)
@@ -80,7 +90,7 @@ def get_all_sub_elements(instance, sub_elements: list = None) -> list:
     return sub_elements
 
 
-def cut_log_data(data: str, length=50) -> str:
+def cut_log_data(data: str, length: int = 50) -> str:
     """
     Cut given data for reducing log length
 

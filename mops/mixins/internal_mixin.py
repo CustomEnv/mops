@@ -4,8 +4,8 @@ from functools import lru_cache
 from typing import Any
 
 from mops.utils.internal_utils import (
-    extract_named_objects,
     extract_all_named_objects,
+    extract_named_objects,
 )
 
 
@@ -27,14 +27,17 @@ def get_element_info(element: Any, label: str = 'Selector=') -> str:
 
 @lru_cache(maxsize=16)
 def get_static_attributes(cls: Any) -> dict:
+    """Return named objects from the given class using extract_named_objects."""
     return extract_named_objects(cls)
 
 @lru_cache(maxsize=32)
 def get_all_static_attributes(cls: Any) -> dict:
+    """Return all named objects from the given class using extract_all_named_objects."""
     return extract_all_named_objects(cls)
 
 @lru_cache(maxsize=16)
-def get_driver_instance(driver_type, instance) -> bool:
+def get_driver_instance(driver_type: type, instance: type) -> bool:
+    """Check if driver_type is a subclass of instance."""
     return issubclass(driver_type, instance)
 
 
@@ -42,14 +45,15 @@ class InternalMixin:
 
     driver: None
 
-    def _driver_is_instance(self, instance):
+    def _driver_is_instance(self, instance: type) -> bool:
+        """Check if the current driver is an instance of the given type."""
         return get_driver_instance(type(self.driver), instance)
 
-    def _safe_setter(self, var: str, value: Any):
+    def _safe_setter(self, var: str, value: Any) -> None:
         if not hasattr(self, var):
             setattr(self, var, value)
 
-    def _set_static(self: Any, cls) -> None:
+    def _set_static(self: Any, cls: type) -> None:
         """
         Set static from base cls (Web/Mobile/Play Element/Page etc.)
 
@@ -68,7 +72,7 @@ class InternalMixin:
 
         current_obj_cls._configured = True
 
-    def _repr_builder(self: Any):
+    def _repr_builder(self: Any) -> str | None:
         class_name = self.__class__.__name__
         obj_id = hex(id(self))
         parent = getattr(self, 'parent', False)
@@ -84,6 +88,7 @@ class InternalMixin:
 
             base = f'{class_name}({locator}{name}{parent}) at {obj_id}'
             additional_info = driver
-            return f'{base}, {additional_info}'
         except AttributeError:
             return f'{class_name} object at {obj_id}'
+        else:
+            return f'{base}, {additional_info}'

@@ -2,28 +2,27 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import cached_property
-from typing import List, Union, Any, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from playwright.sync_api import Page as PlaywrightPage
-
-from mops.mixins.objects.box import Box
-from selenium.webdriver.common.alert import Alert
-from PIL import Image
-
-from mops.mixins.objects.size import Size
 from mops.utils.internal_utils import WAIT_EL, WAIT_UNIT
 
 if TYPE_CHECKING:
+    from PIL import Image
+    from playwright.sync_api import Page as PlaywrightPage
+    from selenium.webdriver.common.alert import Alert
+
     from mops.base.driver_wrapper import DriverWrapper, DriverWrapperSessions
     from mops.base.element import Element
+    from mops.mixins.objects.box import Box
+    from mops.mixins.objects.size import Size
 
 
 class DriverWrapperABC(ABC):
-    session: Union[DriverWrapperSessions, None] = None
-    label: Union[str, None] = None
-    original_tab: Union[str, PlaywrightPage, None] = None
+    session: DriverWrapperSessions | None = None
+    label: str | None = None
+    original_tab: str | PlaywrightPage | None = None
 
-    anchor: Union[Element, None] = None
+    anchor: Element | None = None
 
     is_desktop: bool = False
     is_selenium: bool = False
@@ -45,7 +44,7 @@ class DriverWrapperABC(ABC):
     is_simulator: bool = False
     is_real_device: bool = False
 
-    browser_name: Union[str, None] = None
+    browser_name: str | None = None
 
     @cached_property
     def is_safari(self) -> bool:
@@ -54,7 +53,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`bool`- :obj:`True` if the current driver is Safari, otherwise :obj:`False`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @cached_property
     def is_chrome(self) -> bool:
@@ -63,7 +62,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`bool`- :obj:`True` if the current driver is Chrome, otherwise :obj:`False`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @cached_property
     def is_firefox(self) -> bool:
@@ -72,9 +71,9 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`bool`- :obj:`True` if the current driver is Firefox, otherwise :obj:`False`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def quit(self, silent: bool = False, trace_path: str = 'trace.zip'):
+    def quit(self, silent: bool = False, trace_path: str = 'trace.zip') -> None:
         """
         Quit the driver instance.
 
@@ -93,9 +92,9 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`None`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def wait(self, timeout: Union[int, float] = WAIT_UNIT, reason: str = '') -> DriverWrapper:
+    def wait(self, timeout: float = WAIT_UNIT, reason: str = '') -> DriverWrapper:
         """
         Pauses the execution for a specified amount of time.
 
@@ -107,7 +106,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get(self, url: str, silent: bool = False) -> DriverWrapper:
         """
@@ -119,7 +118,7 @@ class DriverWrapperABC(ABC):
         :type silent: bool
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_driver_opened(self) -> bool:
         """
@@ -127,7 +126,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`bool` - :obj:`True` if the driver is open, otherwise :obj:`False`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_driver_closed(self) -> bool:
         """
@@ -135,7 +134,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`bool` - :obj:`True` if the driver is closed, otherwise :obj:`False`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def current_url(self) -> str:
@@ -144,7 +143,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`str` - The URL of the current page.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def refresh(self) -> DriverWrapper:
         """
@@ -152,7 +151,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def go_forward(self) -> DriverWrapper:
         """
@@ -160,7 +159,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def go_back(self) -> DriverWrapper:
         """
@@ -168,9 +167,9 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def set_cookie(self, cookies: List[dict]) -> DriverWrapper:
+    def set_cookie(self, cookies: list[dict]) -> DriverWrapper:
         """
         Add a list of cookie dictionaries to the current session.
 
@@ -180,7 +179,7 @@ class DriverWrapperABC(ABC):
         :type cookies: typing.List[dict]
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def clear_cookies(self) -> DriverWrapper:
         """
@@ -188,7 +187,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def delete_cookie(self, name: str) -> DriverWrapper:
         """
@@ -196,16 +195,16 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def get_cookies(self) -> List[dict]:
+    def get_cookies(self) -> list[dict]:
         """
         Retrieve a list of cookie dictionaries corresponding to the cookies visible in the current session.
 
         :return: A list of dictionaries, each containing cookie data.
         :rtype: typing.List[typing.Dict]
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def switch_to_frame(self, frame: Element) -> DriverWrapper:
         """
@@ -215,7 +214,7 @@ class DriverWrapperABC(ABC):
         :type frame: Element
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def switch_to_default_content(self) -> DriverWrapper:
         """
@@ -223,11 +222,11 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def execute_script(self, script: str, *args: Any) -> Any:
         """
-        Synchronously executes JavaScript in the current window or frame.
+        Execute JavaScript synchronously in the current window or frame.
         Compatible with Selenium's `execute_script` method.
 
         :param script: The JavaScript code to execute.
@@ -236,7 +235,7 @@ class DriverWrapperABC(ABC):
         :type args: :obj:`typing.Any`
         :return: :obj:`typing.Any` - The result of the JavaScript execution.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def evaluate(self, expression: str, arg: Any = None) -> Any:
         """
@@ -248,7 +247,7 @@ class DriverWrapperABC(ABC):
         :type arg: list
         :return: :obj:`typing.Any` - The result of the JavaScript execution.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def set_page_load_timeout(self, timeout: int = 30) -> DriverWrapper:
         """
@@ -258,7 +257,7 @@ class DriverWrapperABC(ABC):
         :type timeout: int
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def set_window_size(self, size: Size) -> DriverWrapper:
         """
@@ -267,7 +266,7 @@ class DriverWrapperABC(ABC):
         :param size: The desired inner window size as a :class:`.Size` object.
         :return: The current instance of :obj:`.DriverWrapper`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_inner_window_size(self) -> Size:
         """
@@ -275,7 +274,7 @@ class DriverWrapperABC(ABC):
 
         :return: The size of the inner window as a :class:`.Size` object.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_window_size(self) -> Size:
         """
@@ -289,16 +288,16 @@ class DriverWrapperABC(ABC):
 
         :return: The size of the outer window as a :class:`.Size` object.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def save_screenshot(
             self,
             file_name: str,
-            screenshot_base: Union[Image, bytes] = None,
-            convert_type: str = None
+            screenshot_base: Image | bytes = None,
+            convert_type: str | None = None,
     ) -> Image:
         """
-        Takes a full screenshot of the driver and saves it to the specified path/filename.
+        Take a full screenshot of the driver and save it to the specified path/filename.
 
         :param file_name: Path or filename for the screenshot.
         :type file_name: str
@@ -308,29 +307,29 @@ class DriverWrapperABC(ABC):
         :type convert_type: str
         :return: :class:`PIL.Image.Image`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_scroll_position(self) -> int:
         """
-        Returns the current vertical scroll position of the page.
+        Return the current vertical scroll position of the page.
 
         :return: :class:`int` - Current vertical scroll offset in pixels.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def assert_screenshot(
             self,
             filename: str = '',
             test_name: str = '',
             name_suffix: str = '',
-            threshold: Union[int, float] = None,
-            delay: Union[int, float] = None,
-            remove: Union[Element, List[Element]] = None,
+            threshold: float | None = None,
+            delay: float | None = None,
+            remove: Element | list[Element] = None,
             cut_box: Box = None,
-            hide: Union[Element, List[Element]] = None,
+            hide: Element | list[Element] = None,
     ) -> None:
         """
-        Asserts that the given screenshot matches the currently taken screenshot.
+        Assert that the given screenshot matches the currently taken screenshot.
 
         :param filename: The full name of the screenshot file.
           If empty - filename will be generated based on test name & :class:`Element` ``name`` argument & platform.
@@ -358,21 +357,21 @@ class DriverWrapperABC(ABC):
         :type hide: typing.Optional[Element or typing.List[Element]]
         :return: :obj:`None`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def soft_assert_screenshot(
             self,
             filename: str = '',
             test_name: str = '',
             name_suffix: str = '',
-            threshold: Union[int, float] = None,
-            delay: Union[int, float] = None,
-            remove: Union[Element, List[Element]] = None,
+            threshold: float | None = None,
+            delay: float | None = None,
+            remove: Element | list[Element] = None,
             cut_box: Box = None,
-            hide: Union[Element, List[Element]] = None,
-    ) -> Tuple[bool, str]:
+            hide: Element | list[Element] = None,
+    ) -> tuple[bool, str]:
         """
-        Compares the currently taken screenshot to the expected screenshot and returns a result.
+        Compare the currently taken screenshot to the expected screenshot and return a result.
 
         :param filename: The full name of the screenshot file.
           If empty - filename will be generated based on test name & :class:`Element` ``name`` argument & platform.
@@ -398,11 +397,11 @@ class DriverWrapperABC(ABC):
           Can be a single element or a list of elements.
         :return: :class:`typing.Tuple` (:class:`bool`, :class:`str`) - result state and result message
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def screenshot_image(self, screenshot_base: bytes = None) -> Image:
+    def screenshot_image(self, screenshot_base: bytes | None = None) -> Image:
         """
-        Returns a :class:`PIL.Image.Image` object representing the screenshot of the web page.
+        Return a :class:`PIL.Image.Image` object representing the screenshot of the web page.
         Appium iOS: Removes native controls from image manually
 
         :param screenshot_base: Screenshot binary data (optional).
@@ -410,7 +409,7 @@ class DriverWrapperABC(ABC):
         :type screenshot_base: bytes
         :return: :class:`PIL.Image.Image`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def screenshot_base(self) -> bytes:
@@ -419,16 +418,16 @@ class DriverWrapperABC(ABC):
 
         :return: :class:`bytes` - screenshot binary
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def get_all_tabs(self) -> List[str]:
+    def get_all_tabs(self) -> list[str]:
         """
         Selenium/Playwright only: Retrieve all opened tabs.
 
         :return: A list of :class:`str`, each representing an open tab.
         :rtype: typing.List[str]
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def create_new_tab(self) -> DriverWrapper:
         """
@@ -436,7 +435,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper, now switched to the new tab.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def switch_to_original_tab(self) -> DriverWrapper:
         """
@@ -444,7 +443,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper, now switched to the original tab.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def switch_to_tab(self, tab: int = -1) -> DriverWrapper:
         """
@@ -454,7 +453,7 @@ class DriverWrapperABC(ABC):
         :type tab: int
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper, now switched to the specified tab.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def close_unused_tabs(self) -> DriverWrapper:
         """
@@ -463,7 +462,7 @@ class DriverWrapperABC(ABC):
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper,
           with all tabs except the original closed.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def click_by_coordinates(self, x: int, y: int, silent: bool = False) -> DriverWrapper:
         """
@@ -477,7 +476,7 @@ class DriverWrapperABC(ABC):
         :type silent: bool
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_app_installed(self) -> bool:
         """
@@ -485,7 +484,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`bool` - :obj:`True` if the app is running, otherwise :obj:`False`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_app_deleted(self) -> bool:
         """
@@ -493,7 +492,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`bool` - :obj:`True` if the app is deleted, otherwise :obj:`False`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_app_closed(self) -> bool:
         """
@@ -501,7 +500,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`bool` - :obj:`True` if the app is closed, otherwise :obj:`False`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_app_in_foreground(self) -> bool:
         """
@@ -509,7 +508,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`bool` - :obj:`True` if the app is in the foreground, otherwise :obj:`False`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_app_in_background(self) -> bool:
         """
@@ -517,7 +516,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`bool` - :obj:`True` if the app is in the background, otherwise :obj:`False`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def terminate_app(self, bundle_id: str) -> bool:
         """
@@ -527,7 +526,7 @@ class DriverWrapperABC(ABC):
         :type bundle_id: str
         :return: :obj:`bool` - :obj:`True` if the app has been successfully terminated, otherwise :obj:`False`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def switch_to_native(self) -> DriverWrapper:
         """
@@ -535,7 +534,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper, now in the native app context.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def switch_to_web(self) -> DriverWrapper:
         """
@@ -543,16 +542,16 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper, now in the web app context.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def get_web_view_context(self) -> Union[None, str]:
+    def get_web_view_context(self) -> None | str:
         """
         Appium only: Get the WEBVIEW context name.
 
         :return: :obj:`None` if no WEBVIEW context is found, otherwise the name of the WEBVIEW context.
         :rtype: typing.Union[None, str]
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_current_context(self) -> str:
         """
@@ -560,7 +559,7 @@ class DriverWrapperABC(ABC):
 
         :return: :class:`str` - The name of the current context.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_native_context(self) -> bool:
         """
@@ -568,7 +567,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`bool` - :obj:`True` if the current context is native, otherwise :obj:`False`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_web_context(self) -> bool:
         """
@@ -576,25 +575,25 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`bool` - :obj:`True` if the current context is web, otherwise :obj:`False`.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def get_all_contexts(self) -> List[str]:
+    def get_all_contexts(self) -> list[str]:
         """
         Appium only: Get all contexts within the current session.
 
         :return: A list of available context names.
         :rtype: typing.List[str]
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def hide_keyboard(self, **kwargs) -> DriverWrapper:
+    def hide_keyboard(self, **kwargs: Any) -> DriverWrapper:
         """
         Appium only: Hide the keyboard on a real device.
 
         :param kwargs: Additional arguments passed to the `Keyboard.hide_keyboard` method.
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def top_bar_height(self) -> int:
@@ -603,7 +602,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`int` - The height of the top bar in pixels.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def bottom_bar_height(self) -> int:
@@ -612,9 +611,9 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`int` - The height of the bottom bar in pixels.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def switch_to_alert(self, timeout: Union[int, float] = WAIT_EL) -> Alert:
+    def switch_to_alert(self, timeout: float = WAIT_EL) -> Alert:
         """
         Appium/Selenium only: Wait for an alert and switch to it.
 
@@ -622,7 +621,7 @@ class DriverWrapperABC(ABC):
         :type timeout: Union[int, float]
         :return: :obj:`selenium.webdriver.common.alert.Alert` - The alert object.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def accept_alert(self) -> DriverWrapper:
         """
@@ -630,7 +629,7 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def dismiss_alert(self) -> DriverWrapper:
         """
@@ -638,6 +637,6 @@ class DriverWrapperABC(ABC):
 
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
