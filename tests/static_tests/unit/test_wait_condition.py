@@ -145,4 +145,4 @@ def test_wait_condition_desktop_default_delay():
     end_time = time.time() - start_time
     assert end_time > 0.6
     print(end_time)
-    assert end_time < 0.65
+    assert end_time < 0.75

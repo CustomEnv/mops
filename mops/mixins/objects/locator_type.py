@@ -23,6 +23,7 @@ class LocatorType:
         - :obj:`Element(f'{LocatorType.XPATH}=//*[@class="class-name"]')`
         - :obj:`Element(f'{LocatorType.ANDROID_UIAUTOMATOR}=//*[@class="class-name"]')`
     """
+
     CSS: str = 'css'
     XPATH: str = 'xpath'
     ID: str = 'id'

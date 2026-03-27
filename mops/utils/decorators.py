@@ -1,59 +1,68 @@
 from __future__ import annotations
 
-import time
 from functools import wraps
-from typing import Callable, Union, Any, TYPE_CHECKING
+import time
+from typing import TYPE_CHECKING, Any
 
 from mops.exceptions import ContinuousWaitException
-from mops.mixins.objects.wait_result import Result
-from mops.utils.internal_utils import HALF_WAIT_EL, WAIT_EL, validate_timeout, validate_silent, WAIT_METHODS_DELAY, \
-    increase_delay, QUARTER_WAIT_EL
-from mops.utils.logs import autolog, LogLevel
-
+from mops.utils.internal_utils import (
+    HALF_WAIT_EL,
+    QUARTER_WAIT_EL,
+    WAIT_EL,
+    WAIT_METHODS_DELAY,
+    increase_delay,
+    validate_silent,
+    validate_timeout,
+)
+from mops.utils.logs import LogLevel, autolog
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from mops.base.element import Element
+    from mops.mixins.objects.wait_result import Result
 
 
-def retry(exceptions, timeout: int = HALF_WAIT_EL):
+def retry(exceptions: type | tuple, timeout: int = HALF_WAIT_EL) -> Callable:
     """
-    A decorator to retry a function when specified exceptions occur.
+    Retry a function when specified exceptions occur.
 
     :param exceptions: Exception or tuple of exception classes to catch and retry on.
     :param timeout: The maximum time (in seconds) to keep retrying before giving up.
     """
-    def decorator(func):
+    def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             timestamp = None
 
             while True:
                 try:
                     return func(*args, **kwargs)
-                except exceptions as exc:
+                except exceptions as exc:  # noqa: PERF203
                     if not timestamp:
                         timestamp = time.time()
                     elif time.time() - timestamp >= timeout:
-                        raise exc
+                        raise
                     autolog(
                         f'Caught "{exc.__class__.__name__}" while executing "{func.__name__}", retrying...',
-                        level=LogLevel.WARNING
+                        level=LogLevel.WARNING,
                     )
         return wrapper
     return decorator
 
 
-def wait_condition(method: Callable):
+def wait_condition(method: Callable) -> Callable:
+    """Wrap an element wait method with polling logic until timeout or success."""
 
     @wraps(method)
     def wrapper(
         self: Element,
         *args: Any,
-        timeout: Union[int, float] = WAIT_EL,
+        timeout: float = WAIT_EL,
         silent: bool = False,
         continuous: bool = False,
         **kwargs: Any,
-    ):
+    ) -> Element:
         validate_timeout(timeout)
         validate_silent(silent)
 
@@ -80,22 +89,23 @@ def wait_condition(method: Callable):
             if should_increase_delay:
                 delay = increase_delay(delay)
 
-        result.exc._timeout = timeout  # noqa
+        result.exc._timeout = timeout
         raise result.exc
 
     return wrapper
 
 
-def wait_continuous(method: Callable):
+def wait_continuous(method: Callable) -> Callable:
+    """Wrap an element wait method with continuous polling after the initial condition is met."""
 
     @wraps(method)
     def wrapper(
         self: Element,
         *args: Any,
         silent: bool = False,
-        continuous: Union[int, float, bool] = False,
-        **kwargs: Any
-    ):
+        continuous: float | bool = False,
+        **kwargs: Any,
+    ) -> Element:
         result: Element = method(self, *args, silent=silent, continuous=False, **kwargs)  # Wait for initial condition
 
         if not continuous:
@@ -115,9 +125,12 @@ def wait_continuous(method: Callable):
                 is_log_needed = False
 
             if not result.execution_result:
-                raise ContinuousWaitException(
-                    f'The continuous "{method.__name__}" of the "{self.name}" is not met ' 
+                msg = (
+                    f'The continuous "{method.__name__}" of the "{self.name}" is not met '
                     f'after {(time.time() - start_time):.2f} seconds'
+                )
+                raise ContinuousWaitException(
+                    msg,
                 )
 
             time.sleep(delay)

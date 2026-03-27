@@ -8,15 +8,16 @@ class SeleniumKeys(SeleniumSourceKeys):
 
 
 class PlaywrightKeys:
+    """Playwright keyboard key mapping.
 
-    # NULL = '\ue000'
-    # CANCEL = '\ue001'  # ^break
-    # HELP = '\ue002'
+    Keys not supported by Playwright (NULL, CANCEL, HELP, CLEAR, RETURN,
+    PAUSE, SPACE, SEMICOLON, MULTIPLY, ADD, SEPARATOR, SUBTRACT, DECIMAL,
+    DIVIDE, COMMAND, ZENKAKU_HANKAKU) will raise NotImplementedError.
+    """
+
     BACKSPACE = 'Backspace'
     BACK_SPACE = BACKSPACE
     TAB = 'Tab'
-    # CLEAR = '\ue005'
-    # RETURN = '\ue006'
     ENTER = 'Enter'
     SHIFT = 'Shift'
     LEFT_SHIFT = SHIFT
@@ -24,9 +25,7 @@ class PlaywrightKeys:
     LEFT_CONTROL = CONTROL
     ALT = 'Alt'
     LEFT_ALT = ALT
-    # PAUSE = '\ue00b'
     ESCAPE = 'Escape'
-    # SPACE = '\ue00d'
     PAGE_UP = 'PageUp'
     PAGE_DOWN = 'PageDown'
     END = 'End'
@@ -41,7 +40,6 @@ class PlaywrightKeys:
     ARROW_DOWN = DOWN
     INSERT = 'Insert'
     DELETE = 'Delete'
-    # SEMICOLON = '\ue018'
     EQUALS = 'Equal'
 
     NUMPAD0 = 'Digit0'  # number pad keys
@@ -54,12 +52,6 @@ class PlaywrightKeys:
     NUMPAD7 = 'Digit7'
     NUMPAD8 = 'Digit8'
     NUMPAD9 = 'Digit9'
-    # MULTIPLY = '\ue024'
-    # ADD = '\ue025'
-    # SEPARATOR = '\ue026'
-    # SUBTRACT = '\ue027'
-    # DECIMAL = '\ue028'
-    # DIVIDE = '\ue029'
 
     F1 = 'F1'
     F2 = 'F2'
@@ -75,17 +67,14 @@ class PlaywrightKeys:
     F12 = 'F12'
 
     META = 'Meta'
-    # COMMAND = '\ue03d'
-    # ZENKAKU_HANKAKU = '\ue040'
 
 
 class Interceptor(type):
 
-    def __getattribute__(self, item):
+    def __getattribute__(cls, item: str) -> object:
         if DriverWrapper.is_selenium:
             return getattr(SeleniumKeys, item)
-        else:
-            return getattr(PlaywrightKeys, item, NotImplementedError(f'Key is not added to Mops framework'))
+        return getattr(PlaywrightKeys, item, NotImplementedError('Key is not added to Mops framework'))
 
 
 class KeyboardKeys(SeleniumKeys, PlaywrightKeys, metaclass=Interceptor):
