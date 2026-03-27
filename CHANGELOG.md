@@ -2,6 +2,12 @@
 
 <br>
 
+## v3.4.1 
+*Release date: 2026-03-26*
+
+### Fixed
+- Element.locator/locator_type/log_locator access without initialised driver
+
 ## v3.4.0 (Performance improvement)
 *Release date: 2026-03-26*
 

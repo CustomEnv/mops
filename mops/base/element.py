@@ -169,7 +169,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     @property
     def locator(self) -> str:
-        if not self._is_locator_configured:
+        if self.driver_wrapper and not self._is_locator_configured:
             self._set_locator()
 
         return self._locator
@@ -181,7 +181,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     @property
     def locator_type(self) -> str:
-        if not self._is_locator_configured:
+        if self.driver_wrapper and not self._is_locator_configured:
             self._set_locator()
 
         return self._locator_type
@@ -192,7 +192,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     @property
     def log_locator(self) -> str:
-        if not self._is_locator_configured:
+        if self.driver_wrapper and not self._is_locator_configured:
             self._set_locator()
 
         return self._log_locator
