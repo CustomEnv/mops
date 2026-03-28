@@ -133,7 +133,8 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
         else:
             attrs = get_attributes_from_object(cls)
             attrs.pop('_configured', None)
-            cls = super().__new__(type(f'ShadowDriverWrapper', (cls, ), attrs))  # noqa
+            shadow_cls = type('ShadowDriverWrapper', (cls,), attrs)
+            instance = super().__new__(shadow_cls)
 
         for name in extract_named_objects(instance, bool):
             setattr(instance, name, False)

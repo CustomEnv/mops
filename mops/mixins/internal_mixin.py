@@ -54,7 +54,7 @@ class InternalMixin:
         if not hasattr(self, var):
             setattr(self, var, value)
 
-    def _get_protected_attrs(self: Any, current_obj_cls) -> set:
+    def _get_protected_attrs(self: Any, current_obj_cls: type) -> set:
         if not is_driver_wrapper(self):
             return set(get_all_static_attributes(current_obj_cls))
 
