@@ -60,10 +60,13 @@ class InternalMixin:
         if current_obj_cls.__dict__.get('_configured') is cls:
             return
 
-        existing_attrs = set(get_all_static_attributes(current_obj_cls))
+        if '_framework_attrs' not in current_obj_cls.__dict__:
+            current_obj_cls._framework_attrs = set(get_all_static_attributes(current_obj_cls))
+
+        protected = current_obj_cls.__dict__['_framework_attrs']
 
         for name, value in get_static_attributes(cls).items():
-            if name not in existing_attrs:
+            if name not in protected:
                 setattr(current_obj_cls, name, value)
 
         current_obj_cls._configured = cls
