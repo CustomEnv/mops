@@ -131,7 +131,9 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
         if cls.session.sessions_count() == 0:
             instance = super().__new__(cls)
         else:
-            instance = super().__new__(type('ShadowDriverWrapper', (cls, ), get_attributes_from_object(cls)))
+            attrs = get_attributes_from_object(cls)
+            attrs.pop('_configured', None)
+            cls = super().__new__(type(f'ShadowDriverWrapper', (cls, ), attrs))  # noqa
 
         for name in extract_named_objects(instance, bool):
             setattr(instance, name, False)

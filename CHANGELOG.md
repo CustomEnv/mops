@@ -2,8 +2,27 @@
 
 <br>
 
+## v3.4.2
+*Release date: 2026-03-28*
+
+### Fixed
+- `ShadowDriverWrapper` now correctly receives static methods of its driver type — previously methods from the first session's driver were inherited and not overridden
+- `get_driver_instance` cache key changed from driver instance to driver type — prevents cache misses on every new driver object
+
+### Changed
+- `_set_static` guard stores the configured class instead of `True` — allows re-configuration when driver type changes
+- `_set_static` uses `_framework_attrs` snapshot instead of full MRO scan — protects only original framework methods, not previously set driver-specific ones
+
+---
+
+## v3.4.1
+*Release date: 2026-03-27*
+
+### Fixed
+- Element.locator/locator_type/log_locator access without initialised driver
+
 ## v3.4.0 (Performance improvement)
-*Release date: 2026-03-26*
+*Release date: 2026-03-27*
 
 ### Breaking Changes
 - **`Group` subclasses**: `parent` is now correctly set on sub-elements defined after `super().__init__()` — 
