@@ -16,7 +16,7 @@ from urllib.parse import urljoin
 from mops.mixins.capabilities import CUSTOM_DEVICE_NAME_CAPABILITY
 
 try:
-    from cv2 import cv2  # ~cv2@4.5.5.62 + python@3.8/9/10
+    from cv2 import cv2  # ~cv2@4.5.5.62 + python@10
 except ImportError:
     import cv2  # ~cv2@4.10.0.84 + python@3.11/12
 import numpy as np
