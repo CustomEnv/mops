@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 
 
 class ElementABC(MixinABC, ABC):
-
     name: str
     parent: Any | bool | None
     wait: bool | None
@@ -170,11 +169,11 @@ class ElementABC(MixinABC, ABC):
         raise NotImplementedError
 
     def wait_visibility(
-            self,
-            *,
-            timeout: int = WAIT_EL,
-            silent: bool = False,
-            continuous: bool | float = False,
+        self,
+        *,
+        timeout: int = WAIT_EL,
+        silent: bool = False,
+        continuous: bool | float = False,
     ) -> Element:
         """
         Wait until the element becomes visible.
@@ -206,11 +205,11 @@ class ElementABC(MixinABC, ABC):
         raise NotImplementedError
 
     def wait_hidden(
-            self,
-            *,
-            timeout: int = WAIT_EL,
-            silent: bool = False,
-            continuous: bool | float = False,
+        self,
+        *,
+        timeout: int = WAIT_EL,
+        silent: bool = False,
+        continuous: bool | float = False,
     ) -> Element:
         """
         Wait until the element becomes hidden.
@@ -266,10 +265,10 @@ class ElementABC(MixinABC, ABC):
         raise NotImplementedError
 
     def save_screenshot(
-            self,
-            file_name: str,
-            screenshot_base: bytes | Image = None,
-            convert_type: str | None = None,
+        self,
+        file_name: str,
+        screenshot_base: bytes | Image = None,
+        convert_type: str | None = None,
     ) -> Image:
         """
         Save a screenshot of the element.
@@ -534,11 +533,11 @@ class ElementABC(MixinABC, ABC):
         raise NotImplementedError
 
     def wait_elements_count(
-            self,
-            expected_count: int,
-            *,
-            timeout: float = WAIT_EL,
-            silent: bool = False,
+        self,
+        expected_count: int,
+        *,
+        timeout: float = WAIT_EL,
+        silent: bool = False,
     ) -> Element:
         """
         Wait until the number of matching elements equals the expected count.
@@ -567,11 +566,11 @@ class ElementABC(MixinABC, ABC):
         raise NotImplementedError
 
     def wait_for_text(
-            self,
-            expected_text: str | None = None,
-            *,
-            timeout: float = WAIT_EL,
-            silent: bool = False,
+        self,
+        expected_text: str | None = None,
+        *,
+        timeout: float = WAIT_EL,
+        silent: bool = False,
     ) -> Element:
         """
         Wait for the presence of a specific text in the current element, or for any non-empty text.
@@ -600,11 +599,11 @@ class ElementABC(MixinABC, ABC):
         raise NotImplementedError
 
     def wait_for_value(
-            self,
-            expected_value: str | None = None,
-            *,
-            timeout: float = WAIT_EL,
-            silent: bool = False,
+        self,
+        expected_value: str | None = None,
+        *,
+        timeout: float = WAIT_EL,
+        silent: bool = False,
     ) -> Element:
         """
         Wait for a specific value in the current element, or for any non-empty value.
@@ -633,11 +632,11 @@ class ElementABC(MixinABC, ABC):
         raise NotImplementedError
 
     def wait_visibility_without_error(
-            self,
-            *,
-            timeout: float = QUARTER_WAIT_EL,
-            silent: bool = False,
-            continuous: bool | float = False,
+        self,
+        *,
+        timeout: float = QUARTER_WAIT_EL,
+        silent: bool = False,
+        continuous: bool | float = False,
     ) -> Element:
         """
         Wait for the element to become visible, without raising an error if it does not.
@@ -669,11 +668,11 @@ class ElementABC(MixinABC, ABC):
         raise NotImplementedError
 
     def wait_hidden_without_error(
-            self,
-            *,
-            timeout: float = QUARTER_WAIT_EL,
-            silent: bool = False,
-            continuous: bool | float = False,
+        self,
+        *,
+        timeout: float = QUARTER_WAIT_EL,
+        silent: bool = False,
+        continuous: bool | float = False,
     ) -> Element:
         """
         Wait for the element to become hidden, without raising an error if it does not.
@@ -755,11 +754,11 @@ class ElementABC(MixinABC, ABC):
         raise NotImplementedError
 
     def wait_for_size(
-            self,
-            expected_size: Size,
-            *,
-            timeout: float = WAIT_EL,
-            silent: bool = False,
+        self,
+        expected_size: Size,
+        *,
+        timeout: float = WAIT_EL,
+        silent: bool = False,
     ) -> Element:
         """
         Wait until element size will be equal to given :class:`.Size` object
@@ -814,11 +813,11 @@ class ElementABC(MixinABC, ABC):
         raise NotImplementedError
 
     def scroll_into_view(
-            self,
-            block: ScrollTo = ScrollTo.CENTER,
-            behavior: ScrollTypes = ScrollTypes.INSTANT,
-            sleep: float = 0,
-            silent: bool = False,
+        self,
+        block: ScrollTo = ScrollTo.CENTER,
+        behavior: ScrollTypes = ScrollTypes.INSTANT,
+        sleep: float = 0,
+        silent: bool = False,
     ) -> Element:
         """
         Scrolls the element into view using a JavaScript script.
@@ -836,17 +835,17 @@ class ElementABC(MixinABC, ABC):
         raise NotImplementedError
 
     def assert_screenshot(
-            self,
-            filename: str = '',
-            test_name: str = '',
-            name_suffix: str = '',
-            threshold: float | None = None,
-            delay: float | None = None,
-            scroll: bool = False,
-            remove: Element | list[Element] = None,
-            fill_background: str | bool = False,
-            cut_box: Box = None,
-            hide: Element | list[Element] = None,
+        self,
+        filename: str = '',
+        test_name: str = '',
+        name_suffix: str = '',
+        threshold: float | None = None,
+        delay: float | None = None,
+        scroll: bool = False,
+        remove: Element | list[Element] = None,
+        fill_background: str | bool = False,
+        cut_box: Box = None,
+        hide: Element | list[Element] = None,
     ) -> None:
         """
         Assert that the given screenshot matches the currently taken screenshot.
@@ -885,17 +884,17 @@ class ElementABC(MixinABC, ABC):
         raise NotImplementedError
 
     def soft_assert_screenshot(
-            self,
-            filename: str = '',
-            test_name: str = '',
-            name_suffix: str = '',
-            threshold: float | None = None,
-            delay: float | None = None,
-            scroll: bool = False,
-            remove: Element | list[Element] = None,
-            fill_background: str | bool = False,
-            cut_box: Box = None,
-            hide: Element | list[Element] = None,
+        self,
+        filename: str = '',
+        test_name: str = '',
+        name_suffix: str = '',
+        threshold: float | None = None,
+        delay: float | None = None,
+        scroll: bool = False,
+        remove: Element | list[Element] = None,
+        fill_background: str | bool = False,
+        cut_box: Box = None,
+        hide: Element | list[Element] = None,
     ) -> tuple[bool, str]:
         """
         Compare the currently taken screenshot to the expected screenshot and return a result.

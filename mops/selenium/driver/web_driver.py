@@ -13,14 +13,13 @@ if TYPE_CHECKING:
 
 
 class WebDriver(CoreDriver):
-
     def __init__(self, driver_container: Driver, *args: Any, **kwargs: Any) -> None:
         """
         Initialize desktop web driver with selenium.
 
         :param driver_container: Driver that contains selenium driver object
         """
-        self.driver : SeleniumWebDriver = driver_container.driver
+        self.driver: SeleniumWebDriver = driver_container.driver
         self.is_desktop = True
         self.original_tab = self.driver.current_window_handle
         self.browser_name = self.driver.caps.get('browserName', None)

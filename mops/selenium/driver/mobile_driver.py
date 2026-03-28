@@ -16,7 +16,6 @@ if TYPE_CHECKING:
 
 
 class MobileDriver(CoreDriver):
-
     bundle_id: str | None
 
     def __init__(self, driver_container: Driver, *args: Any, **kwargs: Any) -> None:

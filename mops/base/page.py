@@ -61,10 +61,10 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
         return self._repr_builder()
 
     def __init__(
-            self,
-            locator: Locator | str = '',
-            name: str = '',
-            driver_wrapper: DriverWrapper | Any = None,
+        self,
+        locator: Locator | str = '',
+        name: str = '',
+        driver_wrapper: DriverWrapper | Any = None,
     ):
         """
         Initialize a Page based on the current driver.

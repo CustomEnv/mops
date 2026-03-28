@@ -25,7 +25,6 @@ if TYPE_CHECKING:
 
 
 class CoreDriver(Logging, DriverWrapperABC):
-
     driver: AppiumDriver | SeleniumWebDriver
 
     def __init__(self, driver: AppiumDriver | SeleniumWebDriver):
@@ -237,7 +236,6 @@ class CoreDriver(Logging, DriverWrapperABC):
         :return: :obj:`.CoreDriver` - The current instance of the driver wrapper.
         """
         for cookie in cookies:
-
             if 'path' not in cookie:
                 cookie.update({'path': '/'})
 

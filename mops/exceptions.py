@@ -5,12 +5,12 @@ class DriverWrapperException(Exception):  # noqa: N818
     """Base driver wrapper exception"""
 
     def __init__(
-            self,
-            msg: str,
-            actual: Any = None,
-            expected: Any = None,
-            timeout: Any = None,
-            info: Any = None,
+        self,
+        msg: str,
+        actual: Any = None,
+        expected: Any = None,
+        timeout: Any = None,
+        info: Any = None,
     ):
         self._msg = ''
         self._original_msg = msg

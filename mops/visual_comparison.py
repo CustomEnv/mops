@@ -104,7 +104,7 @@ class VisualComparison:
         if not root_path:
             msg = (
                 'Provide visual regression path to environment. '
-                            f'Example: {self.__class__.__name__}.visual_regression_path = "src"'
+                f'Example: {self.__class__.__name__}.visual_regression_path = "src"'
             )
             raise DriverWrapperException(msg)
 
@@ -120,14 +120,14 @@ class VisualComparison:
         self.__initialized = True
 
     def assert_screenshot(
-            self,
-            filename: str,
-            test_name: str,
-            name_suffix: str,
-            threshold: float,
-            remove: list[Any],
-            fill_background: str | bool,
-            cut_box: Box | None,
+        self,
+        filename: str,
+        test_name: str,
+        name_suffix: str,
+        threshold: float,
+        remove: list[Any],
+        fill_background: str | bool,
+        cut_box: Box | None,
     ) -> VisualComparison:
         """
         Assert that the given (by name) and taken screenshots are equal.
@@ -177,7 +177,7 @@ class VisualComparison:
             self._attach_allure_diff(reference_file, reference_file, reference_file)
             msg = (
                 f'Reference file "{reference_file}" not found, but its just saved. '
-                                 f'If it CI run, then you need to commit reference files.'
+                f'If it CI run, then you need to commit reference files.'
             )
             raise AssertionError(msg) from None
 
@@ -214,15 +214,17 @@ class VisualComparison:
         pixels_grid = height * width
         calculated_threshold = factor / math.sqrt(pixels_grid)
         pixels_allowed = int(pixels_grid / 100 * calculated_threshold)
-        return calculated_threshold, \
-            f'\nAdditional info: {width}x{height}; {calculated_threshold=}; {pixels_allowed=} from {pixels_grid}'
+        return (
+            calculated_threshold,
+            f'\nAdditional info: {width}x{height}; {calculated_threshold=}; {pixels_allowed=} from {pixels_grid}',
+        )
 
     def _save_screenshot(
-            self,
-            screenshot_name: str,
-            remove: list,
-            fill_background: bool,
-            cut_box: Box | None,
+        self,
+        screenshot_name: str,
+        remove: list,
+        fill_background: bool,
+        cut_box: Box | None,
     ) -> None:
         self._fill_background(fill_background)
         self._appends_dummy_elements(remove)
@@ -249,7 +251,6 @@ class VisualComparison:
         :return: VisualComparison
         """
         for obj in remove_data:
-
             try:
                 obj.wait_visibility(silent=True)
             except TimeoutException:
@@ -281,14 +282,13 @@ class VisualComparison:
         element_wrapper = self.element_wrapper
 
         color = fill_background_data if type(fill_background_data) is str else 'black'
-        element_wrapper\
-            .wait_visibility(silent=True)\
-            .execute_script(f'arguments[0].style.background = "{color}";')
+        element_wrapper.wait_visibility(silent=True).execute_script(f'arguments[0].style.background = "{color}";')
 
         return self
 
-    def _assert_same_images(self, actual_file: str, reference_file: str, diff_file: str,
-                            threshold: float) -> VisualComparison:
+    def _assert_same_images(
+        self, actual_file: str, reference_file: str, diff_file: str, threshold: float
+    ) -> VisualComparison:
         """
         Assert that given images are equal to each other
 
@@ -317,8 +317,8 @@ class VisualComparison:
             cv2.imwrite(diff_file, scaled_image)
             msg = (
                 f"↓\nImage size (width, height) is not same for '{self.screenshot_name}':"
-                                 f"\nExpected: {self._get_image_size_from_shape(reference_image.shape)};"
-                                 f"\nActual: {self._get_image_size_from_shape(output_image.shape)}."
+                f'\nExpected: {self._get_image_size_from_shape(reference_image.shape)};'
+                f'\nActual: {self._get_image_size_from_shape(output_image.shape)}.'
             )
             raise AssertionError(msg) from None
 
@@ -331,15 +331,16 @@ class VisualComparison:
 
         diff_data = ''
         if self.attach_diff_image_path:
-            diff_data = f"\nDiff image {urljoin('file:', diff_file)}"
+            diff_data = f'\nDiff image {urljoin("file:", diff_file)}'
 
         base_error = f"↓\nVisual mismatch found for '{self.screenshot_name}'{diff_data}"
 
         if is_different:
-            raise AssertionError(f'{base_error}:'
-                                 f'\nThreshold is: {actual_threshold};'
-                                 f'\nPossible threshold is: {threshold}'
-                                 + additional_data) from None
+            raise AssertionError(
+                f'{base_error}:'
+                f'\nThreshold is: {actual_threshold};'
+                f'\nPossible threshold is: {threshold}' + additional_data
+            ) from None
 
         return self
 
@@ -409,10 +410,10 @@ class VisualComparison:
         return self._remove_unexpected_underscores(screenshot_name).lower()
 
     def _get_difference(
-            self,
-            reference_img: np.ndarray,
-            actual_img: np.ndarray,
-            possible_threshold: float,
+        self,
+        reference_img: np.ndarray,
+        actual_img: np.ndarray,
+        possible_threshold: float,
     ) -> tuple[np.ndarray, float]:
         """
         Calculate difference between two images

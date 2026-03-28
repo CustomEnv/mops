@@ -122,8 +122,10 @@ def set_selenium_selector(obj: Any) -> None:
         obj._log_locator = f'{LocatorType.XPATH}={locator}'
 
     elif (
-        locator.startswith(_CSS_MATCH) or re.search(_CSS_REGEXP, locator)
-        or locator in all_tags or all(tag in all_tags for tag in locator.split())
+        locator.startswith(_CSS_MATCH)
+        or re.search(_CSS_REGEXP, locator)
+        or locator in all_tags
+        or all(tag in all_tags for tag in locator.split())
     ):
         obj._locator_type = By.CSS_SELECTOR
         obj._log_locator = f'{LocatorType.CSS}={locator}'
@@ -152,8 +154,10 @@ def set_playwright_locator(obj: Any) -> None:
         obj._locator_type = LocatorType.XPATH
 
     elif (
-        locator.startswith(_CSS_MATCH) or re.search(_CSS_REGEXP, locator)
-        or locator in all_tags or all(tag in all_tags for tag in locator.split())
+        locator.startswith(_CSS_MATCH)
+        or re.search(_CSS_REGEXP, locator)
+        or locator in all_tags
+        or all(tag in all_tags for tag in locator.split())
     ):
         obj._locator_type = LocatorType.CSS
 

@@ -28,12 +28,12 @@ class Group(Element):
     _object: str = 'group'
 
     def __init__(
-            self,
-            locator: Locator | str,
-            name: str = '',
-            parent: Group | Element | bool = None,
-            wait: bool | None = None,
-            driver_wrapper: DriverWrapper | Any = None,
+        self,
+        locator: Locator | str,
+        name: str = '',
+        parent: Group | Element | bool = None,
+        wait: bool | None = None,
+        driver_wrapper: DriverWrapper | Any = None,
     ):
         """
         Initialize a group of elements based on the current driver.

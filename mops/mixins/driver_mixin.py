@@ -38,7 +38,6 @@ def get_driver_wrapper_from_object(obj: DriverWrapper | Any) -> DriverWrapper | 
 
 
 class DriverMixin:
-
     _driver_wrapper = None
 
     @property

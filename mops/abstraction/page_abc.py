@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 
 class PageABC(MixinABC, ABC):
-
     anchor: Element
 
     def reload_page(self, wait_page_load: bool = True) -> Page:
@@ -64,13 +63,13 @@ class PageABC(MixinABC, ABC):
         raise NotImplementedError
 
     def swipe(
-            self,
-            start_x: int,
-            start_y: int,
-            end_x: int,
-            end_y: int,
-            duration: int = 0,
-            sleep: float = 0,
+        self,
+        start_x: int,
+        start_y: int,
+        end_x: int,
+        end_y: int,
+        duration: int = 0,
+        sleep: float = 0,
     ) -> Page:
         """
         Appium only: Swipe from one point to another, with an optional duration and post-swipe delay.

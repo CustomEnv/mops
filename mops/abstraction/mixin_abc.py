@@ -10,7 +10,6 @@ from mops.utils.logs import LogLevel
 
 
 class MixinABC(ABC):
-
     @property
     def driver(self) -> SeleniumWebDriver | AppiumWebDriver | PlaywrightSourcePage:
         r"""

@@ -44,7 +44,6 @@ if TYPE_CHECKING:
 
 
 class CoreElement(ElementABC, ABC):
-
     parent: Element | CoreElement
 
     _initialized: bool
@@ -123,10 +122,7 @@ class CoreElement(ElementABC, ABC):
         else:
             return self
 
-        msg = (
-            f'Element "{self.name}" not interactable. {self.get_element_info()}. '
-            f'Original error: {selenium_exc_msg}'
-        )
+        msg = f'Element "{self.name}" not interactable. {self.get_element_info()}. Original error: {selenium_exc_msg}'
         raise ElementNotInteractableException(
             msg,
         )
@@ -461,7 +457,6 @@ class CoreElement(ElementABC, ABC):
             wait_strategy = self.wait_visibility
 
         if not element:
-
             # Try to get element instantly without wait. Skipped if force_wait given
             if not force_wait:
                 element = safe_call(self._find_element, wait_parent=False)
@@ -481,11 +476,7 @@ class CoreElement(ElementABC, ABC):
                     msg,
                 )
 
-            msg = (
-                f'Unable to locate the {element_info}. '
-                f'{self.get_element_info()}'
-                f'{self._ensure_unique_parent()}'
-            )
+            msg = f'Unable to locate the {element_info}. {self.get_element_info()}{self._ensure_unique_parent()}'
             raise NoSuchElementException(
                 msg,
             )

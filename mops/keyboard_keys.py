@@ -70,7 +70,6 @@ class PlaywrightKeys:
 
 
 class Interceptor(type):
-
     def __getattribute__(cls, item: str) -> object:
         if DriverWrapper.is_selenium:
             return getattr(SeleniumKeys, item)

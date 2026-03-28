@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 
 
 class NativeContext:
-
     def __init__(self, driver_wrapper: DriverWrapper) -> None:
         """Initialize NativeContext with the given driver wrapper."""
         self.driver_wrapper = driver_wrapper
@@ -29,7 +28,6 @@ class NativeContext:
 
 
 class NativeSafari:
-
     _IOS_VERSION_18_2 = 18.2
     _IOS_VERSION_26 = 26.0
 
@@ -40,22 +38,18 @@ class NativeSafari:
         'XCUIElementTypeOther[1]/XCUIElementTypeOther[1]'
     )  # `Tab Bar` at Safari settings
     ios_26_bottom_bar_locator = (
-        '//*[@name="CapsuleViewController"]'
-        '/XCUIElementTypeOther[2]'
-    )  # `Compact` at Safari settings
-
-    ipados_top_bar_locator = (
-        '//XCUIElementTypeOther[@name="UnifiedBar?isStandaloneBar=true"]'
-        '/XCUIElementTypeOther[1]'
+        '//*[@name="CapsuleViewController"]/XCUIElementTypeOther[2]'  # `Compact` at Safari settings
     )
+
+    ipados_top_bar_locator = '//XCUIElementTypeOther[@name="UnifiedBar?isStandaloneBar=true"]/XCUIElementTypeOther[1]'
     ios_mobile_top_bar_locator = (
-        '//*[contains(@name, "SafariWindow")]/XCUIElementTypeOther[1]'
-        '/XCUIElementTypeOther/XCUIElementTypeOther'
+        '//*[contains(@name, "SafariWindow")]/XCUIElementTypeOther[1]/XCUIElementTypeOther/XCUIElementTypeOther'
     )
 
     def __init__(self, driver_wrapper: DriverWrapper) -> None:
         """Initialize NativeSafari with elements for native iOS Safari controls."""
         from mops.base.element import Element  # noqa: PLC0415
+
         self.driver_wrapper = driver_wrapper
 
         self.custom_top_bar_locator = self.driver_wrapper.caps.get(CUSTOM_TOP_BAR_LOCATOR_CAPABILITY, '')

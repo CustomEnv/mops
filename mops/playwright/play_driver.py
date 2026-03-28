@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 
 
 class PlayDriver(Logging, DriverWrapperABC):
-
     def __init__(self, driver_container: Driver):
         """
         Initialize desktop web driver with playwright.
@@ -193,7 +192,6 @@ class PlayDriver(Logging, DriverWrapperABC):
         :return: :obj:`.PlayDriver` - The current instance of the driver wrapper.
         """
         for cookie in cookies:
-
             if 'path' not in cookie:
                 cookie.update({'path': '/'})
 

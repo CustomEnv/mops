@@ -18,7 +18,6 @@ def hide_elements(objects_to_hide: list[Element] | Element, is_optional: bool, d
             object_to_hide.hide(silent=True)
 
 
-
 def hide_before_screenshot(objects_to_hide: list | Any, is_optional: bool, dw: DriverWrapper = None) -> None:
     """Hide the given elements before taking a screenshot."""
     if objects_to_hide:

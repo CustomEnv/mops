@@ -22,19 +22,22 @@ def get_element_info(element: Any, label: str = 'Selector=') -> str:
     parent = element.parent
 
     if parent:
-        selector = f"{get_element_info(parent, label='')} >> {selector}"
+        selector = f'{get_element_info(parent, label="")} >> {selector}'
 
     return f"{label}'{selector}'" if label else selector
+
 
 @lru_cache(maxsize=16)
 def get_static_attributes(cls: Any) -> dict:
     """Return named objects from the given class using extract_named_objects."""
     return extract_named_objects(cls)
 
+
 @lru_cache(maxsize=32)
 def get_all_static_attributes(cls: Any) -> dict:
     """Return all named objects from the given class using extract_all_named_objects."""
     return extract_all_named_objects(cls)
+
 
 @lru_cache(maxsize=16)
 def get_driver_instance(driver_type: type, instance: type) -> bool:
@@ -43,7 +46,6 @@ def get_driver_instance(driver_type: type, instance: type) -> bool:
 
 
 class InternalMixin:
-
     driver: None
 
     def _driver_is_instance(self, instance: type) -> bool:

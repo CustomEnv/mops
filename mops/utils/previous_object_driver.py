@@ -16,7 +16,6 @@ def set_instance_frame(new_instance: Any) -> None:
     :return: None
     """
     if DriverWrapperSessions.sessions_count() >= _MIN_SESSIONS_FOR_PREVIOUS:
-
         frame = inspect.currentframe()
         while frame.f_code.co_name != '__new__':
             frame = frame.f_back
@@ -25,7 +24,6 @@ def set_instance_frame(new_instance: Any) -> None:
 
 
 class PreviousObjectDriver:
-
     def set_driver_from_previous_object(self, current_obj: Any) -> None:
         """
         Set driver for given object from previous object

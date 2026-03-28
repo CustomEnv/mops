@@ -7,15 +7,14 @@ from mops.selenium.core.core_page import CorePage
 
 
 class MobilePage(CorePage, ABC):
-
     def swipe(
-            self,
-            start_x: int,
-            start_y: int,
-            end_x: int,
-            end_y: int,
-            duration: int = 0,
-            sleep: float = 0,
+        self,
+        start_x: int,
+        start_y: int,
+        end_x: int,
+        end_y: int,
+        duration: int = 0,
+        sleep: float = 0,
     ) -> MobilePage:
         """
         Appium only: Swipe from one point to another, with an optional duration and post-swipe delay.

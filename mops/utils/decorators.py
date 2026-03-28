@@ -30,6 +30,7 @@ def retry(exceptions: type | tuple, timeout: int = HALF_WAIT_EL) -> Callable:
     :param exceptions: Exception or tuple of exception classes to catch and retry on.
     :param timeout: The maximum time (in seconds) to keep retrying before giving up.
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -47,7 +48,9 @@ def retry(exceptions: type | tuple, timeout: int = HALF_WAIT_EL) -> Callable:
                         f'Caught "{exc.__class__.__name__}" while executing "{func.__name__}", retrying...',
                         level=LogLevel.WARNING,
                     )
+
         return wrapper
+
     return decorator
 
 

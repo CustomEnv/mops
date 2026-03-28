@@ -60,5 +60,4 @@ class Box:
             bottom = height - self.bottom * height / 100 if self.bottom else height
             return Box(left=left, top=top, right=right, bottom=bottom)
 
-        return Box(left=self.left, top=self.top, right=width-self.right, bottom=height-self.bottom)
-
+        return Box(left=self.left, top=self.top, right=width - self.right, bottom=height - self.bottom)

@@ -26,7 +26,6 @@ if TYPE_CHECKING:
 
 
 class PlayElement(ElementABC, Logging, ABC):
-
     parent: ElementABC | PlayElement
 
     _initialized: bool
@@ -126,7 +125,6 @@ class PlayElement(ElementABC, Logging, ABC):
         self._first_element.click(position={'x': float(x), 'y': float(y)}, force=True)
         return self
 
-
     def click_into_center(self, silent: bool = False) -> PlayElement:
         """
         Clicks at the center of the element.
@@ -145,7 +143,6 @@ class PlayElement(ElementABC, Logging, ABC):
 
         self.driver_wrapper.click_by_coordinates(x=x, y=y, silent=True)
         return self
-
 
     def type_text(self, text: str | KeyboardKeys, silent: bool = False) -> PlayElement:
         """
@@ -319,7 +316,6 @@ class PlayElement(ElementABC, Logging, ABC):
             return self._first_element.is_visible()
         except Error as exc:
             raise InvalidSelectorException(exc.message) from exc
-
 
     def is_hidden(self, silent: bool = False) -> bool:
         """

@@ -30,10 +30,12 @@ def driver_wrapper_logs_settings(level: str = LogLevel.INFO) -> None:
     level = getattr(logging, level.upper())
     logger.setLevel(level)
     handler.setLevel(level)
-    handler.setFormatter(logging.Formatter(
-        fmt='[%(asctime)s.%(msecs)03d][%(levelname).1s]%(message)s',
-        datefmt='%h %d][%H:%M:%S',
-    ))
+    handler.setFormatter(
+        logging.Formatter(
+            fmt='[%(asctime)s.%(msecs)03d][%(levelname).1s]%(message)s',
+            datefmt='%h %d][%H:%M:%S',
+        )
+    )
     logger.addHandler(handler)
 
 
@@ -58,7 +60,6 @@ def autolog(message: Any, level: str = LogLevel.INFO) -> None:
 
 
 class Logging:
-
     def log(self: Any, message: str, level: str = LogLevel.INFO) -> None:
         """
         Log a message with detailed context in the following format:

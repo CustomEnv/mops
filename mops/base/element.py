@@ -112,12 +112,12 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         return self
 
     def __init__(
-            self,
-            locator: Locator | str,
-            name: str = '',
-            parent: Group | Element | bool = None,
-            wait: bool | None = None,
-            driver_wrapper: DriverWrapper | Any = None,
+        self,
+        locator: Locator | str,
+        name: str = '',
+        parent: Group | Element | bool = None,
+        wait: bool | None = None,
+        driver_wrapper: DriverWrapper | Any = None,
     ):
         """
         Initialize an Element based on the current driver.
@@ -268,11 +268,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
     @wait_continuous
     @wait_condition
     def wait_visibility(
-            self,
-            *,
-            timeout: int = WAIT_EL,
-            silent: bool = False,
-            continuous: bool | float = False,
+        self,
+        *,
+        timeout: int = WAIT_EL,
+        silent: bool = False,
+        continuous: bool | float = False,
     ) -> Element:
         """
         Wait until the element becomes visible.
@@ -308,11 +308,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         )
 
     def wait_visibility_without_error(
-            self,
-            *,
-            timeout: float = QUARTER_WAIT_EL,
-            silent: bool = False,
-            continuous: bool | float = False,
+        self,
+        *,
+        timeout: float = QUARTER_WAIT_EL,
+        silent: bool = False,
+        continuous: bool | float = False,
     ) -> Element:
         """
         Wait for the element to become visible, without raising an error if it does not.
@@ -355,11 +355,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
     @wait_continuous
     @wait_condition
     def wait_hidden(
-            self,
-            *,
-            timeout: int = WAIT_EL,
-            silent: bool = False,
-            continuous: bool | float = False,
+        self,
+        *,
+        timeout: int = WAIT_EL,
+        silent: bool = False,
+        continuous: bool | float = False,
     ) -> Element:
         """
         Wait until the element becomes hidden.
@@ -395,11 +395,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         )
 
     def wait_hidden_without_error(
-            self,
-            *,
-            timeout: float = QUARTER_WAIT_EL,
-            silent: bool = False,
-            continuous: bool | float = False,
+        self,
+        *,
+        timeout: float = QUARTER_WAIT_EL,
+        silent: bool = False,
+        continuous: bool | float = False,
     ) -> Element:
         """
         Wait for the element to become hidden, without raising an error if it does not.
@@ -470,11 +470,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     @wait_condition
     def wait_for_text(
-            self,
-            expected_text: str | None = None,
-            *,
-            timeout: float = WAIT_EL,
-            silent: bool = False,
+        self,
+        expected_text: str | None = None,
+        *,
+        timeout: float = WAIT_EL,
+        silent: bool = False,
     ) -> Element:
         """
         Wait for the presence of a specific text in the current element, or for any non-empty text.
@@ -515,11 +515,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     @wait_condition
     def wait_for_value(
-            self,
-            expected_value: str | None = None,
-            *,
-            timeout: float = WAIT_EL,
-            silent: bool = False,
+        self,
+        expected_value: str | None = None,
+        *,
+        timeout: float = WAIT_EL,
+        silent: bool = False,
     ) -> Element:
         """
         Wait for a specific value in the current element, or for any non-empty value.
@@ -620,11 +620,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     @wait_condition
     def wait_for_size(
-            self,
-            expected_size: Size,
-            *,
-            timeout: float = WAIT_EL,
-            silent: bool = False,
+        self,
+        expected_size: Size,
+        *,
+        timeout: float = WAIT_EL,
+        silent: bool = False,
     ) -> Element:
         """
         Wait until element size will be equal to given :class:`.Size` object
@@ -661,11 +661,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     @wait_condition
     def wait_elements_count(
-            self,
-            expected_count: int,
-            *,
-            timeout: float = WAIT_EL,
-            silent: bool = False,
+        self,
+        expected_count: int,
+        *,
+        timeout: float = WAIT_EL,
+        silent: bool = False,
     ) -> Element:
         """
         Wait until the number of matching elements equals the expected count.
@@ -698,7 +698,6 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
             log=f'Wait until elements count of "{self.name}" will be equal to "{expected_count}"',
             exc=UnexpectedElementsCountException(error_msg, actual_count, expected_count),
         )
-
 
     @property
     def all_elements(self) -> list[Element] | list[Any]:
@@ -770,11 +769,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         return is_visible
 
     def scroll_into_view(
-            self,
-            block: ScrollTo = ScrollTo.CENTER,
-            behavior: ScrollTypes = ScrollTypes.INSTANT,
-            sleep: float = 0,
-            silent: bool = False,
+        self,
+        block: ScrollTo = ScrollTo.CENTER,
+        behavior: ScrollTypes = ScrollTypes.INSTANT,
+        sleep: float = 0,
+        silent: bool = False,
     ) -> Element:
         """
         Scrolls the element into view using a JavaScript script.
@@ -798,7 +797,8 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
         self.execute_script(
             'arguments[0].scrollIntoView({block: arguments[1], behavior: arguments[2]});',
-            block, behavior,
+            block,
+            behavior,
         )
 
         if sleep:
@@ -807,10 +807,10 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         return self
 
     def save_screenshot(
-            self,
-            file_name: str,
-            screenshot_base: bytes | Image = None,
-            convert_type: str | None = None,
+        self,
+        file_name: str,
+        screenshot_base: bytes | Image = None,
+        convert_type: str | None = None,
     ) -> Image:
         """
         Save a screenshot of the element.
@@ -877,17 +877,17 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         return self.driver_wrapper.execute_script(script, *[self, *list(args)])
 
     def assert_screenshot(
-            self,
-            filename: str = '',
-            test_name: str = '',
-            name_suffix: str = '',
-            threshold: float | None = None,
-            delay: float | None = None,
-            scroll: bool = False,
-            remove: Element | list[Element] = None,
-            fill_background: str | bool = False,
-            cut_box: Box = None,
-            hide: Element | list[Element] = None,
+        self,
+        filename: str = '',
+        test_name: str = '',
+        name_suffix: str = '',
+        threshold: float | None = None,
+        delay: float | None = None,
+        scroll: bool = False,
+        remove: Element | list[Element] = None,
+        fill_background: str | bool = False,
+        cut_box: Box = None,
+        hide: Element | list[Element] = None,
     ) -> None:
         """
         Assert that the given screenshot matches the currently taken screenshot.
@@ -934,24 +934,29 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         hide_before_screenshot(VisualComparison.always_hide, is_optional=True, dw=self.driver_wrapper)
 
         VisualComparison(self.driver_wrapper, self).assert_screenshot(
-            filename=filename, test_name=test_name, name_suffix=name_suffix, threshold=threshold,
-            remove=remove, fill_background=fill_background, cut_box=cut_box,
+            filename=filename,
+            test_name=test_name,
+            name_suffix=name_suffix,
+            threshold=threshold,
+            remove=remove,
+            fill_background=fill_background,
+            cut_box=cut_box,
         )
 
         reveal_after_screenshot(VisualComparison.always_hide, dw=self.driver_wrapper)
 
     def soft_assert_screenshot(
-            self,
-            filename: str = '',
-            test_name: str = '',
-            name_suffix: str = '',
-            threshold: float | None = None,
-            delay: float | None = None,
-            scroll: bool = False,
-            remove: Element | list[Element] = None,
-            fill_background: str | bool = False,
-            cut_box: Box = None,
-            hide: Element | list[Element] = None,
+        self,
+        filename: str = '',
+        test_name: str = '',
+        name_suffix: str = '',
+        threshold: float | None = None,
+        delay: float | None = None,
+        scroll: bool = False,
+        remove: Element | list[Element] = None,
+        fill_background: str | bool = False,
+        cut_box: Box = None,
+        hide: Element | list[Element] = None,
     ) -> tuple[bool, str]:
         """
         Compare the currently taken screenshot to the expected screenshot and return a result.
@@ -987,7 +992,16 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         """
         try:
             self.assert_screenshot(
-                filename, test_name, name_suffix, threshold, delay, scroll, remove, fill_background, cut_box, hide,
+                filename,
+                test_name,
+                name_suffix,
+                threshold,
+                delay,
+                scroll,
+                remove,
+                fill_background,
+                cut_box,
+                hide,
             )
         except AssertionError as exc:
             exc = str(exc)

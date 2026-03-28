@@ -27,9 +27,44 @@ QUARTER_WAIT_EL = HALF_WAIT_EL / 2
 WAIT_PAGE = 15
 
 
-all_tags = frozenset({'h1', 'h2', 'h3', 'h4', 'h5', 'head', 'body', 'input', 'section', 'button', 'a', 'link', 'header',
-                      'div', 'textarea', 'svg', 'circle', 'iframe', 'label', 'p', 'tr', 'th', 'table', 'tbody', 'td',
-                      'select', 'nav', 'li', 'form', 'footer', 'frame', 'area', 'span', 'video'})
+all_tags = frozenset(
+    {
+        'h1',
+        'h2',
+        'h3',
+        'h4',
+        'h5',
+        'head',
+        'body',
+        'input',
+        'section',
+        'button',
+        'a',
+        'link',
+        'header',
+        'div',
+        'textarea',
+        'svg',
+        'circle',
+        'iframe',
+        'label',
+        'p',
+        'tr',
+        'th',
+        'table',
+        'tbody',
+        'td',
+        'select',
+        'nav',
+        'li',
+        'form',
+        'footer',
+        'frame',
+        'area',
+        'span',
+        'video',
+    }
+)
 
 
 def get_dict(obj: Any) -> dict:

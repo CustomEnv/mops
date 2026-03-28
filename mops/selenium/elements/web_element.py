@@ -13,7 +13,6 @@ from mops.utils.selector_synchronizer import get_platform_locator, set_selenium_
 
 
 class WebElement(CoreElement, ABC):
-
     def click(self, *, force_wait: bool = True, **kwargs: Any) -> WebElement:
         """
         Clicks on the element.
@@ -53,11 +52,7 @@ class WebElement(CoreElement, ABC):
         if not silent:
             self.log(f'Hover over "{self.name}"')
 
-        self._action_chains\
-            .move_to_element(self.element)\
-            .move_by_offset(1, 1)\
-            .move_to_element(self.element)\
-            .perform()
+        self._action_chains.move_to_element(self.element).move_by_offset(1, 1).move_to_element(self.element).perform()
         return self
 
     @retry(JavascriptException)
@@ -77,9 +72,7 @@ class WebElement(CoreElement, ABC):
             self.scroll_into_view()
 
         x, y = calculate_coordinate_to_click(self, x, y)
-        self._action_chains\
-            .move_to_location(x, y)\
-            .perform()
+        self._action_chains.move_to_location(x, y).perform()
         return self
 
     @retry(JavascriptException)

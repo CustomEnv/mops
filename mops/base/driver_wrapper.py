@@ -198,10 +198,10 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
         self.session.remove_session(self)
 
     def save_screenshot(
-            self,
-            file_name: str,
-            screenshot_base: Image | bytes = None,
-            convert_type: str | None = None,
+        self,
+        file_name: str,
+        screenshot_base: Image | bytes = None,
+        convert_type: str | None = None,
     ) -> Image:
         """
         Take a full screenshot of the driver and save it to the specified path/filename.
@@ -236,15 +236,15 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
         return self.execute_script('return window.pageYOffset')
 
     def assert_screenshot(
-            self,
-            filename: str = '',
-            test_name: str = '',
-            name_suffix: str = '',
-            threshold: float | None = None,
-            delay: float | None = None,
-            remove: Element | list[Element] = None,
-            cut_box: Box = None,
-            hide: Element | list[Element] = None,
+        self,
+        filename: str = '',
+        test_name: str = '',
+        name_suffix: str = '',
+        threshold: float | None = None,
+        delay: float | None = None,
+        remove: Element | list[Element] = None,
+        cut_box: Box = None,
+        hide: Element | list[Element] = None,
     ) -> None:
         """
         Assert that the given screenshot matches the currently taken screenshot.
@@ -283,22 +283,27 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
         hide_before_screenshot(VisualComparison.always_hide, is_optional=True, dw=self)
 
         VisualComparison(self).assert_screenshot(
-            filename=filename, test_name=test_name, name_suffix=name_suffix, threshold=threshold,
-            remove=remove, fill_background=False, cut_box=cut_box,
+            filename=filename,
+            test_name=test_name,
+            name_suffix=name_suffix,
+            threshold=threshold,
+            remove=remove,
+            fill_background=False,
+            cut_box=cut_box,
         )
 
         reveal_after_screenshot(VisualComparison.always_hide, dw=self)
 
     def soft_assert_screenshot(
-            self,
-            filename: str = '',
-            test_name: str = '',
-            name_suffix: str = '',
-            threshold: float | None = None,
-            delay: float | None = None,
-            remove: Element | list[Element] = None,
-            cut_box: Box = None,
-            hide: Element | list[Element] = None,
+        self,
+        filename: str = '',
+        test_name: str = '',
+        name_suffix: str = '',
+        threshold: float | None = None,
+        delay: float | None = None,
+        remove: Element | list[Element] = None,
+        cut_box: Box = None,
+        hide: Element | list[Element] = None,
     ) -> tuple[bool, str]:
         """
         Compare the currently taken screenshot to the expected screenshot and return a result.

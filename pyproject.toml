@@ -112,7 +112,11 @@ ignore = [
     "ARG004",  # Unused static method argument
     "TD",  # flake8-todos (TD)
     "FIX",  # flake8-fixme (FIX)
+    "COM812",  # Conflicts with ruff formatter
 ]
+
+[tool.ruff.format]
+quote-style = "single"
 
 [tool.ruff.lint.flake8-quotes]
 inline-quotes = "single"

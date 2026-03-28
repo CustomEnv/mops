@@ -291,10 +291,10 @@ class DriverWrapperABC(ABC):
         raise NotImplementedError
 
     def save_screenshot(
-            self,
-            file_name: str,
-            screenshot_base: Image | bytes = None,
-            convert_type: str | None = None,
+        self,
+        file_name: str,
+        screenshot_base: Image | bytes = None,
+        convert_type: str | None = None,
     ) -> Image:
         """
         Take a full screenshot of the driver and save it to the specified path/filename.
@@ -318,15 +318,15 @@ class DriverWrapperABC(ABC):
         raise NotImplementedError
 
     def assert_screenshot(
-            self,
-            filename: str = '',
-            test_name: str = '',
-            name_suffix: str = '',
-            threshold: float | None = None,
-            delay: float | None = None,
-            remove: Element | list[Element] = None,
-            cut_box: Box = None,
-            hide: Element | list[Element] = None,
+        self,
+        filename: str = '',
+        test_name: str = '',
+        name_suffix: str = '',
+        threshold: float | None = None,
+        delay: float | None = None,
+        remove: Element | list[Element] = None,
+        cut_box: Box = None,
+        hide: Element | list[Element] = None,
     ) -> None:
         """
         Assert that the given screenshot matches the currently taken screenshot.
@@ -360,15 +360,15 @@ class DriverWrapperABC(ABC):
         raise NotImplementedError
 
     def soft_assert_screenshot(
-            self,
-            filename: str = '',
-            test_name: str = '',
-            name_suffix: str = '',
-            threshold: float | None = None,
-            delay: float | None = None,
-            remove: Element | list[Element] = None,
-            cut_box: Box = None,
-            hide: Element | list[Element] = None,
+        self,
+        filename: str = '',
+        test_name: str = '',
+        name_suffix: str = '',
+        threshold: float | None = None,
+        delay: float | None = None,
+        remove: Element | list[Element] = None,
+        cut_box: Box = None,
+        hide: Element | list[Element] = None,
     ) -> tuple[bool, str]:
         """
         Compare the currently taken screenshot to the expected screenshot and return a result.
@@ -638,5 +638,3 @@ class DriverWrapperABC(ABC):
         :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
         """
         raise NotImplementedError
-
-

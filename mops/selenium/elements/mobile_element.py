@@ -15,7 +15,6 @@ if TYPE_CHECKING:
 
 
 class MobileElement(CoreElement, ABC):
-
     def click_outside(self, x: int = -5, y: int = -5) -> MobileElement:
         """
         Perform a click outside the current element, by default 5px left and above it.
