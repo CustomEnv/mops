@@ -6,6 +6,7 @@ from typing import Any
 from mops.utils.internal_utils import (
     extract_named_objects,
     extract_all_named_objects,
+    is_driver_wrapper,
 )
 
 
@@ -60,10 +61,12 @@ class InternalMixin:
         if current_obj_cls.__dict__.get('_configured') is cls:
             return
 
-        if '_framework_attrs' not in current_obj_cls.__dict__:
-            current_obj_cls._framework_attrs = set(get_all_static_attributes(current_obj_cls))
-
-        protected = current_obj_cls.__dict__['_framework_attrs']
+        if is_driver_wrapper(self):
+            if '_framework_attrs' not in current_obj_cls.__dict__:
+                current_obj_cls._framework_attrs = set(get_all_static_attributes(current_obj_cls))
+            protected = current_obj_cls.__dict__['_framework_attrs']
+        else:
+            protected = set(get_all_static_attributes(current_obj_cls))
 
         for name, value in get_static_attributes(cls).items():
             if name not in protected:
