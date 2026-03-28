@@ -154,6 +154,18 @@ def base_teardown():
     CoreDriver.driver = None
     DriverWrapperSessions.all_sessions = []
 
+    if '_framework_attrs' in MockedDriverWrapper.__dict__:
+        framework_attrs = MockedDriverWrapper.__dict__['_framework_attrs']
+        for attr in list(MockedDriverWrapper.__dict__.keys()):
+            if not attr.startswith('_') and attr not in framework_attrs:
+                try:
+                    delattr(MockedDriverWrapper, attr)
+                except AttributeError:
+                    pass
+        del MockedDriverWrapper._framework_attrs
+    if '_configured' in MockedDriverWrapper.__dict__:
+        del MockedDriverWrapper._configured
+
 
 mobile_drivers = [mocked_ios_driver.__name__, mocked_android_driver.__name__]
 mobile_ids = ['appium ios', 'appium android']
