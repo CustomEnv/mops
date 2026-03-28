@@ -29,15 +29,11 @@ dependencies = [
     "Appium-Python-Client>=3.1.0",
     "playwright>=1.58.0",
     "selenium>=4.12.0",
-
     "numpy>=2.3.2; python_version >= '3.11'",
     "numpy>=2.0.1,<2.3; python_version == '3.10'",
-
     "opencv-python>=4.13.0",
-
     "scikit-image>=0.26.0; python_version >= '3.11'",
     "scikit-image>=0.24.0,<0.26; python_version == '3.10'",
-
     "Pillow>=12.1.0",
 ]
 
@@ -58,6 +54,7 @@ dev-dependencies = [
     "allure-pytest==2.12.0",
     "pytest-rerunfailures==11.1",
     "pytest-xdist==3.6.1",
+    "pre-commit==4.5.1",
 
     # Docs requirements
     "furo==2024.8.6",
