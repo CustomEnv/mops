@@ -2,6 +2,13 @@
 
 <br>
 
+## v3.4.3
+
+### Fixed
+- `PlayElement._get_base()` now bypasses parent scoping for absolute XPath locators (`xpath=//...`), preventing Playwright's subtree restriction from silently narrowing element searches
+
+---
+
 ## v3.4.2
 *Release date: 2026-03-28*
 

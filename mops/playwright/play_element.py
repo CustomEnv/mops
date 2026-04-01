@@ -429,10 +429,20 @@ class PlayElement(ElementABC, Logging, ABC):
 
     def _get_base(self) -> Union[PlaywrightPage, Locator]:
         """
-        Get driver depends on parent element if available
+        Get driver depends on parent element if available.
 
-        :return: driver
+        For absolute XPath locators (starting with ``xpath=//``), always returns
+        the page-level driver to avoid Playwright's subtree scoping behavior.
+        Playwright's ``Locator.locator()`` restricts ``//`` searches to the parent's
+        DOM subtree, which contradicts XPath semantics where ``//`` means
+        "anywhere in the document".
+
+        :return: driver or parent element
+        :rtype: Union[PlaywrightPage, Locator]
         """
+        if isinstance(self.locator, str) and self.locator.startswith("xpath=//"):
+            return self.driver
+
         base = self.driver
         if self.parent:
             self.log(f'Get element "{self.name}" from parent element "{self.parent.name}"', level='debug')
