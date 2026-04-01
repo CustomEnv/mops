@@ -24,10 +24,32 @@ if TYPE_CHECKING:
 
 class ElementABC(MixinABC, ABC):
 
-    locator: Union[Locator, str]
-    name: str = ''
-    parent: Union[Any, bool, None] = None
-    wait: Optional[bool] = None
+    name: str
+    parent: Union[Any, bool, None]
+    wait: Optional[bool]
+
+    _locator: Union[str, Locator]
+    _locator_type: Union[str, None] = None
+
+    @property
+    def locator(self) -> str:
+        raise NotImplementedError()
+
+    @locator.setter
+    def locator(self, value: Union[Locator, str]) -> None:
+        raise NotImplementedError()
+
+    @property
+    def locator_type(self) -> str:
+        raise NotImplementedError()
+
+    @locator_type.setter
+    def locator_type(self, value: str) -> None:
+        raise NotImplementedError()
+
+    @property
+    def log_locator(self) -> str:
+        raise NotImplementedError()
 
     @property
     def element(self) -> Union[SeleniumWebElement, AppiumWebElement, PlayWebElement]:
@@ -923,5 +945,13 @@ class ElementABC(MixinABC, ABC):
         :param sources: A list or tuple of source objects
         :type sources: tuple or list
         :return: A list of wrapped :class:`Element` objects.
+        """
+        raise NotImplementedError()
+
+    def _set_locator(self) -> None:
+        """
+        Set locator for current object
+
+        :return: :obj:`None`
         """
         raise NotImplementedError()

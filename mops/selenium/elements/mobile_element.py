@@ -14,13 +14,6 @@ from mops.utils.selector_synchronizer import get_platform_locator, set_appium_se
 
 class MobileElement(CoreElement, ABC):
 
-    def __init__(self):
-        """
-        Initializing of mobile element with appium driver
-        """
-        self.locator = get_platform_locator(self)
-        set_appium_selector(self)
-
     def click_outside(self, x: int = -5, y: int = -5) -> MobileElement:
         """
         Perform a click outside the current element, by default 5px left and above it.
@@ -174,3 +167,8 @@ class MobileElement(CoreElement, ABC):
             element_location.x + element_size.width,
             element_location.y + element_size.height,
         )
+
+    def _set_locator(self):
+        self.locator = get_platform_locator(self)
+        set_appium_selector(self)
+        self._is_locator_configured = True

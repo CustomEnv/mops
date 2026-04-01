@@ -29,8 +29,8 @@ def test_child_elements(mocked_selenium_driver):
     section3 = Section3()
     assert section3.some_element
     assert section3.some_element._initialized  # noqa
-    assert section3.child_elements
+    assert section3.sub_elements
 
     assert section2.some_element
     assert section2.some_element._initialized  # noqa
-    assert section2.child_elements
+    assert section2.sub_elements

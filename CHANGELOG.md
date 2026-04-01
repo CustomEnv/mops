@@ -2,7 +2,7 @@
 
 <br>
 
-## v3.3.3
+## v3.4.3
 
 ### Added
 - `DriverWrapper.connect_cdp` class method for connecting to remote browsers via CDP (supports both Playwright and Selenium engines)
@@ -10,6 +10,53 @@
 - `PlayDriver.quit` graceful error handling for CDP and pre-existing contexts; tracing skip for CDP
 - `CoreDriver.quit` graceful error handling for externally-managed browsers (CDP)
 - `PlayDriver.get_inner_window_size` null-safe viewport handling for CDP connections
+
+---
+
+## v3.4.2
+*Release date: 2026-03-28*
+
+### Fixed
+- `ShadowDriverWrapper` now correctly receives static methods of its driver type — previously methods from the first session's driver were inherited and not overridden
+- `get_driver_instance` cache key changed from driver instance to driver type — prevents cache misses on every new driver object
+
+### Changed
+- `_set_static` guard stores the configured class instead of `True` — allows re-configuration when driver type changes
+- `_set_static` uses `_framework_attrs` snapshot instead of full MRO scan — protects only original framework methods, not previously set driver-specific ones
+
+---
+
+## v3.4.1
+*Release date: 2026-03-27*
+
+### Fixed
+- Element.locator/locator_type/log_locator access without initialised driver
+
+## v3.4.0 (Performance improvement)
+*Release date: 2026-03-27*
+
+### Breaking Changes
+- **`Group` subclasses**: `parent` is now correctly set on sub-elements defined after `super().__init__()` — 
+previously such elements did not receive `parent` argument
+
+### Added
+- `Element.sub_elements` dict — collected once and reused instead of rescanning on every access
+- `ElementMeta` metaclass — triggers `_modify_sub_elements` automatically after `__init__` of the final class
+- `get_static_attributes` / `get_all_static_attributes` with `lru_cache` — replaces repeated attribute scanning
+- `get_driver_instance` with `lru_cache` — caches `isinstance` results for driver type checks
+- `_driver_is_instance` method on `InternalMixin` — single cached entry point for driver type detection
+
+### Changed
+- `all_tags` converted to `frozenset` for O(1) membership checks
+- `initialize_objects` no longer recurses manually — delegates to `_modify_sub_elements` on each child
+- `set_parent_for_attr` uses `sub_elements` dict instead of rescanning object attributes
+- `get_child_elements_with_names` / `safe_getattribute` removed, replaced by `extract_named_objects` / `extract_all_named_objects`
+- `locator`, `locator_type`, `log_locator` on `Element` converted to lazy properties — resolved on first access
+- `__copy__` added to `Element` for explicit shallow copy control
+- `__getattribute__` override removed from `Element` — initialization guard moved to `CoreElement`/`PlayElement`
+
+### Fixed
+- Error messages for unsupported driver type now include the actual driver class name and list expected types
 
 ---
 
@@ -26,6 +73,8 @@
 
 ### Changed
 - `safe_call` exceptions list
+
+---
 
 ## v3.3.0
 *Release date: 2026-01-05*

@@ -7,13 +7,14 @@ from PIL.Image import Image
 from mops.keyboard_keys import KeyboardKeys
 from playwright.sync_api import Error
 from playwright.sync_api import Page as PlaywrightPage
-from playwright.sync_api import Locator, Page, Browser, BrowserContext
+from playwright.sync_api import Locator
 
 from mops.mixins.objects.size import Size
 from mops.mixins.objects.location import Location
 from mops.utils.decorators import retry
 from mops.utils.selector_synchronizer import get_platform_locator, set_playwright_locator
 from mops.abstraction.element_abc import ElementABC
+from mops.exceptions import NotInitializedException
 from mops.exceptions import InvalidSelectorException
 from mops.utils.logs import Logging
 from mops.shared_utils import cut_log_data, get_image
@@ -26,18 +27,10 @@ from mops.utils.internal_utils import (
 
 class PlayElement(ElementABC, Logging, ABC):
 
-    instance: Browser
-    context: BrowserContext
-    driver: Page
     parent: Union[ElementABC, PlayElement]
-    _element: Locator = None
 
-    def __init__(self):  # noqa
-        """
-        Initializing of web element with playwright driver
-        """
-        self.locator = get_platform_locator(self)
-        set_playwright_locator(self)
+    _initialized: bool
+    _element: Locator = None
 
     # Element
 
@@ -50,7 +43,14 @@ class PlayElement(ElementABC, Logging, ABC):
         :param: kwargs: kwargs from Locator object
         :return: Locator
         """
+        if not self._initialized:
+            raise NotInitializedException(
+                f'{repr(self)} object is not initialized. '
+                'Try to initialize base object first or call it directly as a method'
+            )
+
         element = self._element
+
         if not element:
             driver = self._get_base()
             element = driver.locator(self.locator)
@@ -450,3 +450,8 @@ class PlayElement(ElementABC, Logging, ABC):
         :return: first element
         """
         return self.element.first
+
+    def _set_locator(self):
+        self.locator = get_platform_locator(self)
+        set_playwright_locator(self)
+        self._is_locator_configured = True

@@ -26,11 +26,11 @@ from selenium.webdriver.common.by import By
 )
 def test_set_selenium_selector(locator_input, expected_locator, expected_locator_type, expected_log_locator, method):
     mock_obj = SimpleNamespace()
-    mock_obj.locator = locator_input
+    mock_obj._locator = locator_input
     method(mock_obj)
-    assert expected_locator == mock_obj.locator
-    assert expected_locator_type == mock_obj.locator_type
-    assert expected_log_locator == mock_obj.log_locator
+    assert expected_locator == mock_obj._locator
+    assert expected_locator_type == mock_obj._locator_type
+    assert expected_log_locator == mock_obj._log_locator
 
 
 @pytest.mark.parametrize(
@@ -50,11 +50,11 @@ def test_set_selenium_selector(locator_input, expected_locator, expected_locator
 )
 def test_set_playwright_locator(locator_input, expected_locator):
     mock_obj = SimpleNamespace()
-    mock_obj.locator = locator_input
+    mock_obj._locator = locator_input
     set_playwright_locator(mock_obj)
-    assert expected_locator == mock_obj.locator
-    assert expected_locator == mock_obj.log_locator
-    assert expected_locator.partition('=')[0] == mock_obj.locator_type
+    assert expected_locator == mock_obj._locator
+    assert expected_locator == mock_obj._log_locator
+    assert expected_locator.partition('=')[0] == mock_obj._locator_type
 
 
 com_android_locator = 'com.android.settings:id/title'
@@ -79,11 +79,11 @@ com_android_locator = 'com.android.settings:id/title'
 def test_set_appium_native_selector(locator, locator_type):
     mock_obj = SimpleNamespace()
     log_locator = f'{locator_type}={locator}'
-    mock_obj.locator = log_locator
+    mock_obj._locator = log_locator
     set_appium_selector(mock_obj)
-    assert locator == mock_obj.locator
-    assert locator_type == mock_obj.locator_type
-    assert log_locator == mock_obj.log_locator
+    assert locator == mock_obj._locator
+    assert locator_type == mock_obj._locator_type
+    assert log_locator == mock_obj._log_locator
 
 
 @pytest.mark.parametrize(
@@ -95,10 +95,10 @@ def test_set_appium_native_selector(locator, locator_type):
 )
 def test_set_automatically_appium_selector(locator, source_locator_type, expected_locator, expected_log_locator):
     mock_obj = SimpleNamespace()
-    mock_obj.locator = locator
+    mock_obj._locator = locator
 
     set_appium_selector(mock_obj)
 
-    assert expected_locator == mock_obj.locator
-    assert source_locator_type == mock_obj.locator_type
-    assert expected_log_locator == mock_obj.log_locator
+    assert expected_locator == mock_obj._locator
+    assert source_locator_type == mock_obj._locator_type
+    assert expected_log_locator == mock_obj._log_locator

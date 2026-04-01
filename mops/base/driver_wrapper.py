@@ -22,7 +22,7 @@ from mops.selenium.driver.mobile_driver import MobileDriver
 from mops.selenium.driver.web_driver import WebDriver
 from mops.exceptions import DriverWrapperException
 from mops.mixins.internal_mixin import InternalMixin
-from mops.utils.internal_utils import get_attributes_from_object, get_child_elements_with_names
+from mops.utils.internal_utils import extract_named_objects, get_attributes_from_object
 from mops.utils.logs import Logging, LogLevel
 
 
@@ -131,9 +131,11 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
         if cls.session.sessions_count() == 0:
             cls = super().__new__(cls)
         else:
-            cls = super().__new__(type(f'ShadowDriverWrapper', (cls, ), get_attributes_from_object(cls)))  # noqa
+            attrs = get_attributes_from_object(cls)
+            attrs.pop('_configured', None)
+            cls = super().__new__(type(f'ShadowDriverWrapper', (cls, ), attrs))  # noqa
 
-        for name, _ in get_child_elements_with_names(cls, bool).items():
+        for name, _ in extract_named_objects(cls, bool).items():
             setattr(cls, name, False)
 
         return cls
@@ -484,7 +486,11 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
             self.is_selenium = True
             self._base_cls = WebDriver
         else:
-            raise DriverWrapperException(f'Cant specify {self.__class__.__name__}')
+            raise DriverWrapperException(
+                f'Cannot initialize {self.__class__.__name__}: '
+                f'unsupported driver type "{type(source_driver).__name__}". '
+                f'Expected Playwright, Appium or Selenium driver instance'
+            )
 
         self._set_static(self._base_cls)
         self._base_cls.__init__(self, driver_container=self.__driver_container)

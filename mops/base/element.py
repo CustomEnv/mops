@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import functools
 import time
+from abc import ABCMeta
 from copy import copy
+from functools import cached_property
 from typing import Union, List, Type, Tuple, Optional, TYPE_CHECKING
 
 from PIL.Image import Image
@@ -33,10 +36,8 @@ from mops.utils.internal_utils import (
     WAIT_EL,
     is_target_on_screen,
     initialize_objects,
-    get_child_elements_with_names,
-    safe_getattribute,
+    extract_named_objects,
     set_parent_for_attr,
-    is_page,
     QUARTER_WAIT_EL,
 )
 from mops.utils.decorators import wait_condition, wait_continuous
@@ -45,7 +46,22 @@ if TYPE_CHECKING:
     from mops.base.group import Group
 
 
-class Element(DriverMixin, InternalMixin, Logging, ElementABC):
+class ElementMeta(ABCMeta):
+    def __new__(mcs, name, bases, namespace, **kwargs):
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+        orig_init = cls.__init__
+
+        @functools.wraps(orig_init)
+        def wrapped_init(self, *args, **kw):
+            orig_init(self, *args, **kw)
+            if type(self) is cls and getattr(self, '_initialized', False):
+                self._modify_sub_elements()
+
+        cls.__init__ = wrapped_init
+        return cls
+
+
+class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=ElementMeta):
     """
     Represents a UI element that serves as a central component for interaction.
 
@@ -54,17 +70,22 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
     It dynamically adapts to different driver types (Playwright, Appium, Selenium)
     and provides a unified interface for UI interactions.
     """
+    _object: str = 'element'
+    _initialized: bool = False
+    _is_locator_configured: bool = False
+    _base_cls: Type[PlayElement, MobileElement, WebElement]
 
     source_locator: Union[Locator, str]
-
-    _object = 'element'
-    _base_cls: Type[PlayElement, MobileElement, WebElement]
-    driver_wrapper: DriverWrapper
 
     def __new__(cls, *args, **kwargs):
         instance = super(Element, cls).__new__(cls)
         set_instance_frame(instance)
         return instance
+
+    def __copy__(self):
+        new = object.__new__(self.__class__)
+        new.__dict__.update(self.__dict__)
+        return new
 
     def __repr__(self):
         return self._repr_builder()
@@ -72,15 +93,6 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
     def __call__(self, driver_wrapper: DriverWrapper = None):
         self.__full_init__(driver_wrapper=get_driver_wrapper_from_object(driver_wrapper))
         return self
-
-    def __getattribute__(self, item):
-        if 'element' in item and not safe_getattribute(self, '_initialized'):
-            raise NotInitializedException(
-                f'{repr(self)} object is not initialized. '
-                'Try to initialize base object first or call it directly as a method'
-            )
-
-        return safe_getattribute(self, item)
 
     def __init__(
             self,
@@ -108,24 +120,15 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
          an object containing it to be used for this element.
         :type driver_wrapper: typing.Union[DriverWrapper, typing.Any]
         """
-        self._validate_inheritance()
-
-        if parent:
-            if not isinstance(parent, (bool, Element)):
-                error = (f'The given "parent" arg of "{self.name}" should take an Element/Group '
-                         f'object or False for skip. Get {parent}')
-                raise ValueError(error)
-
-        self.locator = locator
-        self.source_locator = locator
-        self.name = name if name else locator
-        self.parent = parent
-        self.wait = wait
         self.driver_wrapper = get_driver_wrapper_from_object(driver_wrapper)
 
-        self._init_locals = getattr(self, '_init_locals', locals())
+        self.source_locator = locator
+        self.locator = locator
+        self.name = name or locator
+        self.parent = parent
+        self.wait = wait
+
         self._safe_setter('__base_obj_id', id(self))
-        self._initialized = False
 
         if self.driver_wrapper:
             self.__full_init__(driver_wrapper)
@@ -133,11 +136,10 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
     def __full_init__(self, driver_wrapper: Any = None):
         self._driver_wrapper_given = bool(driver_wrapper)
 
-        if self._driver_wrapper_given and driver_wrapper != self.driver_wrapper:
+        if driver_wrapper and driver_wrapper != self.driver_wrapper:
             self.driver_wrapper = get_driver_wrapper_from_object(driver_wrapper)
 
         self._modify_object()
-        self._modify_children()
 
         if not self._initialized:
             self.__init_base_class__()
@@ -148,18 +150,56 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
 
         :return: None
         """
-        if isinstance(self.driver, PlaywrightDriver):
+        if self._driver_is_instance(PlaywrightDriver):
             self._base_cls = PlayElement
-        elif isinstance(self.driver, AppiumDriver):
+        elif self._driver_is_instance(AppiumDriver):
             self._base_cls = MobileElement
-        elif isinstance(self.driver, SeleniumDriver):
+        elif self._driver_is_instance(SeleniumDriver):
             self._base_cls = WebElement
         else:
-            raise DriverWrapperException(f'Cant specify {self.__class__.__name__}')
+            raise DriverWrapperException(
+                f'Cannot initialize {self.__class__.__name__}: '
+                f'unsupported driver type "{type(self.driver).__name__}". '
+                f'Expected Playwright, Appium or Selenium driver instance'
+            )
 
         self._set_static(self._base_cls)
         self._base_cls.__init__(self)
         self._initialized = True
+
+    @property
+    def locator(self) -> str:
+        if self.driver_wrapper and not self._is_locator_configured:
+            self._set_locator()
+
+        return self._locator
+
+    @locator.setter
+    def locator(self, value: Union[Locator, str]) -> None:
+        self._log_locator = value
+        self._locator = value
+
+    @property
+    def locator_type(self) -> str:
+        if self.driver_wrapper and not self._is_locator_configured:
+            self._set_locator()
+
+        return self._locator_type
+
+    @locator_type.setter
+    def locator_type(self, value: str) -> None:
+        self._locator_type = value
+
+    @property
+    def log_locator(self) -> str:
+        if self.driver_wrapper and not self._is_locator_configured:
+            self._set_locator()
+
+        return self._log_locator
+
+    @log_locator.setter
+    def log_locator(self, value: str) -> None:
+        self._log_locator = value
 
     # Following methods works same for both Selenium/Appium and Playwright APIs using internal methods
 
@@ -955,31 +995,41 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC):
             wrapped_object: Any = copy(self)
             wrapped_object.element = element
             wrapped_object._wrapped = True
-            set_parent_for_attr(wrapped_object, Element, with_copy=True)
+            wrapped_object.sub_elements = dict(self.sub_elements)
+            set_parent_for_attr(wrapped_object, with_copy=True)
             wrapped_elements.append(wrapped_object)
 
         return wrapped_elements
 
-    def _modify_children(self):
+    def _modify_sub_elements(self) -> None:
         """
-        Initializing of attributes with  type == Element.
+        Initializing of attributes with type == Element.
         Required for classes with base == Element.
-        """
-        initialize_objects(self, get_child_elements_with_names(self, Element), Element)
 
-    def _modify_object(self):
+        :return: :obj:`None`
+        """
+        self.sub_elements = {}
+
+        if type(self) is not self._element_cls:
+            self.sub_elements = extract_named_objects(self, Element)
+            initialize_objects(self, self.sub_elements)
+
+    def _modify_object(self) -> None:
         """
         Modify current object if driver_wrapper is not given. Required for Page that placed into functions:
         - sets driver from previous object
+
+        :return: :obj:`None`
         """
         if not self._driver_wrapper_given:
             PreviousObjectDriver().set_driver_from_previous_object(self)
 
-    def _validate_inheritance(self):
-        cls = self.__class__
-        mro = cls.__mro__
+    @cached_property
+    def _element_cls(self) -> Type[Element]:
+        """
+        Returns the `Element` class.
+        This can be overridden for performance optimizations.
 
-        for item in mro:
-            if is_page(item):
-                raise TypeError(
-                    f"You cannot make an inheritance for {cls.__name__} from both Element/Group and Page objects")
+        :return: :obj:`typing.Type` [:class:`Element`]
+        """
+        return Element

@@ -39,7 +39,7 @@ def resize_image(image1: str, image2: str, img_format='JPEG') -> bytes:
     img2 = Image.open(image2)
 
     width, height = img2.size
-    img1.resize((width, height), Image.Resampling.LANCZOS)
+    img1 = img1.resize((width, height), Image.Resampling.LANCZOS)
 
     return save_image(img1, img_format)
 
@@ -65,6 +65,19 @@ def shell_command(cmd,  **kwargs):
         process.is_success = process.returncode == 0
 
     return process
+
+
+def get_all_sub_elements(instance, sub_elements: list = None) -> list:
+    if sub_elements is None:
+        sub_elements = []
+
+    if hasattr(instance, 'sub_elements') and instance.sub_elements:
+        for key, sub_element in instance.sub_elements.items():
+            sub_elements.append(sub_element)
+            if hasattr(sub_element, 'sub_elements') and sub_element.sub_elements:
+                get_all_sub_elements(sub_element, sub_elements)
+
+    return sub_elements
 
 
 def cut_log_data(data: str, length=50) -> str:

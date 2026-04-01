@@ -13,13 +13,6 @@ from mops.utils.selector_synchronizer import get_platform_locator, set_selenium_
 
 class WebElement(CoreElement, ABC):
 
-    def __init__(self):
-        """
-        Initializing of web element with selenium driver
-        """
-        self.locator = get_platform_locator(self)
-        set_selenium_selector(self)
-
     def click(self, *, force_wait: bool = True, **kwargs) -> WebElement:
         """
         Clicks on the element.
@@ -128,3 +121,8 @@ class WebElement(CoreElement, ABC):
 
         self.driver_wrapper.click_by_coordinates(x=x, y=y, silent=True)
         return self
+
+    def _set_locator(self):
+        self.locator = get_platform_locator(self)
+        set_selenium_selector(self)
+        self._is_locator_configured = True
