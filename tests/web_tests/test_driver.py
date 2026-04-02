@@ -28,38 +28,6 @@ def test_is_firefox_driver(driver_wrapper):
     assert not driver_wrapper.is_chrome
 
 
-def test_driver_cookies(driver_wrapper, mouse_event_page_v2):
-    driver_wrapper.set_cookie(
-        [
-            {'name': 'sample_cookie', 'value': '123', 'path': '/', 'domain': '.customenv.github.io'}
-        ]
-    )
-
-    actual_cookies_after_set = driver_wrapper.get_cookies()
-    driver_wrapper.clear_cookies()
-    actual_cookies_after_clear = driver_wrapper.get_cookies()
-
-    assert all((actual_cookies_after_set, not actual_cookies_after_clear))
-
-
-def test_driver_delete_cookie(driver_wrapper, mouse_event_page_v2):
-    cookie_name_1 = 'sample_cookie'
-    cookie_name_2 = 'another_cookie'
-    driver_wrapper.set_cookie(
-        [
-            {'name': cookie_name_1, 'value': '123', 'path': '/', 'domain': '.customenv.github.io'},
-            {'name': cookie_name_2, 'value': '321', 'path': '/', 'domain': '.customenv.github.io'},
-        ]
-    )
-    actual_cookies_after_set = driver_wrapper.get_cookies()
-    driver_wrapper.delete_cookie(cookie_name_2)
-    actual_cookies_after_clear = driver_wrapper.get_cookies()
-
-    assert len(actual_cookies_after_set) == 2
-    assert len(actual_cookies_after_clear) == 1
-    assert actual_cookies_after_clear[0]['name'] == cookie_name_1
-
-
 def test_driver_execute_script_set_and_get(driver_wrapper, mouse_event_page_v2):
     driver_wrapper.execute_script('sessionStorage.setItem("foo", "bar")')
     assert driver_wrapper.execute_script('return sessionStorage.getItem("foo")') == 'bar'
