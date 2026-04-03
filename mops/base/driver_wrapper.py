@@ -122,6 +122,8 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
     is_simulator: bool = False
     is_real_device: bool = False
 
+    is_cdp: bool = False
+
     browser_name: Union[str, None] = None
 
     def __new__(cls, *args, **kwargs):

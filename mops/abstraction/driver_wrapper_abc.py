@@ -45,6 +45,8 @@ class DriverWrapperABC(ABC):
     is_simulator: bool = False
     is_real_device: bool = False
 
+    is_cdp: bool = False
+
     browser_name: Union[str, None] = None
 
     @cached_property
