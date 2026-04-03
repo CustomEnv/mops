@@ -17,7 +17,6 @@ process, giving you the flexibility and power to automate complex testing scenar
 - **Seamless Integration**: Mops integrates with Selenium, Appium, and Playwright, allowing you to use the best-suited engine for your specific testing needs.
 - **Unified API**: A single, easy-to-use API that abstracts away the differences between Selenium, Appium, and Playwright, making your test scripts more readable and maintainable.
 - **Engine Switching**: Switch between Selenium, Appium, and Playwright within the same test case, enabling cross-platform and cross-browser testing with minimal effort.
-- **CDP Connection**: Connect to remote browsers via Chrome DevTools Protocol using `DriverWrapper.connect_cdp()` — ideal for Electron apps, cloud browser services, and pre-existing browser instances. Both Playwright and Selenium engines are supported.
 - **Visual Regression Testing**: Perform visual regression tests using the integrated visual regression tool, available across all supported frameworks. This ensures your UI remains consistent across different browsers and devices.
 - **Advanced Features**: Leverage the advanced features of each framework, such as Playwright's mocks and Appium's real mobile devices support, all while using the same testing framework.
 - **Extensibility**: Extend the framework with custom functionality tailored to your project's specific requirements.

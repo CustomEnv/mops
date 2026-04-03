@@ -15,10 +15,6 @@ The `DriverWrapper` module provides a unified interface to interact with differe
 such as _Selenium_, _Appium_, and _Playwright_. It abstracts the complexities of these frameworks and offers a seamless 
 experience for managing driver sessions, performing operations, and handling cross-platform automation tasks.
 
-It also supports connecting to remote browsers via **Chrome DevTools Protocol (CDP)** using the
-`DriverWrapper.connect_cdp()` class method, enabling testing of Electron applications, cloud browser
-services, and pre-existing browser instances.
-
 <br>
 
 ### Core Benefits & Rules

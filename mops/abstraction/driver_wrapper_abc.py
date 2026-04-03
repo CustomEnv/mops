@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import cached_property
-from typing import List, Union, Any, Tuple, Optional, Dict, TYPE_CHECKING
+from typing import List, Union, Any, Tuple, TYPE_CHECKING
 
 from playwright.sync_api import Page as PlaywrightPage
 
@@ -94,55 +94,6 @@ class DriverWrapperABC(ABC):
         :type trace_path: str
 
         :return: :obj:`None`
-        """
-        raise NotImplementedError()
-
-    @classmethod
-    def connect_cdp(
-            cls,
-            endpoint_url: str,
-            engine: str = 'playwright',
-            timeout: int = 30000,
-            page_index: int = 0,
-            viewport_size: Optional[Dict[str, int]] = None,
-    ) -> DriverWrapper:
-        """
-        Connect to a remote browser via Chrome DevTools Protocol.
-
-        Creates a connection to the specified CDP endpoint and wraps the resulting
-        driver in a :class:`DriverWrapper`. Useful for testing Electron applications,
-        connecting to cloud browser services, or attaching to an already-running
-        browser instance.
-
-        **Playwright engine:**
-
-        Starts a Playwright instance internally and connects via
-        ``chromium.connect_over_cdp``. The Playwright instance is stopped
-        automatically when :meth:`quit` is called.
-
-        .. note::
-            Some Playwright features are unavailable in CDP mode:
-            ``record_har_path`` and ``record_video_dir`` cannot be set on pre-existing contexts.
-            Network interception may also be limited.
-
-        **Selenium engine:**
-
-        Creates a Chrome WebDriver with ``debugger_address`` option pointing
-        to the CDP endpoint.
-
-        :param endpoint_url: CDP endpoint URL (e.g., ``"http://localhost:9222"``).
-        :type endpoint_url: str
-        :param engine: The engine to use for the connection. ``"playwright"`` or ``"selenium"``.
-        :type engine: str
-        :param timeout: Connection timeout in milliseconds (Playwright only).
-        :type timeout: int
-        :param page_index: Index of the page to use from the connected context
-          (default: 0, Playwright only).
-        :type page_index: int
-        :param viewport_size: Optional viewport size dict ``{"width": int, "height": int}``.
-        :type viewport_size: typing.Optional[typing.Dict[str, int]]
-        :return: Initialized :class:`DriverWrapper` connected to the remote browser.
-        :rtype: DriverWrapper
         """
         raise NotImplementedError()
 
