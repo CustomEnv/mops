@@ -7,7 +7,7 @@ from typing import Union, List, Any, TYPE_CHECKING
 from PIL import Image
 from appium.webdriver.webdriver import WebDriver as AppiumDriver
 
-from mops.js_scripts import get_inner_height_js, get_inner_width_js
+from mops.js_scripts import get_inner_height_js, get_inner_width_js, set_cookies_as_batch_js
 from mops.mixins.objects.size import Size
 from mops.shared_utils import _scaled_screenshot
 from selenium.common.exceptions import WebDriverException as SeleniumWebDriverException, NoAlertPresentException
@@ -235,13 +235,8 @@ class CoreDriver(Logging, DriverWrapperABC):
         :type cookies: typing.List[dict]
         :return: :obj:`.CoreDriver` - The current instance of the driver wrapper.
         """
-        for cookie in cookies:
-
-            if 'path' not in cookie:
-                cookie.update({'path': '/'})
-
-            self.driver.add_cookie(cookie)
-
+        processed = [{**c, 'path': c.get('path', '/')} for c in cookies]
+        self.driver.execute_script(set_cookies_as_batch_js, processed)
         return self
 
     def clear_cookies(self) -> CoreDriver:

@@ -2,6 +2,20 @@ get_inner_height_js = 'return window.innerHeight'
 get_inner_width_js = 'return window.innerWidth'
 js_click = 'arguments[0].click();'
 
+storage_set_item_js = """
+arguments[0].forEach(item => {
+    window[arguments[1]].setItem(item.key, item.value);
+});
+"""
+
+storage_get_items_js = "return Object.assign({}, window[arguments[0]])"
+
+set_cookies_as_batch_js = """
+arguments[0].forEach(c => {
+    document.cookie = `${c.name}=${c.value}; path=${c.path}`;
+});
+"""
+
 get_element_position_on_screen_js = """
 function getPositionOnScreen(elem) {
   let box = elem.getBoundingClientRect();

@@ -2,6 +2,25 @@
 
 <br>
 
+## v3.4.3
+*Release date: 2026-04-21*
+
+### Added
+- `set_local_storage_item(items)` / `set_session_storage_item(items)` — set one or more key/value pairs in localStorage / sessionStorage
+- `get_local_storage_item(key)` / `get_session_storage_item(key)` — retrieve a single item by key (`None` if missing)
+- `get_local_storage_items()` / `get_session_storage_items()` — retrieve all items as a dict
+- `remove_local_storage_item(key)` / `remove_session_storage_item(key)` — remove a single item by key
+- `clear_local_storage()` / `clear_session_storage()` — clear all items from the respective storage
+- `MobileDriver.clear_cookies` override — on iOS real devices iterates and deletes each cookie individually via `delete_cookie` instead of a bulk clear
+- `storage_set_item_js`, `storage_get_items_js`, `set_cookies_as_batch_js` JS helpers added to `js_scripts.py`
+
+### Changed
+- `CoreDriver.set_cookies` — replaced per-cookie `driver.add_cookie()` loop with a single batched `execute_script` call
+- `PlayDriver.set_cookies` — domain extracted via `urlparse` instead of manual string splitting; cookie defaults applied via list comprehension
+- `PlayDriver.execute_script` — unified script wrapping to `(args) => (function() { … }).apply(null, args)` for consistent argument passing across all call patterns
+
+---
+
 ## v3.4.2
 *Release date: 2026-03-28*
 
