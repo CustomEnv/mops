@@ -206,6 +206,106 @@ class DriverWrapperABC(ABC):
         """
         raise NotImplementedError
 
+    def set_local_storage_item(self, items: list[dict]) -> DriverWrapper:
+        """
+        Set one or more items in localStorage.
+
+        Each dict must contain ``key`` and ``value`` fields.
+
+        :param items: A list of dicts with ``key`` and ``value``.
+        :type items: typing.List[dict]
+        :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
+        """
+        raise NotImplementedError
+
+    def set_session_storage_item(self, items: list[dict]) -> DriverWrapper:
+        """
+        Set one or more items in sessionStorage.
+
+        Each dict must contain ``key`` and ``value`` fields.
+
+        :param items: A list of dicts with ``key`` and ``value``.
+        :type items: typing.List[dict]
+        :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
+        """
+        raise NotImplementedError
+
+    def get_local_storage_item(self, key: str) -> str | None:
+        """
+        Retrieve a single item from localStorage by key.
+
+        :param key: The key to look up.
+        :type key: str
+        :return: The value string, or :obj:`None` if the key does not exist.
+        :rtype: typing.Union[str, None]
+        """
+        raise NotImplementedError
+
+    def get_session_storage_item(self, key: str) -> str | None:
+        """
+        Retrieve a single item from sessionStorage by key.
+
+        :param key: The key to look up.
+        :type key: str
+        :return: The value string, or :obj:`None` if the key does not exist.
+        :rtype: typing.Union[str, None]
+        """
+        raise NotImplementedError
+
+    def get_local_storage_items(self) -> dict:
+        """
+        Retrieve all items from localStorage as a dictionary.
+
+        :return: A dict mapping every key to its value.
+        :rtype: dict
+        """
+        raise NotImplementedError
+
+    def get_session_storage_items(self) -> dict:
+        """
+        Retrieve all items from sessionStorage as a dictionary.
+
+        :return: A dict mapping every key to its value.
+        :rtype: dict
+        """
+        raise NotImplementedError
+
+    def remove_local_storage_item(self, key: str) -> DriverWrapper:
+        """
+        Remove a single item from localStorage by key.
+
+        :param key: The key to remove.
+        :type key: str
+        :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
+        """
+        raise NotImplementedError
+
+    def remove_session_storage_item(self, key: str) -> DriverWrapper:
+        """
+        Remove a single item from sessionStorage by key.
+
+        :param key: The key to remove.
+        :type key: str
+        :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
+        """
+        raise NotImplementedError
+
+    def clear_local_storage(self) -> DriverWrapper:
+        """
+        Remove all items from localStorage.
+
+        :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
+        """
+        raise NotImplementedError
+
+    def clear_session_storage(self) -> DriverWrapper:
+        """
+        Remove all items from sessionStorage.
+
+        :return: :obj:`.DriverWrapper` - The current instance of the driver wrapper.
+        """
+        raise NotImplementedError
+
     def switch_to_frame(self, frame: Element) -> DriverWrapper:
         """
         Switch to a specified frame.

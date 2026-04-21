@@ -269,6 +269,20 @@ class MobileDriver(CoreDriver):
 
         return self
 
+    def clear_cookies(self) -> MobileDriver:
+        """
+        Delete all cookies in the current session.
+
+        :return: :obj:`.MobileDriver` - The current instance of the driver wrapper.
+        """
+        if self.is_ios and self.is_real_device:
+            for cookie_name in [cookie['name'] for cookie in self.get_cookies()]:
+                self.delete_cookie(cookie_name)
+        else:
+            CoreDriver.clear_cookies(self)
+
+        return self
+
 
 def _set_static(obj: Any) -> None:
     """

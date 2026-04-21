@@ -4,6 +4,7 @@ import contextlib
 from dataclasses import asdict
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 from playwright._impl._errors import Error as PlaywrightError
 from playwright.sync_api import Browser, BrowserContext, Locator, Page
@@ -191,14 +192,9 @@ class PlayDriver(Logging, DriverWrapperABC):
         :type cookies: typing.List[dict]
         :return: :obj:`.PlayDriver` - The current instance of the driver wrapper.
         """
-        for cookie in cookies:
-            if 'path' not in cookie:
-                cookie.update({'path': '/'})
-
-            if 'domain' not in cookie:
-                cookie.update({'domain': f'.{self.current_url.split("://")[1].split("/")[0]}'})
-
-        self.context.add_cookies(cookies)
+        domain = f'.{urlparse(self.current_url).netloc}'
+        processed = [{**c, 'path': c.get('path', '/'), 'domain': c.get('domain', domain)} for c in cookies]
+        self.context.add_cookies(processed)
         return self
 
     def clear_cookies(self) -> PlayDriver:
@@ -259,17 +255,9 @@ class PlayDriver(Logging, DriverWrapperABC):
         :type args: :obj:`typing.Any`
         :return: :obj:`typing.Any` - The result of the JavaScript execution.
         """
-        script = script.replace('return ', '')
-
-        if 'arguments[0]' in script:
-            args = [getattr(arg, 'element', arg) for arg in args]
-            script = f'arguments => {{{script}}}'
-
-        for index, arg in enumerate(args):
-            if isinstance(arg, Locator):
-                args[index] = arg.first.element_handle()
-
-        return self.driver.evaluate(script, args)
+        args = [getattr(arg, 'element', arg) for arg in args]
+        args = [arg.first.element_handle() if isinstance(arg, Locator) else arg for arg in args]
+        return self.driver.evaluate(f'(args) => (function() {{ {script} }}).apply(null, args)', list(args))
 
     def evaluate(self, expression: str, arg: Any = None) -> Any:
         """

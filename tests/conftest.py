@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.safari.options import Options as SafariOptions
 
-from mops.base.driver_wrapper import DriverWrapper
+from mops.base.driver_wrapper import DriverWrapper, DriverWrapperSessions
 from mops.mixins.objects.driver import Driver
 from mops.mixins.objects.size import Size
 from mops.utils.logs import driver_wrapper_logs_settings
@@ -102,9 +102,8 @@ def redirect(request):
     print()
     yield
     print()
-    if DriverWrapper.session.sessions_count() > 0:
-        dw = request.getfixturevalue('driver_wrapper')
-        dw.get('data:,', silent=True)
+    for dw in DriverWrapperSessions.all_sessions:
+        dw.get('about:blank', silent=True)
 
 
 @pytest.fixture
