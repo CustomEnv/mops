@@ -47,9 +47,7 @@ class PlayElement(ElementABC, Logging, ABC):
                 f'{self!r} object is not initialized. '
                 'Try to initialize base object first or call it directly as a method'
             )
-            raise NotInitializedException(
-                msg,
-            )
+            raise NotInitializedException(msg)
 
         element = self._element
 

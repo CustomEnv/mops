@@ -64,9 +64,7 @@ class CoreElement(ElementABC, ABC):
                 f'{self!r} object is not initialized. '
                 'Try to initialize base object first or call it directly as a method'
             )
-            raise NotInitializedException(
-                msg,
-            )
+            raise NotInitializedException(msg)
 
         return self._get_element()
 
@@ -123,9 +121,7 @@ class CoreElement(ElementABC, ABC):
             return self
 
         msg = f'Element "{self.name}" not interactable. {self.get_element_info()}. Original error: {selenium_exc_msg}'
-        raise ElementNotInteractableException(
-            msg,
-        )
+        raise ElementNotInteractableException(msg)
 
     def type_text(self, text: str | KeyboardKeys, silent: bool = False) -> CoreElement:
         """
@@ -472,14 +468,10 @@ class CoreElement(ElementABC, ABC):
                     f'{self._get_container_info()} container not found while accessing {element_info}. '
                     f'{get_element_info(self.parent, "Container Selector=")}'
                 )
-                raise NoSuchParentException(
-                    msg,
-                )
+                raise NoSuchParentException(msg)
 
             msg = f'Unable to locate the {element_info}. {self.get_element_info()}{self._ensure_unique_parent()}'
-            raise NoSuchElementException(
-                msg,
-            )
+            raise NoSuchElementException(msg)
 
         return element
 

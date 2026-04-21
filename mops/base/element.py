@@ -179,9 +179,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
                 f'unsupported driver type "{type(self.driver).__name__}". '
                 f'Expected Playwright, Appium or Selenium driver instance'
             )
-            raise DriverWrapperException(
-                msg,
-            )
+            raise DriverWrapperException(msg)
 
         self._set_static(self._base_cls)
         self._base_cls.__init__(self)

@@ -132,9 +132,7 @@ def wait_continuous(method: Callable) -> Callable:
                     f'The continuous "{method.__name__}" of the "{self.name}" is not met '
                     f'after {(time.time() - start_time):.2f} seconds'
                 )
-                raise ContinuousWaitException(
-                    msg,
-                )
+                raise ContinuousWaitException(msg)
 
             time.sleep(delay)
 
