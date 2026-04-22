@@ -4,10 +4,9 @@ from selenium.webdriver import ActionChains as SeleniumActionChains
 
 
 class ActionChains(SeleniumActionChains):
-
     def move_to_location(self, x: int, y: int) -> ActionChains:
         """
-        Moving the mouse to specified location
+        Move the mouse to specified location.
 
         :param x: x coordinate
         :param y: y coordinate

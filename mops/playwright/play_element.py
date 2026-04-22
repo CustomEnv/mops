@@ -1,33 +1,32 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Union, List, Any
+from typing import TYPE_CHECKING, Any
 
-from PIL.Image import Image
-from mops.keyboard_keys import KeyboardKeys
-from playwright.sync_api import Error
-from playwright.sync_api import Page as PlaywrightPage
-from playwright.sync_api import Locator
+from playwright.sync_api import Error, Locator, Page as PlaywrightPage
 
-from mops.mixins.objects.size import Size
-from mops.mixins.objects.location import Location
-from mops.utils.decorators import retry
-from mops.utils.selector_synchronizer import get_platform_locator, set_playwright_locator
 from mops.abstraction.element_abc import ElementABC
-from mops.exceptions import NotInitializedException
-from mops.exceptions import InvalidSelectorException
-from mops.utils.logs import Logging
+from mops.exceptions import InvalidSelectorException, NotInitializedException
+from mops.mixins.objects.location import Location
+from mops.mixins.objects.size import Size
 from mops.shared_utils import cut_log_data, get_image
+from mops.utils.decorators import retry
 from mops.utils.internal_utils import (
     calculate_coordinate_to_click,
-    is_group,
     is_element,
+    is_group,
 )
+from mops.utils.logs import Logging
+from mops.utils.selector_synchronizer import get_platform_locator, set_playwright_locator
+
+if TYPE_CHECKING:
+    from PIL.Image import Image
+
+    from mops.keyboard_keys import KeyboardKeys
 
 
 class PlayElement(ElementABC, Logging, ABC):
-
-    parent: Union[ElementABC, PlayElement]
+    parent: ElementABC | PlayElement
 
     _initialized: bool
     _element: Locator = None
@@ -44,10 +43,11 @@ class PlayElement(ElementABC, Logging, ABC):
         :return: Locator
         """
         if not self._initialized:
-            raise NotInitializedException(
-                f'{repr(self)} object is not initialized. '
+            msg = (
+                f'{self!r} object is not initialized. '
                 'Try to initialize base object first or call it directly as a method'
             )
+            raise NotInitializedException(msg)
 
         element = self._element
 
@@ -58,16 +58,16 @@ class PlayElement(ElementABC, Logging, ABC):
         return element
 
     @element.setter
-    def element(self, base_element: Union[Locator, None]):
+    def element(self, base_element: Locator | None) -> None:
         """
         Element object setter. Try to avoid usage of this function
 
         :param: play_element: playwright Locator object
         """
         self._element = base_element
-    
+
     @property
-    def all_elements(self) -> Union[List[PlayElement], List[Any]]:
+    def all_elements(self) -> list[PlayElement] | list[Any]:
         """
         Returns a list of all matching elements.
 
@@ -77,7 +77,7 @@ class PlayElement(ElementABC, Logging, ABC):
 
     # Element interaction
 
-    def click(self, *, force_wait: bool = True, **kwargs) -> PlayElement:
+    def click(self, *, force_wait: bool = True, **kwargs: Any) -> PlayElement:
         """
         Clicks on the element.
 
@@ -123,7 +123,6 @@ class PlayElement(ElementABC, Logging, ABC):
         self._first_element.click(position={'x': float(x), 'y': float(y)}, force=True)
         return self
 
-
     def click_into_center(self, silent: bool = False) -> PlayElement:
         """
         Clicks at the center of the element.
@@ -143,8 +142,7 @@ class PlayElement(ElementABC, Logging, ABC):
         self.driver_wrapper.click_by_coordinates(x=x, y=y, silent=True)
         return self
 
-
-    def type_text(self, text: Union[str, KeyboardKeys], silent: bool = False) -> PlayElement:
+    def type_text(self, text: str | KeyboardKeys, silent: bool = False) -> PlayElement:
         """
         Types text into the element.
 
@@ -182,7 +180,7 @@ class PlayElement(ElementABC, Logging, ABC):
 
     def clear_text(self, silent: bool = False) -> PlayElement:
         """
-        Clears the text of the element.
+        Clear the text of the element.
 
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
@@ -224,7 +222,7 @@ class PlayElement(ElementABC, Logging, ABC):
 
     def check(self) -> PlayElement:
         """
-        Checks the checkbox element.
+        Check the checkbox element.
 
         :return: :class:`PlayElement`
         """
@@ -244,9 +242,9 @@ class PlayElement(ElementABC, Logging, ABC):
 
     # Element state
 
-    def screenshot_image(self, screenshot_base: bytes = None) -> Image:
+    def screenshot_image(self, screenshot_base: bytes | None = None) -> Image:
         """
-        Returns a :class:`PIL.Image.Image` object representing the screenshot of the web element.
+        Return a :class:`PIL.Image.Image` object representing the screenshot of the web element.
         Appium iOS: Take driver screenshot and crop manually element from it
 
         :param screenshot_base: Screenshot binary data (optional).
@@ -254,7 +252,7 @@ class PlayElement(ElementABC, Logging, ABC):
         :type screenshot_base: bytes
         :return: :class:`PIL.Image.Image`
         """
-        screenshot_base = screenshot_base if screenshot_base else self.screenshot_base
+        screenshot_base = screenshot_base or self.screenshot_base
         return get_image(screenshot_base)
 
     @property
@@ -295,7 +293,7 @@ class PlayElement(ElementABC, Logging, ABC):
 
     def is_available(self) -> bool:
         """
-        Checks if the element is available in DOM tree.
+        Check if the element is available in DOM tree.
 
         :return: :class:`bool` - :obj:`True` if present in DOM
         """
@@ -303,7 +301,7 @@ class PlayElement(ElementABC, Logging, ABC):
 
     def is_displayed(self, silent: bool = False) -> bool:
         """
-        Checks if the element is displayed.
+        Check if the element is displayed.
 
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
@@ -315,12 +313,11 @@ class PlayElement(ElementABC, Logging, ABC):
         try:
             return self._first_element.is_visible()
         except Error as exc:
-            raise InvalidSelectorException(exc.message)
-
+            raise InvalidSelectorException(exc.message) from exc
 
     def is_hidden(self, silent: bool = False) -> bool:
         """
-        Checks if the element is hidden.
+        Check if the element is hidden.
 
         :param silent: If :obj:`True`, suppresses logging.
         :type silent: bool
@@ -346,7 +343,7 @@ class PlayElement(ElementABC, Logging, ABC):
 
         return self._first_element.get_attribute(attribute)
 
-    def get_all_texts(self, silent: bool = False) -> List:
+    def get_all_texts(self, silent: bool = False) -> list:
         """
         Retrieve text content from all matching elements.
 
@@ -427,7 +424,7 @@ class PlayElement(ElementABC, Logging, ABC):
 
     # Mixin
 
-    def _get_base(self) -> Union[PlaywrightPage, Locator]:
+    def _get_base(self) -> PlaywrightPage | Locator:
         """
         Get driver depends on parent element if available
 
@@ -443,7 +440,7 @@ class PlayElement(ElementABC, Logging, ABC):
         return base
 
     @property
-    def _first_element(self):
+    def _first_element(self) -> Locator:
         """
         Get first element
 
@@ -451,7 +448,7 @@ class PlayElement(ElementABC, Logging, ABC):
         """
         return self.element.first
 
-    def _set_locator(self):
+    def _set_locator(self) -> None:
         self.locator = get_platform_locator(self)
         set_playwright_locator(self)
         self._is_locator_configured = True

@@ -1,43 +1,47 @@
 from __future__ import annotations
 
 import json
-from typing import Union, Type, List, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, ClassVar
 
-from PIL import Image
 from appium.webdriver.webdriver import WebDriver as AppiumDriver
-from selenium.webdriver.remote.webdriver import WebDriver as SeleniumDriver
 from playwright.sync_api import (
-    Page as PlaywrightDriver,
     Browser as PlaywrightBrowser,
     BrowserContext as PlaywrightContext,
+    Page as PlaywrightDriver,
 )
+from selenium.webdriver.remote.webdriver import WebDriver as SeleniumDriver
 
-from mops.js_scripts import storage_set_item_js, storage_get_items_js
+from mops.abstraction.driver_wrapper_abc import DriverWrapperABC
+from mops.exceptions import DriverWrapperException
+from mops.js_scripts import storage_get_items_js, storage_set_item_js
+from mops.mixins.internal_mixin import InternalMixin
 from mops.mixins.objects.box import Box
 from mops.mixins.objects.driver import Driver
 from mops.mixins.objects.visual_comaprison_mixin import hide_before_screenshot, reveal_after_screenshot
-from mops.visual_comparison import VisualComparison
-from mops.abstraction.driver_wrapper_abc import DriverWrapperABC
 from mops.playwright.play_driver import PlayDriver
 from mops.selenium.driver.mobile_driver import MobileDriver
 from mops.selenium.driver.web_driver import WebDriver
-from mops.exceptions import DriverWrapperException
-from mops.mixins.internal_mixin import InternalMixin
 from mops.utils.internal_utils import extract_named_objects, get_attributes_from_object
 from mops.utils.logs import Logging, LogLevel
-
+from mops.visual_comparison import VisualComparison
 
 if TYPE_CHECKING:
+    from typing import Self
+
+    from PIL import Image
+
     from mops.base.element import Element
+    from mops.mixins.objects.box import Box
+    from mops.mixins.objects.driver import Driver
 
 
 class DriverWrapperSessions:
-    all_sessions: List[DriverWrapper] = []
+    all_sessions: ClassVar[list[DriverWrapper]] = []
 
     @classmethod
     def add_session(cls, driver_wrapper: DriverWrapper) -> None:
         """
-        Adds a :obj:`.DriverWrapper` object to the session pool.
+        Add a :obj:`.DriverWrapper` object to the session pool.
 
         :param driver_wrapper: The :obj:`.DriverWrapper` instance to add to the pool.
         :return: None
@@ -47,7 +51,7 @@ class DriverWrapperSessions:
     @classmethod
     def remove_session(cls, driver_wrapper: DriverWrapper) -> None:
         """
-        Removes a :obj:`.DriverWrapper` object from the session pool.
+        Remove a :obj:`.DriverWrapper` object from the session pool.
 
         :param driver_wrapper: The :obj:`.DriverWrapper` instance to remove from the pool.
         :return: None
@@ -64,7 +68,7 @@ class DriverWrapperSessions:
         return len(cls.all_sessions)
 
     @classmethod
-    def first_session(cls) -> Union[DriverWrapper, None]:
+    def first_session(cls) -> DriverWrapper | None:
         """
         Get the first :obj:`.DriverWrapper` object from the session pool.
 
@@ -95,14 +99,14 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
     It also provides platform-specific flags and information to assist with automation tasks.
     """
 
-    driver: Union[SeleniumDriver, AppiumDriver, PlaywrightDriver]
+    driver: SeleniumDriver | AppiumDriver | PlaywrightDriver
     context: PlaywrightContext
     browser: PlaywrightBrowser
 
     _object: str = 'driver_wrapper'
-    _base_cls: Type[PlayDriver, MobileDriver, WebDriver] = None
+    _base_cls: type[PlayDriver, MobileDriver, WebDriver] = None
     session: DriverWrapperSessions = DriverWrapperSessions
-    anchor: Union[Element, None] = None
+    anchor: Element | None = None
 
     is_desktop: bool = False
     is_selenium: bool = False
@@ -124,20 +128,22 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
     is_simulator: bool = False
     is_real_device: bool = False
 
-    browser_name: Union[str, None] = None
+    browser_name: str | None = None
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
+        """Create a new DriverWrapper instance or a shadow wrapper for multi-session support."""
         if cls.session.sessions_count() == 0:
-            cls = super().__new__(cls)
+            instance = super().__new__(cls)
         else:
             attrs = get_attributes_from_object(cls)
             attrs.pop('_configured', None)
-            cls = super().__new__(type(f'ShadowDriverWrapper', (cls, ), attrs))  # noqa
+            shadow_cls = type('ShadowDriverWrapper', (cls,), attrs)
+            instance = super().__new__(shadow_cls)
 
-        for name, _ in extract_named_objects(cls, bool).items():
-            setattr(cls, name, False)
+        for name in extract_named_objects(instance, bool):
+            setattr(instance, name, False)
 
-        return cls
+        return instance
 
     def __repr__(self):
         cls = self.__class__
@@ -152,7 +158,7 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
 
     def __init__(self, driver: Driver):
         """
-        Initializes the DriverWrapper instance based on the provided driver source.
+        Initialize the DriverWrapper instance based on the provided driver source.
 
         This constructor sets up the driver wrapper, which can support
         Appium, Selenium, or Playwright drivers.
@@ -170,7 +176,7 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
             self.is_desktop = False
             self.is_mobile = True
 
-    def quit(self, silent: bool = False, trace_path: str = 'trace.zip'):
+    def quit(self, silent: bool = False, trace_path: str = 'trace.zip') -> None:
         """
         Quit the driver instance.
 
@@ -196,13 +202,13 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
         self.session.remove_session(self)
 
     def save_screenshot(
-            self,
-            file_name: str,
-            screenshot_base: Union[Image, bytes] = None,
-            convert_type: str = None
+        self,
+        file_name: str,
+        screenshot_base: Image | bytes = None,
+        convert_type: str | None = None,
     ) -> Image:
         """
-        Takes a full screenshot of the driver and saves it to the specified path/filename.
+        Take a full screenshot of the driver and save it to the specified path/filename.
 
         :param file_name: Path or filename for the screenshot.
         :type file_name: str
@@ -212,7 +218,7 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
         :type convert_type: str
         :return: :class:`PIL.Image.Image`
         """
-        self.log(f'Save driver screenshot')
+        self.log('Save driver screenshot')
 
         image_object = screenshot_base
         if isinstance(screenshot_base, bytes) or screenshot_base is None:
@@ -227,25 +233,25 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
 
     def get_scroll_position(self) -> int:
         """
-        Returns the current vertical scroll position of the page.
+        Return the current vertical scroll position of the page.
 
         :return: :class:`int` - Current vertical scroll offset in pixels.
         """
         return self.execute_script('return window.pageYOffset')
 
     def assert_screenshot(
-            self,
-            filename: str = '',
-            test_name: str = '',
-            name_suffix: str = '',
-            threshold: Union[int, float] = None,
-            delay: Union[int, float] = None,
-            remove: Union[Element, List[Element]] = None,
-            cut_box: Box = None,
-            hide: Union[Element, List[Element]] = None,
+        self,
+        filename: str = '',
+        test_name: str = '',
+        name_suffix: str = '',
+        threshold: float | None = None,
+        delay: float | None = None,
+        remove: Element | list[Element] = None,
+        cut_box: Box = None,
+        hide: Element | list[Element] = None,
     ) -> None:
         """
-        Asserts that the given screenshot matches the currently taken screenshot.
+        Assert that the given screenshot matches the currently taken screenshot.
 
         :param filename: The full name of the screenshot file.
           If empty - filename will be generated based on test name & :class:`Element` ``name`` argument & platform.
@@ -281,25 +287,30 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
         hide_before_screenshot(VisualComparison.always_hide, is_optional=True, dw=self)
 
         VisualComparison(self).assert_screenshot(
-            filename=filename, test_name=test_name, name_suffix=name_suffix, threshold=threshold,
-            remove=remove, fill_background=False, cut_box=cut_box
+            filename=filename,
+            test_name=test_name,
+            name_suffix=name_suffix,
+            threshold=threshold,
+            remove=remove,
+            fill_background=False,
+            cut_box=cut_box,
         )
 
         reveal_after_screenshot(VisualComparison.always_hide, dw=self)
 
     def soft_assert_screenshot(
-            self,
-            filename: str = '',
-            test_name: str = '',
-            name_suffix: str = '',
-            threshold: Union[int, float] = None,
-            delay: Union[int, float] = None,
-            remove: Union[Element, List[Element]] = None,
-            cut_box: Box = None,
-            hide: Union[Element, List[Element]] = None,
-    ) -> Tuple[bool, str]:
+        self,
+        filename: str = '',
+        test_name: str = '',
+        name_suffix: str = '',
+        threshold: float | None = None,
+        delay: float | None = None,
+        remove: Element | list[Element] = None,
+        cut_box: Box = None,
+        hide: Element | list[Element] = None,
+    ) -> tuple[bool, str]:
         """
-        Compares the currently taken screenshot to the expected screenshot and returns a result.
+        Compare the currently taken screenshot to the expected screenshot and return a result.
 
         :param filename: The full name of the screenshot file.
           If empty - filename will be generated based on test name & :class:`Element` ``name`` argument & platform.
@@ -332,9 +343,9 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
             self.log(exc, level=LogLevel.ERROR)
             return False, exc
 
-        return True, f'No visual mismatch found for entire screen'
+        return True, 'No visual mismatch found for entire screen'
 
-    def set_local_storage_item(self, items: List[dict]) -> DriverWrapper:
+    def set_local_storage_item(self, items: list[dict]) -> DriverWrapper:
         """
         Set one or more items in localStorage.
 
@@ -347,7 +358,7 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
         self.execute_script(storage_set_item_js, items, 'localStorage')
         return self
 
-    def set_session_storage_item(self, items: List[dict]) -> DriverWrapper:
+    def set_session_storage_item(self, items: list[dict]) -> DriverWrapper:
         """
         Set one or more items in sessionStorage.
 
@@ -360,7 +371,7 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
         self.execute_script(storage_set_item_js, items, 'sessionStorage')
         return self
 
-    def get_local_storage_item(self, key: str) -> Union[str, None]:
+    def get_local_storage_item(self, key: str) -> str | None:
         """
         Retrieve a single item from localStorage by key.
 
@@ -371,7 +382,7 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
         """
         return self.execute_script(f'return localStorage.getItem({json.dumps(key)})')
 
-    def get_session_storage_item(self, key: str) -> Union[str, None]:
+    def get_session_storage_item(self, key: str) -> str | None:
         """
         Retrieve a single item from sessionStorage by key.
 
@@ -458,11 +469,12 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
             self.is_selenium = True
             self._base_cls = WebDriver
         else:
-            raise DriverWrapperException(
+            msg = (
                 f'Cannot initialize {self.__class__.__name__}: '
                 f'unsupported driver type "{type(source_driver).__name__}". '
                 f'Expected Playwright, Appium or Selenium driver instance'
             )
+            raise DriverWrapperException(msg)
 
         self._set_static(self._base_cls)
         self._base_cls.__init__(self, driver_container=self.__driver_container)

@@ -2,6 +2,26 @@
 
 <br>
 
+## v3.5.0
+*Release date: 2026-04-22*
+
+### Breaking Changes
+- **Python 3.8 and 3.9 dropped** — minimum supported version is now Python 3.10
+
+### Added
+- **Ruff linter** integrated: new CI workflow (`ruff.yml`), pre-commit hook, and full config in `pyproject.toml`
+- **Python 3.13 and 3.14** support
+
+### Changed
+- `playwright` bumped `>=1.58.0`
+- `numpy` bumped to `>=2.3.2`
+- `opencv-python` bumped to `>=4.13.0`
+- `scikit-image` bumped to `>=0.26.0`
+- `Pillow` bumped to `>=12.1.0`
+- `greenlet>=3.3.2` added as constraint-dependency
+
+---
+
 ## v3.4.3
 *Release date: 2026-04-21*
 

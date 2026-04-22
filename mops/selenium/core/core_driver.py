@@ -1,36 +1,35 @@
 from __future__ import annotations
 
-import time
 from functools import cached_property
-from typing import Union, List, Any, TYPE_CHECKING
+import time
+from typing import TYPE_CHECKING, Any
 
-from PIL import Image
-from appium.webdriver.webdriver import WebDriver as AppiumDriver
-
-from mops.js_scripts import get_inner_height_js, get_inner_width_js, set_cookies_as_batch_js
-from mops.mixins.objects.size import Size
-from mops.shared_utils import _scaled_screenshot
-from selenium.common.exceptions import WebDriverException as SeleniumWebDriverException, NoAlertPresentException
-from selenium.webdriver.common.alert import Alert
-from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
+from selenium.common.exceptions import NoAlertPresentException, WebDriverException as SeleniumWebDriverException
 
 from mops.abstraction.driver_wrapper_abc import DriverWrapperABC
-from mops.selenium.sel_utils import ActionChains
 from mops.exceptions import DriverWrapperException, TimeoutException
+from mops.js_scripts import get_inner_height_js, get_inner_width_js, set_cookies_as_batch_js
+from mops.mixins.objects.size import Size
+from mops.selenium.sel_utils import ActionChains
+from mops.shared_utils import _scaled_screenshot
 from mops.utils.internal_utils import WAIT_EL, WAIT_UNIT
 from mops.utils.logs import Logging
 
 if TYPE_CHECKING:
+    from appium.webdriver.webdriver import WebDriver as AppiumDriver
+    from PIL import Image
+    from selenium.webdriver.common.alert import Alert
+    from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
+
     from mops.base.element import Element
 
 
 class CoreDriver(Logging, DriverWrapperABC):
+    driver: AppiumDriver | SeleniumWebDriver
 
-    driver: Union[AppiumDriver, SeleniumWebDriver]
-
-    def __init__(self, driver: Union[AppiumDriver, SeleniumWebDriver]):
+    def __init__(self, driver: AppiumDriver | SeleniumWebDriver):
         """
-        Initializing of core driver
+        Initialize core driver.
         Contain same methods/data for both WebDriver and MobileDriver classes
 
         :param driver: appium or selenium driver to initialize
@@ -72,7 +71,7 @@ class CoreDriver(Logging, DriverWrapperABC):
         """
         return Size(
             height=self.execute_script(get_inner_height_js),
-            width=self.execute_script(get_inner_width_js)
+            width=self.execute_script(get_inner_width_js),
         )
 
     def get_window_size(self) -> Size:
@@ -89,7 +88,7 @@ class CoreDriver(Logging, DriverWrapperABC):
         """
         return Size(**self.driver.get_window_size())
 
-    def wait(self, timeout: Union[int, float] = WAIT_UNIT, reason: str = '') -> CoreDriver:
+    def wait(self, timeout: float = WAIT_UNIT, reason: str = '') -> CoreDriver:
         """
         Pauses the execution for a specified amount of time.
 
@@ -123,13 +122,14 @@ class CoreDriver(Logging, DriverWrapperABC):
         try:
             self.driver.get(url)
         except SeleniumWebDriverException as exc:
-            raise DriverWrapperException(f'Can\'t proceed to {url}. Original error: {exc.msg}')
+            msg = f"Can't proceed to {url}. Original error: {exc.msg}"
+            raise DriverWrapperException(msg) from exc
 
         return self
 
-    def screenshot_image(self, screenshot_base: bytes = None) -> Image:
+    def screenshot_image(self, screenshot_base: bytes | None = None) -> Image:
         """
-        Returns a :class:`PIL.Image.Image` object representing the screenshot of the web page.
+        Return a :class:`PIL.Image.Image` object representing the screenshot of the web page.
         Appium iOS: Removes native controls from image manually
 
         :param screenshot_base: Screenshot binary data (optional).
@@ -137,7 +137,7 @@ class CoreDriver(Logging, DriverWrapperABC):
         :type screenshot_base: bytes
         :return: :class:`PIL.Image.Image`
         """
-        screenshot_base = screenshot_base if screenshot_base else self.screenshot_base
+        screenshot_base = screenshot_base or self.screenshot_base
         return _scaled_screenshot(screenshot_base, self.get_inner_window_size().width)
 
     @property
@@ -155,7 +155,7 @@ class CoreDriver(Logging, DriverWrapperABC):
 
         :return: :obj:`bool` - :obj:`True` if the driver is open, otherwise :obj:`False`.
         """
-        return True if self.driver else False
+        return bool(self.driver)
 
     def is_driver_closed(self) -> bool:
         """
@@ -163,7 +163,7 @@ class CoreDriver(Logging, DriverWrapperABC):
 
         :return: :obj:`bool` - :obj:`True` if the driver is closed, otherwise :obj:`False`.
         """
-        return False if self.driver else True
+        return not self.driver
 
     @property
     def current_url(self) -> str:
@@ -204,7 +204,7 @@ class CoreDriver(Logging, DriverWrapperABC):
         self.driver.back()
         return self
 
-    def quit(self, silent: bool = False, trace_path: str = 'trace.zip'):
+    def quit(self, silent: bool = False, trace_path: str = 'trace.zip') -> None:
         """
         Quit the driver instance.
 
@@ -225,7 +225,7 @@ class CoreDriver(Logging, DriverWrapperABC):
         """
         self.driver.quit()
 
-    def set_cookie(self, cookies: List[dict]) -> CoreDriver:
+    def set_cookie(self, cookies: list[dict]) -> CoreDriver:
         """
         Add a list of cookie dictionaries to the current session.
 
@@ -257,7 +257,7 @@ class CoreDriver(Logging, DriverWrapperABC):
         self.driver.delete_cookie(name)
         return self
 
-    def get_cookies(self) -> List[dict]:
+    def get_cookies(self) -> list[dict]:
         """
         Retrieve a list of cookie dictionaries corresponding to the cookies visible in the current session.
 
@@ -288,7 +288,7 @@ class CoreDriver(Logging, DriverWrapperABC):
 
     def execute_script(self, script: str, *args: Any) -> Any:
         """
-        Synchronously executes JavaScript in the current window or frame.
+        Execute JavaScript synchronously in the current window or frame.
         Compatible with Selenium's `execute_script` method.
 
         :param script: The JavaScript code to execute.
@@ -311,7 +311,7 @@ class CoreDriver(Logging, DriverWrapperABC):
         self.driver.set_page_load_timeout(timeout)
         return self
 
-    def switch_to_alert(self, timeout: Union[int, float] = WAIT_EL) -> Alert:
+    def switch_to_alert(self, timeout: float = WAIT_EL) -> Alert:
         """
         Appium/Selenium only: Wait for an alert and switch to it.
 
@@ -325,11 +325,12 @@ class CoreDriver(Logging, DriverWrapperABC):
         while not alert and time.time() < end_time:
             try:
                 alert = self.driver.switch_to.alert
-            except NoAlertPresentException:
+            except NoAlertPresentException:  # noqa: PERF203
                 alert = None
 
         if not alert:
-            raise TimeoutException(f'Alert not found after {timeout} seconds')
+            msg = f'Alert not found after {timeout} seconds'
+            raise TimeoutException(msg)
 
         return alert
 

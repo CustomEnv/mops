@@ -8,7 +8,7 @@ arguments[0].forEach(item => {
 });
 """
 
-storage_get_items_js = "return Object.assign({}, window[arguments[0]])"
+storage_get_items_js = 'return Object.assign({}, window[arguments[0]])'
 
 set_cookies_as_batch_js = """
 arguments[0].forEach(c => {

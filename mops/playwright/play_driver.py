@@ -1,31 +1,31 @@
 from __future__ import annotations
 
+import contextlib
 from dataclasses import asdict
-from urllib.parse import urlparse
 from functools import cached_property
-from typing import List, Union, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
-from playwright._impl._errors import Error as PlaywrightError  # noqa
-
-from PIL import Image
-from playwright.sync_api import Locator, Page, Browser, BrowserContext
+from playwright._impl._errors import Error as PlaywrightError
+from playwright.sync_api import Browser, BrowserContext, Locator, Page
 
 from mops.abstraction.driver_wrapper_abc import DriverWrapperABC
-from mops.mixins.objects.driver import Driver
 from mops.mixins.objects.size import Size
 from mops.shared_utils import get_image
-from mops.utils.internal_utils import get_timeout_in_ms, WAIT_UNIT
+from mops.utils.internal_utils import WAIT_UNIT, get_timeout_in_ms
 from mops.utils.logs import Logging
 
 if TYPE_CHECKING:
+    from PIL import Image
+
     from mops.base.element import Element
+    from mops.mixins.objects.driver import Driver
 
 
 class PlayDriver(Logging, DriverWrapperABC):
-
     def __init__(self, driver_container: Driver):
         """
-        Initializing of desktop web driver with playwright
+        Initialize desktop web driver with playwright.
 
         :param driver_container: Driver that contains playwright instance, context and driver objects
         """
@@ -67,7 +67,7 @@ class PlayDriver(Logging, DriverWrapperABC):
         """
         return self.browser_name.lower() == 'firefox'
 
-    def wait(self, timeout: Union[int, float] = WAIT_UNIT, reason: str = '') -> PlayDriver:
+    def wait(self, timeout: float = WAIT_UNIT, reason: str = '') -> PlayDriver:
         """
         Pauses the execution for a specified amount of time.
 
@@ -156,7 +156,7 @@ class PlayDriver(Logging, DriverWrapperABC):
         self.driver.go_back()
         return self
 
-    def quit(self, silent: bool = False, trace_path: str = 'trace.zip'):
+    def quit(self, silent: bool = False, trace_path: str = 'trace.zip') -> None:
         """
         Quit the driver instance.
 
@@ -176,15 +176,13 @@ class PlayDriver(Logging, DriverWrapperABC):
         :return: :obj:`None`
         """
         if trace_path:
-            try:
+            with contextlib.suppress(PlaywrightError):
                 self.context.tracing.stop(path=trace_path)
-            except PlaywrightError:
-                pass
 
         self._base_driver.close()
         self.context.close()
 
-    def set_cookie(self, cookies: List[dict]) -> PlayDriver:
+    def set_cookie(self, cookies: list[dict]) -> PlayDriver:
         """
         Add a list of cookie dictionaries to the current session.
 
@@ -195,14 +193,8 @@ class PlayDriver(Logging, DriverWrapperABC):
         :return: :obj:`.PlayDriver` - The current instance of the driver wrapper.
         """
         domain = f'.{urlparse(self.current_url).netloc}'
-        processed = [
-            {
-                **c,
-                'path': c.get('path', '/'),
-                'domain': c.get('domain', domain)
-            } for c in cookies
-        ]
-        self.context.add_cookies(processed)  # noqa
+        processed = [{**c, 'path': c.get('path', '/'), 'domain': c.get('domain', domain)} for c in cookies]
+        self.context.add_cookies(processed)
         return self
 
     def clear_cookies(self) -> PlayDriver:
@@ -223,7 +215,7 @@ class PlayDriver(Logging, DriverWrapperABC):
         self.context.clear_cookies(name=name)
         return self
 
-    def get_cookies(self) -> List[dict]:
+    def get_cookies(self) -> list[dict]:
         """
         Retrieve a list of cookie dictionaries corresponding to the cookies visible in the current session.
 
@@ -254,7 +246,7 @@ class PlayDriver(Logging, DriverWrapperABC):
 
     def execute_script(self, script: str, *args: Any) -> Any:
         """
-        Synchronously executes JavaScript in the current window or frame.
+        Execute JavaScript synchronously in the current window or frame.
         Compatible with Selenium's `execute_script` method.
 
         :param script: The JavaScript code to execute.
@@ -324,9 +316,9 @@ class PlayDriver(Logging, DriverWrapperABC):
         height = self.execute_script('return window.outerHeight')
         return Size(width=width, height=height)
 
-    def screenshot_image(self, screenshot_base: bytes = None) -> Image:
+    def screenshot_image(self, screenshot_base: bytes | None = None) -> Image:
         """
-        Returns a :class:`PIL.Image.Image` object representing the screenshot of the web page.
+        Return a :class:`PIL.Image.Image` object representing the screenshot of the web page.
         Appium iOS: Removes native controls from image manually
 
         :param screenshot_base: Screenshot binary data (optional).
@@ -334,7 +326,7 @@ class PlayDriver(Logging, DriverWrapperABC):
         :type screenshot_base: bytes
         :return: :class:`PIL.Image.Image`
         """
-        screenshot_base = screenshot_base if screenshot_base else self.screenshot_base
+        screenshot_base = screenshot_base or self.screenshot_base
         return get_image(screenshot_base)
 
     @property
@@ -346,7 +338,7 @@ class PlayDriver(Logging, DriverWrapperABC):
         """
         return self.driver.screenshot()
 
-    def get_all_tabs(self) -> List[Page]:
+    def get_all_tabs(self) -> list[Page]:
         """
         Selenium/Playwright only: Retrieve all opened tabs.
 
@@ -385,10 +377,7 @@ class PlayDriver(Logging, DriverWrapperABC):
         :type tab: int
         :return: :obj:`.PlayDriver` - The current instance of the driver wrapper, now switched to the specified tab.
         """
-        if tab == -1:
-            tab = self.get_all_tabs()[tab]
-        else:
-            tab = self.get_all_tabs()[tab - 1]
+        tab = self.get_all_tabs()[tab] if tab == -1 else self.get_all_tabs()[tab - 1]
 
         self.driver = tab
         self.driver.bring_to_front()

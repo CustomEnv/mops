@@ -1,29 +1,33 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Union, Any, Type
+from typing import TYPE_CHECKING, Any
 
-from playwright.sync_api import Page as PlaywrightDriver
 from appium.webdriver.webdriver import WebDriver as AppiumDriver
+from playwright.sync_api import Page as PlaywrightDriver
 from selenium.webdriver.remote.webdriver import WebDriver as SeleniumDriver
 
 from mops.abstraction.page_abc import PageABC
-from mops.base.driver_wrapper import DriverWrapper
 from mops.base.element import Element
+from mops.exceptions import DriverWrapperException
+from mops.mixins.driver_mixin import DriverMixin, get_driver_wrapper_from_object
+from mops.mixins.internal_mixin import InternalMixin
 from mops.playwright.play_page import PlayPage
 from mops.selenium.pages.mobile_page import MobilePage
 from mops.selenium.pages.web_page import WebPage
-from mops.exceptions import DriverWrapperException
-from mops.mixins.driver_mixin import get_driver_wrapper_from_object, DriverMixin
-from mops.mixins.internal_mixin import InternalMixin
-from mops.mixins.objects.locator import Locator
-from mops.utils.logs import Logging
-from mops.utils.previous_object_driver import PreviousObjectDriver, set_instance_frame
 from mops.utils.internal_utils import (
     WAIT_PAGE,
-    initialize_objects,
     extract_named_objects,
+    initialize_objects,
 )
+from mops.utils.logs import Logging
+from mops.utils.previous_object_driver import PreviousObjectDriver, set_instance_frame
+
+if TYPE_CHECKING:
+    from typing import Self
+
+    from mops.base.driver_wrapper import DriverWrapper
+    from mops.mixins.objects.locator import Locator
 
 
 class Page(DriverMixin, InternalMixin, Logging, PageABC):
@@ -40,28 +44,30 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
     """
 
     _object = 'page'
-    _base_cls: Type[PlayPage, MobilePage, WebPage]
+    _base_cls: type[PlayPage, MobilePage, WebPage]
 
     url: str
-    log_locator: Union[str, None] = None
-    locator_type: Union[str, None] = None
+    log_locator: str | None = None
+    locator_type: str | None = None
 
-    def __new__(cls, *args, **kwargs):
-        instance = super(Page, cls).__new__(cls)
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
+        """Create a new Page instance and set the frame for multi-session tracking."""
+        instance = super().__new__(cls)
         set_instance_frame(instance)
         return instance
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Return a string representation of this Page."""
         return self._repr_builder()
 
     def __init__(
-            self,
-            locator: Union[Locator, str] = '',
-            name: str = '',
-            driver_wrapper: Union[DriverWrapper, Any] = None
+        self,
+        locator: Locator | str = '',
+        name: str = '',
+        driver_wrapper: DriverWrapper | Any = None,
     ):
         """
-        Initializes a Page based on the current driver.
+        Initialize a Page based on the current driver.
 
         :param locator: The anchor locator of the page. `.LocatorType` is optional.
         :type locator: typing.Union[Locator, str]
@@ -95,11 +101,12 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
         elif self._driver_is_instance(SeleniumDriver):
             self._base_cls = WebPage
         else:
-            raise DriverWrapperException(
+            msg = (
                 f'Cannot initialize {Page.__name__}: '
                 f'unsupported driver type "{type(self.driver).__name__}". '
                 f'Expected Playwright, Appium or Selenium driver instance'
             )
+            raise DriverWrapperException(msg)
 
         self._set_static(self._base_cls)
         self._base_cls.__init__(self)
@@ -146,12 +153,12 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
         :type url: str
         :return: :obj:`Page` - The current instance of the page object.
         """
-        url = self.url if not url else url
+        url = url or self.url
         self.driver_wrapper.get(url)
         self.wait_page_loaded()
         return self
 
-    def wait_page_loaded(self, silent: bool = False, timeout: Union[int, float] = WAIT_PAGE) -> Page:
+    def wait_page_loaded(self, silent: bool = False, timeout: float = WAIT_PAGE) -> Page:
         """
         Wait until the page is fully loaded by checking the visibility of the anchor element and other page elements.
 
@@ -170,9 +177,9 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
         self.anchor.wait_visibility(timeout=timeout, silent=True)
 
         for element in self.sub_elements.values():
-            if getattr(element, 'wait') is False:
+            if element.wait is False:
                 element.wait_hidden(timeout=timeout, silent=True)
-            elif getattr(element, 'wait') is True:
+            elif element.wait is True:
                 element.wait_visibility(timeout=timeout, silent=True)
         return self
 
@@ -190,7 +197,7 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
 
         if with_elements:
             for element in self.sub_elements.values():
-                if getattr(element, 'wait'):
+                if element.wait:
                     result &= element.is_displayed(silent=True)
                     if not result:
                         self.log(f'Element "{element.name}" is not displayed', level='debug')
@@ -202,15 +209,15 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
 
         return result
 
-    def _modify_sub_elements(self):
+    def _modify_sub_elements(self) -> None:
         """
-        Initializing of attributes with type == Element.
+        Initialize attributes with type == Element.
         Required for classes with base == Page.
         """
         self.sub_elements = extract_named_objects(self, Element)
         initialize_objects(self, self.sub_elements)
 
-    def _modify_page_driver_wrapper(self, driver_wrapper: Any):
+    def _modify_page_driver_wrapper(self, driver_wrapper: Any) -> None:
         """
         Modify current object if driver_wrapper is not given. Required for Page that placed into functions:
         - sets driver from previous object

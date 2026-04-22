@@ -1,58 +1,70 @@
 from __future__ import annotations
 
-import functools
-import time
 from abc import ABCMeta
 from copy import copy
+import functools
 from functools import cached_property
-from typing import Union, List, Type, Tuple, Optional, TYPE_CHECKING
+import time
+from typing import TYPE_CHECKING, Any
 
-from PIL.Image import Image
-
-from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes, scroll_into_view_blocks
-from mops.mixins.objects.visual_comaprison_mixin import hide_before_screenshot, reveal_after_screenshot
-from mops.mixins.objects.wait_result import Result
-from playwright.sync_api import Page as PlaywrightDriver
 from appium.webdriver.webdriver import WebDriver as AppiumDriver
+from playwright.sync_api import Page as PlaywrightDriver
 from selenium.common import WebDriverException
 from selenium.webdriver.remote.webdriver import WebDriver as SeleniumDriver
 
 from mops.abstraction.element_abc import ElementABC
-from mops.base.driver_wrapper import DriverWrapper
-from mops.exceptions import *
+from mops.exceptions import (
+    ContinuousWaitException,
+    DriverWrapperException,
+    TimeoutException,
+    UnexpectedElementsCountException,
+    UnexpectedElementSizeException,
+    UnexpectedTextException,
+    UnexpectedValueException,
+    UnsuitableArgumentsException,
+)
+from mops.mixins.driver_mixin import DriverMixin, get_driver_wrapper_from_object
+from mops.mixins.internal_mixin import InternalMixin, get_element_info
+from mops.mixins.objects.scrolls import ScrollTo, ScrollTypes, scroll_into_view_blocks
+from mops.mixins.objects.visual_comaprison_mixin import hide_before_screenshot, reveal_after_screenshot
+from mops.mixins.objects.wait_result import Result
 from mops.playwright.play_element import PlayElement
 from mops.selenium.elements.mobile_element import MobileElement
 from mops.selenium.elements.web_element import WebElement
-from mops.mixins.driver_mixin import get_driver_wrapper_from_object, DriverMixin
-from mops.mixins.internal_mixin import InternalMixin, get_element_info
-from mops.mixins.objects.box import Box
-from mops.mixins.objects.locator import Locator
-from mops.mixins.objects.size import Size
+from mops.utils.decorators import wait_condition, wait_continuous
+from mops.utils.internal_utils import (
+    QUARTER_WAIT_EL,
+    WAIT_EL,
+    extract_named_objects,
+    initialize_objects,
+    is_target_on_screen,
+    set_parent_for_attr,
+)
 from mops.utils.logs import Logging, LogLevel
 from mops.utils.previous_object_driver import PreviousObjectDriver, set_instance_frame
 from mops.visual_comparison import VisualComparison
-from mops.keyboard_keys import KeyboardKeys
-from mops.utils.internal_utils import (
-    WAIT_EL,
-    is_target_on_screen,
-    initialize_objects,
-    extract_named_objects,
-    set_parent_for_attr,
-    QUARTER_WAIT_EL,
-)
-from mops.utils.decorators import wait_condition, wait_continuous
 
 if TYPE_CHECKING:
+    from typing import Self
+
+    from PIL.Image import Image
+
+    from mops.base.driver_wrapper import DriverWrapper
     from mops.base.group import Group
+    from mops.keyboard_keys import KeyboardKeys
+    from mops.mixins.objects.box import Box
+    from mops.mixins.objects.locator import Locator
+    from mops.mixins.objects.size import Size
 
 
 class ElementMeta(ABCMeta):
-    def __new__(mcs, name, bases, namespace, **kwargs):
+    def __new__(mcs, name: str, bases: tuple, namespace: dict, **kwargs: Any) -> ElementMeta:
+        """Create a new Element class and wrap its __init__ to call _modify_sub_elements."""
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         orig_init = cls.__init__
 
         @functools.wraps(orig_init)
-        def wrapped_init(self, *args, **kw):
+        def wrapped_init(self: Any, *args: Any, **kw: Any) -> None:
             orig_init(self, *args, **kw)
             if type(self) is cls and getattr(self, '_initialized', False):
                 self._modify_sub_elements()
@@ -70,40 +82,45 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
     It dynamically adapts to different driver types (Playwright, Appium, Selenium)
     and provides a unified interface for UI interactions.
     """
+
     _object: str = 'element'
     _initialized: bool = False
     _is_locator_configured: bool = False
-    _base_cls: Type[PlayElement, MobileElement, WebElement]
+    _base_cls: type[PlayElement, MobileElement, WebElement]
 
-    source_locator: Union[Locator, str]
+    source_locator: Locator | str
 
-    def __new__(cls, *args, **kwargs):
-        instance = super(Element, cls).__new__(cls)
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
+        """Create a new Element instance and set the frame for multi-session tracking."""
+        instance = super().__new__(cls)
         set_instance_frame(instance)
         return instance
 
-    def __copy__(self):
+    def __copy__(self) -> Self:
+        """Return a shallow copy of this Element."""
         new = object.__new__(self.__class__)
         new.__dict__.update(self.__dict__)
         return new
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Return a string representation of this Element."""
         return self._repr_builder()
 
-    def __call__(self, driver_wrapper: DriverWrapper = None):
+    def __call__(self, driver_wrapper: DriverWrapper = None) -> Self:
+        """Initialize the element with the given driver wrapper and return self."""
         self.__full_init__(driver_wrapper=get_driver_wrapper_from_object(driver_wrapper))
         return self
 
     def __init__(
-            self,
-            locator: Union[Locator, str],
-            name: str = '',
-            parent: Union[Group, Element, bool] = None,
-            wait: Optional[bool] = None,
-            driver_wrapper: Union[DriverWrapper, Any] = None,
+        self,
+        locator: Locator | str,
+        name: str = '',
+        parent: Group | Element | bool = None,
+        wait: bool | None = None,
+        driver_wrapper: DriverWrapper | Any = None,
     ):
         """
-        Initializes an Element based on the current driver.
+        Initialize an Element based on the current driver.
 
         If no driver is available, initialization is skipped and will be handled later in a Page or Group.
 
@@ -157,11 +174,12 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         elif self._driver_is_instance(SeleniumDriver):
             self._base_cls = WebElement
         else:
-            raise DriverWrapperException(
+            msg = (
                 f'Cannot initialize {self.__class__.__name__}: '
                 f'unsupported driver type "{type(self.driver).__name__}". '
                 f'Expected Playwright, Appium or Selenium driver instance'
             )
+            raise DriverWrapperException(msg)
 
         self._set_static(self._base_cls)
         self._base_cls.__init__(self)
@@ -169,18 +187,21 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     @property
     def locator(self) -> str:
+        """Return the element locator string."""
         if self.driver_wrapper and not self._is_locator_configured:
             self._set_locator()
 
         return self._locator
 
     @locator.setter
-    def locator(self, value: Union[Locator, str]) -> None:
+    def locator(self, value: Locator | str) -> None:
+        """Set the element locator."""
         self._log_locator = value
         self._locator = value
 
     @property
     def locator_type(self) -> str:
+        """Return the element locator type."""
         if self.driver_wrapper and not self._is_locator_configured:
             self._set_locator()
 
@@ -188,10 +209,12 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     @locator_type.setter
     def locator_type(self, value: str) -> None:
+        """Set the element locator type."""
         self._locator_type = value
 
     @property
     def log_locator(self) -> str:
+        """Return the element locator string for logging."""
         if self.driver_wrapper and not self._is_locator_configured:
             self._set_locator()
 
@@ -199,6 +222,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     @log_locator.setter
     def log_locator(self, value: str) -> None:
+        """Set the element locator string for logging."""
         self._log_locator = value
 
     # Following methods works same for both Selenium/Appium and Playwright APIs using internal methods
@@ -221,7 +245,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         self.clear_text(silent=True).type_text(text, silent=True)
         return self
 
-    def send_keyboard_action(self, action: Union[str, KeyboardKeys]) -> Element:
+    def send_keyboard_action(self, action: str | KeyboardKeys) -> Element:
         """
         Send a keyboard action to the current element (e.g., press a key or shortcut).
 
@@ -242,14 +266,14 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
     @wait_continuous
     @wait_condition
     def wait_visibility(
-            self,
-            *,
-            timeout: int = WAIT_EL,
-            silent: bool = False,
-            continuous: Union[bool, int, float] = False,
+        self,
+        *,
+        timeout: int = WAIT_EL,
+        silent: bool = False,
+        continuous: bool | float = False,
     ) -> Element:
         """
-        Waits until the element becomes visible.
+        Wait until the element becomes visible.
          **Note:** The method requires the use of named arguments.
 
         A continuous visibility verification may be applied for given
@@ -275,18 +299,18 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
-        return Result(  # noqa
+        return Result(
             execution_result=self.is_displayed(silent=True),
             log=f'Wait until "{self.name}" becomes visible',
-            exc=TimeoutException(f'"{self.name}" not visible', info=self)
+            exc=TimeoutException(f'"{self.name}" not visible', info=self),
         )
 
     def wait_visibility_without_error(
-            self,
-            *,
-            timeout: Union[int, float] = QUARTER_WAIT_EL,
-            silent: bool = False,
-            continuous: Union[bool, int, float] = False,
+        self,
+        *,
+        timeout: float = QUARTER_WAIT_EL,
+        silent: bool = False,
+        continuous: bool | float = False,
     ) -> Element:
         """
         Wait for the element to become visible, without raising an error if it does not.
@@ -329,14 +353,14 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
     @wait_continuous
     @wait_condition
     def wait_hidden(
-            self,
-            *,
-            timeout: int = WAIT_EL,
-            silent: bool = False,
-            continuous: Union[bool, int, float] = False,
+        self,
+        *,
+        timeout: int = WAIT_EL,
+        silent: bool = False,
+        continuous: bool | float = False,
     ) -> Element:
         """
-        Waits until the element becomes hidden.
+        Wait until the element becomes hidden.
          **Note:** The method requires the use of named arguments.
 
         A continuous invisibility verification may be applied for given
@@ -362,18 +386,18 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
-        return Result(  # noqa
+        return Result(
             execution_result=self.is_hidden(silent=True),
             log=f'Wait until "{self.name}" becomes hidden',
             exc=TimeoutException(f'"{self.name}" still visible', info=self),
         )
 
     def wait_hidden_without_error(
-            self,
-            *,
-            timeout: Union[int, float] = QUARTER_WAIT_EL,
-            silent: bool = False,
-            continuous: Union[bool, int, float] = False,
+        self,
+        *,
+        timeout: float = QUARTER_WAIT_EL,
+        silent: bool = False,
+        continuous: bool | float = False,
     ) -> Element:
         """
         Wait for the element to become hidden, without raising an error if it does not.
@@ -415,8 +439,8 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     @wait_condition
     def wait_availability(self, *, timeout: int = WAIT_EL, silent: bool = False) -> Element:
-        """
-        Waits until the element becomes available in DOM tree. \n
+        r"""
+        Wait until the element becomes available in DOM tree. \n
          **Note:** The method requires the use of named arguments.
 
         **Selenium:**
@@ -436,7 +460,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         :type silent: bool
         :return: :class:`Element`
         """
-        return Result(  # noqa
+        return Result(
             execution_result=self.is_available(),
             log=f'Wait until presence of "{self.name}"',
             exc=TimeoutException(f'"{self.name}" not available in DOM', info=self),
@@ -444,11 +468,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     @wait_condition
     def wait_for_text(
-            self,
-            expected_text: Optional[str] = None,
-            *,
-            timeout: Union[int, float] = WAIT_EL,
-            silent: bool = False
+        self,
+        expected_text: str | None = None,
+        *,
+        timeout: float = WAIT_EL,
+        silent: bool = False,
     ) -> Element:
         """
         Wait for the presence of a specific text in the current element, or for any non-empty text.
@@ -485,15 +509,15 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
             error = f'Text of "{self.name}" is empty'
             log_msg = f'Wait for any text of "{self.name}"'
 
-        return Result(result, log_msg, UnexpectedTextException(error, actual_text, expected_text))  # noqa
+        return Result(result, log_msg, UnexpectedTextException(error, actual_text, expected_text))
 
     @wait_condition
     def wait_for_value(
-            self,
-            expected_value: Optional[str] = None,
-            *,
-            timeout: Union[int, float] = WAIT_EL,
-            silent: bool = False
+        self,
+        expected_value: str | None = None,
+        *,
+        timeout: float = WAIT_EL,
+        silent: bool = False,
     ) -> Element:
         """
         Wait for a specific value in the current element, or for any non-empty value.
@@ -530,10 +554,10 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
             error = f'Value of "{self.name}" is empty'
             log_msg = f'Wait for any value inside "{self.name}"'
 
-        return Result(result, log_msg, UnexpectedValueException(error, actual_value, expected_value))  # noqa
+        return Result(result, log_msg, UnexpectedValueException(error, actual_value, expected_value))
 
     @wait_condition
-    def wait_enabled(self, *, timeout: Union[int, float] = WAIT_EL, silent: bool = False) -> Element:
+    def wait_enabled(self, *, timeout: float = WAIT_EL, silent: bool = False) -> Element:
         """
         Wait for the element to become enabled and/or clickable.
 
@@ -556,14 +580,14 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         :type silent: bool
         :return: :class:`Element`
         """
-        return Result(  # noqa
+        return Result(
             execution_result=self.is_enabled(silent=True),
             log=f'Wait until "{self.name}" becomes enabled',
             exc=TimeoutException(f'"{self.name}" is not enabled', info=self),
         )
 
     @wait_condition
-    def wait_disabled(self, *, timeout: Union[int, float] = WAIT_EL, silent: bool = False) -> Element:
+    def wait_disabled(self, *, timeout: float = WAIT_EL, silent: bool = False) -> Element:
         """
         Wait for the element to become disabled.
 
@@ -586,7 +610,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         :type silent: bool
         :return: :class:`Element`
         """
-        return Result(  # noqa
+        return Result(
             execution_result=not self.is_enabled(silent=True),
             log=f'Wait until "{self.name}" becomes disabled',
             exc=TimeoutException(f'"{self.name}" is not disabled', info=self),
@@ -594,11 +618,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     @wait_condition
     def wait_for_size(
-            self,
-            expected_size: Size,
-            *,
-            timeout: Union[int, float] = WAIT_EL,
-            silent: bool = False
+        self,
+        expected_size: Size,
+        *,
+        timeout: float = WAIT_EL,
+        silent: bool = False,
     ) -> Element:
         """
         Wait until element size will be equal to given :class:`.Size` object
@@ -627,7 +651,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         actual = self.size
         is_height_equal = actual.height == expected_size.height if expected_size.height is not None else True
         is_width_equal = actual.width == expected_size.width if expected_size.width is not None else True
-        return Result(  # noqa
+        return Result(
             execution_result=is_height_equal and is_width_equal,
             log=f'Wait until "{self.name}" size will be equal to {expected_size}',
             exc=UnexpectedElementSizeException(f'Unexpected size for "{self.name}"', actual, expected_size),
@@ -635,11 +659,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     @wait_condition
     def wait_elements_count(
-            self,
-            expected_count: int,
-            *,
-            timeout: Union[int, float] = WAIT_EL,
-            silent: bool = False
+        self,
+        expected_count: int,
+        *,
+        timeout: float = WAIT_EL,
+        silent: bool = False,
     ) -> Element:
         """
         Wait until the number of matching elements equals the expected count.
@@ -667,28 +691,28 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         """
         actual_count = self.get_elements_count(silent=True)
         error_msg = f'Unexpected elements count of "{self.name}"'
-        return Result(  # noqa
+        return Result(
             execution_result=actual_count == expected_count,
             log=f'Wait until elements count of "{self.name}" will be equal to "{expected_count}"',
             exc=UnexpectedElementsCountException(error_msg, actual_count, expected_count),
         )
 
-
     @property
-    def all_elements(self) -> Union[List[Element], List[Any]]:
+    def all_elements(self) -> list[Element] | list[Any]:
         """
-        Returns a list of all matching elements.
+        Return a list of all matching elements.
 
         :return: A list of wrapped :class:`Element` objects.
         """
         if getattr(self, '_wrapped', None):
-            raise RecursionError(f'all_elements property already used for {self.name}')
+            msg = f'all_elements property already used for {self.name}'
+            raise RecursionError(msg)
 
         return self._base_cls.all_elements.fget(self)
 
     def is_visible(self, check_displaying: bool = True, silent: bool = False) -> bool:
         """
-        Checks is the current element's top-left corner or bottom-right corner is visible on the screen.
+        Check if the current element's top-left corner or bottom-right corner is visible on the screen.
 
         :param check_displaying: If :obj:`True`, the :func:`is_displayed` method will be called to further verify
           visibility. The check will stop if this method returns :obj:`False`.
@@ -743,11 +767,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         return is_visible
 
     def scroll_into_view(
-            self,
-            block: ScrollTo = ScrollTo.CENTER,
-            behavior: ScrollTypes = ScrollTypes.INSTANT,
-            sleep: Union[int, float] = 0,
-            silent: bool = False,
+        self,
+        block: ScrollTo = ScrollTo.CENTER,
+        behavior: ScrollTypes = ScrollTypes.INSTANT,
+        sleep: float = 0,
+        silent: bool = False,
     ) -> Element:
         """
         Scrolls the element into view using a JavaScript script.
@@ -771,7 +795,8 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
         self.execute_script(
             'arguments[0].scrollIntoView({block: arguments[1], behavior: arguments[2]});',
-            block, behavior
+            block,
+            behavior,
         )
 
         if sleep:
@@ -780,13 +805,13 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         return self
 
     def save_screenshot(
-            self,
-            file_name: str,
-            screenshot_base: Union[bytes, Image] = None,
-            convert_type: str = None
+        self,
+        file_name: str,
+        screenshot_base: bytes | Image = None,
+        convert_type: str | None = None,
     ) -> Image:
         """
-        Saves a screenshot of the element.
+        Save a screenshot of the element.
 
         :param file_name: Path or filename for the screenshot.
         :type file_name: str
@@ -839,7 +864,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     def execute_script(self, script: str, *args: Any) -> Any:
         """
-        Executes a JavaScript script on the element.
+        Execute a JavaScript script on the element.
 
         :param script: JavaScript code to be executed, referring to the element as ``arguments[0]``.
         :type script: str
@@ -847,23 +872,23 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         :type args: :obj:`typing.Any`
         :return: :obj:`typing.Any` result from the script.
         """
-        return self.driver_wrapper.execute_script(script, *[self, *[arg for arg in args]])
+        return self.driver_wrapper.execute_script(script, *[self, *list(args)])
 
     def assert_screenshot(
-            self,
-            filename: str = '',
-            test_name: str = '',
-            name_suffix: str = '',
-            threshold: Union[int, float] = None,
-            delay: Union[int, float] = None,
-            scroll: bool = False,
-            remove: Union[Element, List[Element]] = None,
-            fill_background: Union[str, bool] = False,
-            cut_box: Box = None,
-            hide: Union[Element, List[Element]] = None,
+        self,
+        filename: str = '',
+        test_name: str = '',
+        name_suffix: str = '',
+        threshold: float | None = None,
+        delay: float | None = None,
+        scroll: bool = False,
+        remove: Element | list[Element] = None,
+        fill_background: str | bool = False,
+        cut_box: Box = None,
+        hide: Element | list[Element] = None,
     ) -> None:
         """
-        Asserts that the given screenshot matches the currently taken screenshot.
+        Assert that the given screenshot matches the currently taken screenshot.
 
         :param filename: The full name of the screenshot file.
           If empty - filename will be generated based on test name & :class:`Element` ``name`` argument & platform.
@@ -907,27 +932,32 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         hide_before_screenshot(VisualComparison.always_hide, is_optional=True, dw=self.driver_wrapper)
 
         VisualComparison(self.driver_wrapper, self).assert_screenshot(
-            filename=filename, test_name=test_name, name_suffix=name_suffix, threshold=threshold,
-            remove=remove, fill_background=fill_background, cut_box=cut_box
+            filename=filename,
+            test_name=test_name,
+            name_suffix=name_suffix,
+            threshold=threshold,
+            remove=remove,
+            fill_background=fill_background,
+            cut_box=cut_box,
         )
 
         reveal_after_screenshot(VisualComparison.always_hide, dw=self.driver_wrapper)
 
     def soft_assert_screenshot(
-            self,
-            filename: str = '',
-            test_name: str = '',
-            name_suffix: str = '',
-            threshold: Union[int, float] = None,
-            delay: Union[int, float] = None,
-            scroll: bool = False,
-            remove: Union[Element, List[Element]] = None,
-            fill_background: Union[str, bool] = False,
-            cut_box: Box = None,
-            hide: Union[Element, List[Element]] = None,
-    ) -> Tuple[bool, str]:
+        self,
+        filename: str = '',
+        test_name: str = '',
+        name_suffix: str = '',
+        threshold: float | None = None,
+        delay: float | None = None,
+        scroll: bool = False,
+        remove: Element | list[Element] = None,
+        fill_background: str | bool = False,
+        cut_box: Box = None,
+        hide: Element | list[Element] = None,
+    ) -> tuple[bool, str]:
         """
-        Compares the currently taken screenshot to the expected screenshot and returns a result.
+        Compare the currently taken screenshot to the expected screenshot and return a result.
 
         :param filename: The full name of the screenshot file.
           If empty - filename will be generated based on test name & :class:`Element` ``name`` argument & platform.
@@ -960,7 +990,16 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         """
         try:
             self.assert_screenshot(
-                filename, test_name, name_suffix, threshold, delay, scroll, remove, fill_background, cut_box, hide
+                filename,
+                test_name,
+                name_suffix,
+                threshold,
+                delay,
+                scroll,
+                remove,
+                fill_background,
+                cut_box,
+                hide,
             )
         except AssertionError as exc:
             exc = str(exc)
@@ -969,21 +1008,21 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
         return True, f'No visual mismatch found for {self.name}'
 
-    def get_element_info(self, element: Optional[Element] = None) -> str:
+    def get_element_info(self, element: Element | None = None) -> str:
         """
-        Retrieves detailed logging information for the specified element.
+        Retrieve detailed logging information for the specified element.
 
         :param element: The :class:`Element` for which to collect logging data.
           If :obj:`None`, logging data for the ``parent`` element is used.
         :type element: :class:`Element` or :obj:`None`
         :return: :class:`str` - A string containing the log data.
         """
-        element = element if element else self
+        element = element or self
         return get_element_info(element)
 
-    def _get_all_elements(self, sources: Union[tuple, list]) -> List[Any]:
+    def _get_all_elements(self, sources: tuple | list) -> list[Any]:
         """
-        Retrieves all wrapped elements from the given sources.
+        Retrieve all wrapped elements from the given sources.
 
         :param sources: A list or tuple of source objects
         :type sources: tuple or list
@@ -1003,7 +1042,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     def _modify_sub_elements(self) -> None:
         """
-        Initializing of attributes with type == Element.
+        Initialize attributes with type == Element.
         Required for classes with base == Element.
 
         :return: :obj:`None`
@@ -1025,7 +1064,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
             PreviousObjectDriver().set_driver_from_previous_object(self)
 
     @cached_property
-    def _element_cls(self) -> Type[Element]:
+    def _element_cls(self) -> type[Element]:
         """
         Returns the `Element` class.
         This can be overridden for performance optimizations.

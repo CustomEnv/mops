@@ -1,4 +1,4 @@
-name: Static Tests
+name: Ruff
 
 on:
   push:
@@ -12,26 +12,21 @@ on:
       - '.gitignore'
   pull_request:
 
-
 jobs:
-  static:
+  ruff:
     runs-on: ubuntu-24.04
-
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: [ "3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Environment
-        id: setup
         uses: ./.github/actions/setup
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.12'
 
-      - name: Run Static tests with ${{ matrix.python-version }}
-        run: |
-          uv run --no-config pytest tests/static_tests
+      - name: Ruff lint
+        run: uv run ruff check
+
+      - name: Ruff format
+        run: uv run ruff format --check

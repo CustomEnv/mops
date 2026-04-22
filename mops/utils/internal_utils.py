@@ -1,21 +1,22 @@
 from __future__ import annotations
 
-import sys
-import inspect
 from copy import copy
-from typing import TYPE_CHECKING
-from functools import lru_cache
-from typing import Any, Union, Callable
+from functools import cache
+import inspect
+import sys
+from typing import TYPE_CHECKING, Any
 
 from selenium.common.exceptions import WebDriverException as SeleniumWebDriverException
 
 from mops.exceptions import DriverWrapperException as MopsDriverWrapperException
-from mops.mixins.objects.size import Size
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from mops.base.element import Element
     from mops.base.group import Group
     from mops.base.page import Page
+    from mops.mixins.objects.size import Size
 
 
 WAIT_METHODS_DELAY = 0.1
@@ -26,18 +27,54 @@ QUARTER_WAIT_EL = HALF_WAIT_EL / 2
 WAIT_PAGE = 15
 
 
-all_tags = frozenset({'h1', 'h2', 'h3', 'h4', 'h5', 'head', 'body', 'input', 'section', 'button', 'a', 'link', 'header',
-                      'div', 'textarea', 'svg', 'circle', 'iframe', 'label', 'p', 'tr', 'th', 'table', 'tbody', 'td',
-                      'select', 'nav', 'li', 'form', 'footer', 'frame', 'area', 'span', 'video'})
+all_tags = frozenset(
+    {
+        'h1',
+        'h2',
+        'h3',
+        'h4',
+        'h5',
+        'head',
+        'body',
+        'input',
+        'section',
+        'button',
+        'a',
+        'link',
+        'header',
+        'div',
+        'textarea',
+        'svg',
+        'circle',
+        'iframe',
+        'label',
+        'p',
+        'tr',
+        'th',
+        'table',
+        'tbody',
+        'td',
+        'select',
+        'nav',
+        'li',
+        'form',
+        'footer',
+        'frame',
+        'area',
+        'span',
+        'video',
+    }
+)
 
 
-def get_dict(obj: Any):
+def get_dict(obj: Any) -> dict:
+    """Return the __dict__ of the given object."""
     return obj.__dict__
 
 
-def safe_call(func: Callable, *args, **kwargs) -> Union[Any, None]:
+def safe_call(func: Callable, *args: Any, **kwargs: Any) -> Any | None:
     """
-    Wrapper for any method that raises internal exceptions to prevent exceptions
+    Wrap any method that raises internal exceptions to prevent exceptions
 
     :param func: any internal function
     :param args: any args for function
@@ -55,8 +92,8 @@ def safe_call(func: Callable, *args, **kwargs) -> Union[Any, None]:
         pass
 
 
-@lru_cache(maxsize=None)
-def get_timeout_in_ms(timeout: Union[int, float]):
+@cache
+def get_timeout_in_ms(timeout: float) -> float:
     """
     Get timeout in milliseconds for playwright
 
@@ -66,37 +103,42 @@ def get_timeout_in_ms(timeout: Union[int, float]):
     return validate_timeout(timeout) * 1000
 
 
-def get_frame(frame=1):
+def get_frame(frame: int = 1) -> Any:
     """
     Get frame by given id
 
     :param frame: frame id, "current" by default
     :return: frame
     """
-    return sys._getframe(frame)  # noqa
+    return sys._getframe(frame)
 
 
 def is_element(obj: Any) -> bool:
+    """Return True if the given object is an element."""
     return getattr(obj, '_object', None) == 'element'
 
 
 def is_element_instance(obj: Any) -> bool:
+    """Return True if the given object is an element or group."""
     return getattr(obj, '_object', None) in ('element', 'group')
 
 
 def is_group(obj: Any) -> bool:
+    """Return True if the given object is a group."""
     return getattr(obj, '_object', None) == 'group'
 
 
 def is_page(obj: Any) -> bool:
+    """Return True if the given object is a page."""
     return getattr(obj, '_object', None) == 'page'
 
 
 def is_driver_wrapper(obj: Any) -> bool:
+    """Return True if the given object is a driver wrapper."""
     return getattr(obj, '_object', None) == 'driver_wrapper'
 
 
-def initialize_objects(current_object: Union[Element, Group, Page], sub_elements: dict):
+def initialize_objects(current_object: Element | Group | Page, sub_elements: dict) -> None:
     """
     Copy objects and initializing them with driver_wrapper from current object
 
@@ -113,9 +155,9 @@ def initialize_objects(current_object: Union[Element, Group, Page], sub_elements
         copied_obj._modify_sub_elements()
 
 
-def set_parent_for_attr(current_object: Element, with_copy: bool = False):
+def set_parent_for_attr(current_object: Element, with_copy: bool = False) -> None:
     """
-    Sets parent for all Elements/Group of given class.
+    Set parent for all Elements/Group of given class.
     Should be called ONLY in Group object or all_elements method.
     Copy of objects will be executed if with_copy is True. Required for all_elements method
 
@@ -126,19 +168,19 @@ def set_parent_for_attr(current_object: Element, with_copy: bool = False):
     current_is_group = is_group(current_object)
 
     for name, obj in current_object.sub_elements.items():
+        element = copy(obj) if with_copy else obj
         if with_copy:
-            obj = copy(obj)
-            current_object.sub_elements[name] = obj
-            setattr(current_object, name, obj)
+            current_object.sub_elements[name] = element
+            setattr(current_object, name, element)
 
-        if (current_is_group and obj.parent is None) or is_group(obj.parent):
-            obj.parent = current_object
+        if (current_is_group and element.parent is None) or is_group(element.parent):
+            element.parent = current_object
 
-        if getattr(obj, 'sub_elements', None):
-            set_parent_for_attr(obj, with_copy)
+        if getattr(element, 'sub_elements', None):
+            set_parent_for_attr(element, with_copy)
 
 
-def promote_parent_element(obj: Any, base_obj: Any):
+def promote_parent_element(obj: Any, base_obj: Any) -> None:
     """
     Promote parent object in Element if parent is another Element
 
@@ -149,7 +191,7 @@ def promote_parent_element(obj: Any, base_obj: Any):
     initial_parent = obj.parent
 
     if not initial_parent:
-        return None
+        return
 
     if is_element_instance(initial_parent) and initial_parent is not base_obj:
         parent_id = initial_parent.__base_obj_id
@@ -159,21 +201,18 @@ def promote_parent_element(obj: Any, base_obj: Any):
                 break
 
 
-def extract_named_objects(obj: Any, instance: Union[type, tuple] = None) -> dict:
+def extract_named_objects(obj: Any, instance: type | tuple | None = None) -> dict:
     """
     Return all objects of given object or by instance
     Removing parent attribute from list to avoid infinite recursion and all dunder attributes
 
     :returns: dict of page elements and page objects
     """
-    elements = {}
-
-    for attribute, value in extract_all_named_objects(obj).items():
-        if not instance or isinstance(value, instance):
-            if not attribute.startswith('__') and attribute != 'parent':
-                elements[attribute] = value
-
-    return elements
+    return {
+        attribute: value
+        for attribute, value in extract_all_named_objects(obj).items()
+        if (not instance or isinstance(value, instance)) and not attribute.startswith('__') and attribute != 'parent'
+    }
 
 
 def extract_all_named_objects(reference_obj: Any) -> dict:
@@ -209,7 +248,7 @@ def get_attributes_from_object(reference_obj: Any) -> dict:
     return dict(reference_obj.__dict__)
 
 
-def is_target_on_screen(x: int, y: int, possible_range: Size):
+def is_target_on_screen(x: int, y: int, possible_range: Size) -> bool:
     """
     Check is given coordinates fit into given range
     An safe value will be applied due to rounding a number when get size/location of element
@@ -248,24 +287,30 @@ def calculate_coordinate_to_click(element: Any, x: int = 0, y: int = 0) -> tuple
     return int(x), int(y)
 
 
-def validate_timeout(timeout) -> Union[float, int]:
+def validate_timeout(timeout: Any) -> float | int:
+    """Validate that timeout is a positive int or float and return it."""
     if type(timeout) not in (int, float):
-        raise TypeError('The type of `timeout` arg must be int or float')
+        msg = 'The type of `timeout` arg must be int or float'
+        raise TypeError(msg)
 
     if timeout <= 0:
-        raise ValueError('The `timeout` value must be a positive number')
+        msg = 'The `timeout` value must be a positive number'
+        raise ValueError(msg)
 
     return timeout
 
 
-def validate_silent(silent) -> bool:
+def validate_silent(silent: Any) -> bool:
+    """Validate that silent is a bool and return it."""
     if not isinstance(silent, bool):
-        raise TypeError(f'The type of `silent` arg must be bool')
+        msg = 'The type of `silent` arg must be bool'
+        raise TypeError(msg)
 
     return silent
 
 
-def increase_delay(delay, max_delay: Union[int, float] = 1.5) -> Union[int, float]:
+def increase_delay(delay: float, max_delay: float = 1.5) -> int | float:
+    """Double the delay up to max_delay, then return delay unchanged."""
     if delay < max_delay:
         return delay + delay
     return delay

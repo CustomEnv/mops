@@ -1,24 +1,25 @@
 from __future__ import annotations
 
 from dataclasses import astuple
-from typing import List
+from typing import TYPE_CHECKING, Any
 
-from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
-
-from mops.mixins.objects.size import Size
 from mops.selenium.core.core_driver import CoreDriver
-from mops.mixins.objects.driver import Driver
+
+if TYPE_CHECKING:
+    from selenium.webdriver.remote.webdriver import WebDriver as SeleniumWebDriver
+
+    from mops.mixins.objects.driver import Driver
+    from mops.mixins.objects.size import Size
 
 
 class WebDriver(CoreDriver):
-
-    def __init__(self, driver_container: Driver, *args, **kwargs):  # noqa
+    def __init__(self, driver_container: Driver, *args: Any, **kwargs: Any) -> None:
         """
-        Initializing of desktop web driver with selenium
+        Initialize desktop web driver with selenium.
 
         :param driver_container: Driver that contains selenium driver object
         """
-        self.driver : SeleniumWebDriver = driver_container.driver
+        self.driver: SeleniumWebDriver = driver_container.driver
         self.is_desktop = True
         self.original_tab = self.driver.current_window_handle
         self.browser_name = self.driver.caps.get('browserName', None)
@@ -44,7 +45,7 @@ class WebDriver(CoreDriver):
         self.driver.set_window_size(width, height)
         return self
 
-    def get_all_tabs(self) -> List[str]:
+    def get_all_tabs(self) -> list[str]:
         """
         Selenium/Playwright only: Retrieve all opened tabs.
 
@@ -79,10 +80,7 @@ class WebDriver(CoreDriver):
         :type tab: int
         :return: :obj:`.WebDriver` - The current instance of the driver wrapper, now switched to the specified tab.
         """
-        if tab == -1:
-            tab = self.get_all_tabs()[tab]
-        else:
-            tab = self.get_all_tabs()[tab - 1]
+        tab = self.get_all_tabs()[tab] if tab == -1 else self.get_all_tabs()[tab - 1]
 
         self.driver.switch_to.window(tab)
         return self

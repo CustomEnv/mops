@@ -22,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         image: [ "selenoid/chrome:128.0", "selenoid/firefox:125.0"]
-        python-version: [ "3.8", "3.12" ]
+        python-version: [ "3.10", "3.14" ]
 
     services:
       selenoid:

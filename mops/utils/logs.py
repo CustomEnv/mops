@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+from functools import cache
 import logging
+from pathlib import Path
 import sys
-from functools import lru_cache
-from os.path import basename
 from typing import Any
 
 from mops.utils.internal_utils import get_frame, is_driver_wrapper
-
 
 logger = logging.getLogger('mops')
 
@@ -22,7 +21,7 @@ class LogLevel:
 
 def driver_wrapper_logs_settings(level: str = LogLevel.INFO) -> None:
     """
-    Sets driver wrapper log format(unchangeable) and log level (can be changed)
+    Set driver wrapper log format(unchangeable) and log level (can be changed)
 
     :param level: log level to be captured. Example: DEBUG - all, CRITICAL - only highest level priority level
     :return: None
@@ -31,16 +30,18 @@ def driver_wrapper_logs_settings(level: str = LogLevel.INFO) -> None:
     level = getattr(logging, level.upper())
     logger.setLevel(level)
     handler.setLevel(level)
-    handler.setFormatter(logging.Formatter(
-        fmt='[%(asctime)s.%(msecs)03d][%(levelname).1s]%(message)s',
-        datefmt="%h %d][%H:%M:%S"
-    ))
+    handler.setFormatter(
+        logging.Formatter(
+            fmt='[%(asctime)s.%(msecs)03d][%(levelname).1s]%(message)s',
+            datefmt='%h %d][%H:%M:%S',
+        )
+    )
     logger.addHandler(handler)
 
 
 def autolog(message: Any, level: str = LogLevel.INFO) -> None:
     """
-    Logs a message with detailed context in the following format:
+    Log a message with detailed context in the following format:
 
     .. code-block:: text
 
@@ -59,10 +60,9 @@ def autolog(message: Any, level: str = LogLevel.INFO) -> None:
 
 
 class Logging:
-
     def log(self: Any, message: str, level: str = LogLevel.INFO) -> None:
         """
-        Logs a message with detailed context in the following format:
+        Log a message with detailed context in the following format:
 
         .. code-block:: text
 
@@ -77,13 +77,9 @@ class Logging:
         :type level: str
         :return: :obj:`None`
         """
-        if is_driver_wrapper(self):
-            label = self.label
-        else:
-            label = self.driver_wrapper.label
+        label = self.label if is_driver_wrapper(self) else self.driver_wrapper.label
 
         _send_log_message(f'[{label}]{self._get_code_info()} {message}', level)
-        return None
 
     def _get_code_info(self) -> str:
         """
@@ -92,7 +88,7 @@ class Logging:
         :return: log message
         """
         code = get_frame(3).f_code
-        return f'[{basename(code.co_filename)}][{code.co_name}:{code.co_firstlineno}]'
+        return f'[{Path(code.co_filename).name}][{code.co_name}:{code.co_firstlineno}]'
 
 
 def _send_log_message(log_message: str, level: str) -> None:
@@ -106,7 +102,7 @@ def _send_log_message(log_message: str, level: str) -> None:
     logger.log(_get_log_level(level), log_message)
 
 
-@lru_cache(maxsize=None)
+@cache
 def _get_log_level(level: str) -> int:
     """
     Get log level from string. Moved to a different function for using @lru_cache

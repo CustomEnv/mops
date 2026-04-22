@@ -7,7 +7,7 @@ name = "mops"
 dynamic = ["version"]
 description = "Wrapper of Selenium, Appium and Playwright with single API"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
     { name = "Podolian Vladimir", email = "vladimir.podolyan64@gmail.com" }
@@ -15,11 +15,11 @@ authors = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Quality Assurance",
     "Topic :: Software Development :: Testing :: Acceptance",
@@ -27,28 +27,25 @@ classifiers = [
 
 dependencies = [
     "Appium-Python-Client>=3.1.0",
-    "playwright>=1.48.0",
+    "playwright>=1.58.0",
     "selenium>=4.12.0",
-
-    "numpy>=2.0.1; python_version >= '3.11'",
-    "numpy>=1.24.2, <2.0.0; python_version >='3.8' and python_version <= '3.10'",
-
-    "opencv-python>=4.10.0.84; python_version>='3.11'",
-    "opencv-python>=4.5.5.64, <4.10.0.84; python_version>='3.8' and python_version <= '3.10'",
-
-    "scikit-image>=0.24.0; python_version>='3.11'",
-    "scikit-image>=0.20.0, <0.24.0; python_version>='3.8' and python_version <= '3.10'",
-
-    "Pillow>=10.4.0; python_version>='3.12'",
-    "Pillow>=9.4.0, <10.4.0; python_version>='3.8' and python_version <= '3.11'",
+    "numpy>=2.3.2; python_version >= '3.11'",
+    "numpy>=2.0.1,<2.3; python_version == '3.10'",
+    "opencv-python>=4.13.0",
+    "scikit-image>=0.26.0; python_version >= '3.11'",
+    "scikit-image>=0.24.0,<0.26; python_version == '3.10'",
+    "Pillow>=12.1.0",
 ]
 
 [tool.uv]
 package = false
+constraint-dependencies = [
+    "greenlet>=3.3.2",
+]
 dev-dependencies = [
     # Project requirements
     "Appium-Python-Client==3.1.0",
-    "playwright==1.48.0",
+    "playwright==1.58.0",
     "selenium==4.12.0",
 
     # Tests requirements
@@ -56,11 +53,14 @@ dev-dependencies = [
     "pytest==7.4.3",
     "allure-pytest==2.12.0",
     "pytest-rerunfailures==11.1",
+    "pytest-xdist==3.6.1",
+    "pre-commit==4.5.1",
 
     # Docs requirements
     "furo==2024.8.6",
     "sphinx==7.1.2",
     "myst-parser==3.0.1",
+    "ruff==0.15.8",
 ]
 
 [project.urls]
@@ -81,3 +81,57 @@ version = { attr = "mops.__version__" }
 # Temporary workaround for https://github.com/astral-sh/uv/issues/9513, https://github.com/pypa/setuptools/issues/4759
 [tool.setuptools]
 license-files = []
+
+[tool.ruff]
+line-length = 120
+include = ["**/mops/**"]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D107",  # Missing docstring in __init__
+    "D101",  # Missing docstring in public class
+    "D403",  # First word of docstring should be capitalized (conflicts with iOS branding)
+    "D415",  # First line should end with a period, question mark, or exclamation point
+    "D212",  # Multi-line docstring summary should start at the first line
+    "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed
+    "D400",  # First line should end with a period
+    "D100",  # Missing docstring in public module
+    "D105",  # Missing docstring in magic method
+    "ANN204",  # Missing return type annotation for special method
+    "INP001",  # File is part of an implicit namespace package
+    "D203",  # 1 blank line required before class docstring (conflicts with D211)
+    "D205",  # 1 blank line required between summary line and description
+    "D213",  # Multi-line docstring summary should start at the second line (conflicts with D212)
+    "B024",  # Abstract base class without abstract methods (framework pattern)
+    "SLF001",  # Private member accessed
+    "FBT001",  # Boolean-typed positional argument in function definition
+    "FBT002",  # Boolean default positional argument in function definition
+    "ARG002",  # Unused method argument
+    "ARG004",  # Unused static method argument
+    "TD",  # flake8-todos (TD)
+    "FIX",  # flake8-fixme (FIX)
+    "COM812",  # Conflicts with ruff formatter
+]
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
+
+[tool.ruff.lint.isort]
+known-first-party = ["mops"]
+combine-as-imports = true
+force-sort-within-sections = true
+
+[tool.ruff.lint.pylint]
+max-args = 15
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.pyupgrade]
+# Preserve types, even if a file imports `from __future__ import annotations`.
+keep-runtime-typing = true
