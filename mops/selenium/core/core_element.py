@@ -27,6 +27,10 @@ from mops.mixins.internal_mixin import get_element_info
 from mops.mixins.objects.location import Location
 from mops.mixins.objects.size import Size
 from mops.selenium.sel_utils import ActionChains
+from mops.self_healing.config import get_config
+from mops.self_healing.context import is_healing_enabled, no_healing
+from mops.self_healing.healer import Healer, HealingResult
+from mops.self_healing.snapshot import SnapshotStorage
 from mops.shared_utils import _scaled_screenshot, cut_log_data
 from mops.utils.decorators import retry
 from mops.utils.internal_utils import WAIT_EL, get_dict, is_group, safe_call
@@ -41,6 +45,29 @@ if TYPE_CHECKING:
 
     from mops.base.element import Element
     from mops.keyboard_keys import KeyboardKeys
+
+
+_storage: SnapshotStorage | None = None
+_healer: Healer | None = None
+
+
+def _get_healer() -> Healer:
+    global _storage, _healer
+    config = get_config()
+    if _healer is None or (_storage and _storage._db_path != config.storage_path):
+        _storage = SnapshotStorage(config.storage_path)
+        _healer = Healer(_storage, config.score_threshold)
+    return _healer
+
+
+def _parse_healed_locator(healed_locator: str) -> tuple[str, str]:
+    """Convert a ``xpath=//...`` prefixed locator into a ``(By, value)`` tuple."""
+    from selenium.webdriver.common.by import By
+
+    if healed_locator.startswith('xpath='):
+        return By.XPATH, healed_locator[len('xpath='):]
+    # Default fallback: treat as XPath
+    return By.XPATH, healed_locator
 
 
 class CoreElement(ElementABC, ABC):
@@ -274,6 +301,7 @@ class CoreElement(ElementABC, ABC):
         value = self.get_attribute('value', silent=True)
         return '' if value is None else value
 
+    @no_healing
     def is_available(self) -> bool:
         """
         Check if the element is available in DOM tree.
@@ -290,6 +318,7 @@ class CoreElement(ElementABC, ABC):
 
         return element
 
+    @no_healing
     def is_displayed(self, silent: bool = False) -> bool:
         """
         Check if the element is displayed.
@@ -508,12 +537,36 @@ class CoreElement(ElementABC, ABC):
         try:
             element = base.find_element(self.locator_type, self.locator)
             self._cached_element = element
+            # Save snapshot for future healing
+            config = get_config()
+            if config.enabled:
+                locator_key = f'{self.name}::{self.locator}'
+                _get_healer()  # ensure storage is initialized
+                _storage.save_from_element(locator_key, element, self.driver)
         except (SeleniumInvalidArgumentException, SeleniumInvalidSelectorException) as exc:
             self._raise_invalid_selector_exception(exc)
         except SeleniumNoSuchElementException as exc:
+            if is_healing_enabled() and get_config().enabled:
+                result = self._attempt_healing()
+                if result:
+                    healed = base.find_element(*_parse_healed_locator(result.healed_locator))
+                    self._cached_element = healed
+                    return healed
             raise NoSuchElementException(exc.msg) from exc
         else:
             return element
+
+    def _attempt_healing(self) -> HealingResult | None:
+        """
+        Attempt to heal a failed element lookup using the self-healing subsystem.
+
+        :return: :class:`HealingResult` if a suitable candidate was found, :obj:`None` otherwise.
+        """
+        try:
+            locator_key = f'{self.name}::{self.locator}'
+            return _get_healer().heal(self.name, locator_key, self.locator, self.driver)
+        except Exception:
+            return None
 
     def _find_elements(self, wait_parent: bool = False) -> list[SeleniumWebElement | AppiumWebElement]:
         """
