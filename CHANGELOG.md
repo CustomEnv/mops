@@ -2,6 +2,14 @@
 
 <br>
 
+## v3.5.1
+*Release date: 2026-06-23*
+
+### Changed
+- Selenium & Playwright: exponential delay starting at 0.1 seconds between requests for all waiting methods
+
+---
+
 ## v3.5.0
 *Release date: 2026-04-22*
 
