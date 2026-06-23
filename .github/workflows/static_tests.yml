@@ -10,6 +10,7 @@ on:
       - 'CHANGELOG.md'
       - 'LICENSE'
       - '.gitignore'
+      - 'mops/__init__.py'
   pull_request:
 
 
