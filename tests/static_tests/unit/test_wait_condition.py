@@ -139,10 +139,10 @@ def test_wait_condition_mobile_delay_increasing():
 
 def test_wait_condition_desktop_default_delay():
     """ sleep for 0.1 seconds between iterations """
-    namespace = MockNamespace('wait some condition', call_count=6, is_mobile=False)
+    namespace = MockNamespace('wait some condition', call_count=3, is_mobile=False)
     start_time = time.time()
     namespace.wait_something()
     end_time = time.time() - start_time
-    assert end_time > 0.6
+    assert end_time > 0.7
     print(end_time)
     assert end_time < 0.75
