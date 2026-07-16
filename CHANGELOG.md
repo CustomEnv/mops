@@ -1,10 +1,20 @@
-# Mops Changelog
+## Mops Changelog
 
 <br>
 
-## v3.5.2
+### v3.5.3
 
-### Added
+*Release date: 2026-07-16*
+
+#### Fixed
+- Multi-driver scenarios: per-driver shadow subclasses isolate driver-specific methods when multiple driver
+types are active, preventing cross-driver method overwrites on shared Element/Page classes.
+
+---
+
+### v3.5.2
+
+#### Added
 - `DriverWrapper.is_cdp` flag to identify CDP-connected driver instances
 - `PlayDriver.quit` graceful error handling for CDP contexts; tracing skip when `is_cdp` is set
 - `CoreDriver.quit` graceful error handling for externally-managed browsers when `is_cdp` is set
@@ -12,26 +22,26 @@
 
 ---
 
-## v3.5.1
+### v3.5.1
 
 *Release date: 2026-06-23*
 
-### Changed
+#### Changed
 - Selenium & Playwright: exponential delay starting at 0.1 seconds between requests for all waiting methods
 
 ---
 
-## v3.5.0
+### v3.5.0
 *Release date: 2026-04-22*
 
-### Breaking Changes
+#### Breaking Changes
 - **Python 3.8 and 3.9 dropped** — minimum supported version is now Python 3.10
 
-### Added
+#### Added
 - **Ruff linter** integrated: new CI workflow (`ruff.yml`), pre-commit hook, and full config in `pyproject.toml`
 - **Python 3.13 and 3.14** support
 
-### Changed
+#### Changed
 - `playwright` bumped `>=1.58.0`
 - `numpy` bumped to `>=2.3.2`
 - `opencv-python` bumped to `>=4.13.0`
@@ -41,10 +51,10 @@
 
 ---
 
-## v3.4.3
+### v3.4.3
 *Release date: 2026-04-21*
 
-### Added
+#### Added
 - `set_local_storage_item(items)` / `set_session_storage_item(items)` — set one or more key/value pairs in localStorage / sessionStorage
 - `get_local_storage_item(key)` / `get_session_storage_item(key)` — retrieve a single item by key (`None` if missing)
 - `get_local_storage_items()` / `get_session_storage_items()` — retrieve all items as a dict
@@ -53,47 +63,47 @@
 - `MobileDriver.clear_cookies` override — on iOS real devices iterates and deletes each cookie individually via `delete_cookie` instead of a bulk clear
 - `storage_set_item_js`, `storage_get_items_js`, `set_cookies_as_batch_js` JS helpers added to `js_scripts.py`
 
-### Changed
+#### Changed
 - `CoreDriver.set_cookies` — replaced per-cookie `driver.add_cookie()` loop with a single batched `execute_script` call
 - `PlayDriver.set_cookies` — domain extracted via `urlparse` instead of manual string splitting; cookie defaults applied via list comprehension
 - `PlayDriver.execute_script` — unified script wrapping to `(args) => (function() { … }).apply(null, args)` for consistent argument passing across all call patterns
 
 ---
 
-## v3.4.2
+### v3.4.2
 *Release date: 2026-03-28*
 
-### Fixed
+#### Fixed
 - `ShadowDriverWrapper` now correctly receives static methods of its driver type — previously methods from the first session's driver were inherited and not overridden
 - `get_driver_instance` cache key changed from driver instance to driver type — prevents cache misses on every new driver object
 
-### Changed
+#### Changed
 - `_set_static` guard stores the configured class instead of `True` — allows re-configuration when driver type changes
 - `_set_static` uses `_framework_attrs` snapshot instead of full MRO scan — protects only original framework methods, not previously set driver-specific ones
 
 ---
 
-## v3.4.1
+### v3.4.1
 *Release date: 2026-03-27*
 
-### Fixed
+#### Fixed
 - Element.locator/locator_type/log_locator access without initialised driver
 
-## v3.4.0 (Performance improvement)
+### v3.4.0 (Performance improvement)
 *Release date: 2026-03-27*
 
-### Breaking Changes
+#### Breaking Changes
 - **`Group` subclasses**: `parent` is now correctly set on sub-elements defined after `super().__init__()` — 
 previously such elements did not receive `parent` argument
 
-### Added
+#### Added
 - `Element.sub_elements` dict — collected once and reused instead of rescanning on every access
 - `ElementMeta` metaclass — triggers `_modify_sub_elements` automatically after `__init__` of the final class
 - `get_static_attributes` / `get_all_static_attributes` with `lru_cache` — replaces repeated attribute scanning
 - `get_driver_instance` with `lru_cache` — caches `isinstance` results for driver type checks
 - `_driver_is_instance` method on `InternalMixin` — single cached entry point for driver type detection
 
-### Changed
+#### Changed
 - `all_tags` converted to `frozenset` for O(1) membership checks
 - `initialize_objects` no longer recurses manually — delegates to `_modify_sub_elements` on each child
 - `set_parent_for_attr` uses `sub_elements` dict instead of rescanning object attributes
@@ -102,31 +112,31 @@ previously such elements did not receive `parent` argument
 - `__copy__` added to `Element` for explicit shallow copy control
 - `__getattribute__` override removed from `Element` — initialization guard moved to `CoreElement`/`PlayElement`
 
-### Fixed
+#### Fixed
 - Error messages for unsupported driver type now include the actual driver class name and list expected types
 
 ---
 
-## v3.3.2
+### v3.3.2
 *Release date: 2026-03-24*
 
-### Added
+#### Added
 - `Element.source_locator` attribute that preserves the original locator before platform-specific transformations
 
 ---
 
-## v3.3.1
+### v3.3.1
 *Release date: 2026-01-05*
 
-### Changed
+#### Changed
 - `safe_call` exceptions list
 
 ---
 
-## v3.3.0
+### v3.3.0
 *Release date: 2026-01-05*
 
-### Added
+#### Added
 - `DriverWrapper.wait`: `reason` arg
 - `DriverWrapper.get_scroll_position` method
 - `Element.show` method
@@ -134,11 +144,11 @@ previously such elements did not receive `parent` argument
 - `Locator.tap` instead of `Locator.click` for playwright on mobile resolution
 - `WebElement` methods retry logic on `JavascriptException`
 
-### Changed
+#### Changed
 - Playwright's `scroll_into_view` logic moved to js (same as Selenium)
 - `NativeSafari` locators
 
-### Fixed
+#### Fixed
 - Parent element cache drop
 
 ---
@@ -146,45 +156,45 @@ previously such elements did not receive `parent` argument
 ## Patch: v3.1.1, v3.2.1 
 *Release date: 2025-07-18*
 
-### Added
+#### Added
 - Appium related locator types in `LocatorType` class
 
-### Changed
+#### Changed
 - Selenium only: `DriverWrapper.set_window_size` inner viewport calculation skipped for mobile resolution
 
-### Removed
+#### Removed
 - Automatic locator type detection for text based locators 
 
-### Fixed
+#### Fixed
 - Visual comparison dummy element class name
 - Visual comparison error traceback
 
 ---
 
-## v3.2.0
+### v3.2.0
 *Release date: 2025-03-31*
 
-### Added
+#### Added
 - Continuous verification waits for `Element.wait_visibility` and `Element.wait_hidden`
 - `ContinuousWaitException` for continuous verification errors in wait methods
 - Caret hiding for screenshots in Selenium / Appium
 - `is_displayed` / `is_hidden` execution results logged
 - Retry decorator for Selenium / Appium methods to handle `StaleElementReferenceException`
 
-### Changed
+#### Changed
 - Playwright's `wait_visibility`, `wait_hidden`, and `wait_availability` logic moved to MOPS methods
 
-### Fixed
+#### Fixed
 - Small bug in the documentation example
 - Bug in the `assert_screenshot` method with the `remove` argument for certain popups
 - `StaleElementReferenceException` handler during wait/gathering of `Element.text`
 
 ---
 
-## v3.1.0
+### v3.1.0
 *Release date: 2025-01-29*
 
-### Added
+#### Added
 - [Kitchen Sink](https://mops.readthedocs.io/3.1.0/kitchen_sink/index.html) section on ReadTheDocs
 - Source code links for interfaces in ReadTheDocs [< example > ](https://mops.readthedocs.io/3.1.0/_modules/mops/base/driver_wrapper.html#DriverWrapper.save_screenshot)
 - `PlayDriver.delete_cookie` method
@@ -192,7 +202,7 @@ previously such elements did not receive `parent` argument
 - `PlayDriver.switch_to_default_content` method
 - `LocatorType` constants [< more info >](https://mops.readthedocs.io/3.1.0/kitchen_sink/locator_type.html)
 
-### Changed
+#### Changed
 - **Breaking:** Minimum Playwright version is now [1.48.0](https://pypi.org/project/playwright/1.48.0/)
 - **Breaking:** `DriverWrapper.get_inner_window_size` now returns a `Size` object instead of a `tuple`
 - **Breaking:** `DriverWrapper.set_window_size` now sets the inner window size (affects Selenium only)
@@ -204,39 +214,39 @@ previously such elements did not receive `parent` argument
 - Selenium & Appium error logging
 - Improved most docstrings
 
-### Fixed
+#### Fixed
 - `Element.wait_for_value` now correctly handles an empty `expected_value` argument
 - `Element.wait_for_text` now correctly handles an empty `expected_text` argument
 - `Element.value` now returns an empty string instead of `None`
 
-### Removed
+#### Removed
 - **Breaking:** Removed `Locator.loc_type` attribute/argument [< how to provide locator type >](https://mops.readthedocs.io/3.1.0/kitchen_sink/locator_type.html)
 - **Breaking:** Removed `CutBox` dataclass [< use Box instead >](https://mops.readthedocs.io/3.1.0/kitchen_sink/box.html)
 
-### Reworked
+#### Reworked
 - Unified selector synchronization methods across all frameworks
 - Improved automatic locator type detection
 
 ---
 
-## v3.0.0  
+### v3.0.0  
 *Release date: 2025-01-13*
 
-### Breaking: Project renamed
+#### Breaking: Project renamed
 
-### Changed 
+#### Changed 
 - Dev: pyproject.toml integrated instead of setup.py
 - Dev: UV integrated
 
-### Removed
+#### Removed
 - Dev: tox usage removed
 
 ---
 
-## v2.4.0  
+### v2.4.0  
 *Release date: 2025-01-10*
 
-### Added  
+#### Added  
 - `DriverWrapper.is_safari` method
 - `DriverWrapper.is_firefox` method
 - `DriverWrapper.is_chrome` method
@@ -244,11 +254,11 @@ previously such elements did not receive `parent` argument
 - `VisualComparison` now removes actual and diff files upon successful assertions
 - Internal CI pipelines with tests
 
-### Removed  
+#### Removed  
 - `DriverWrapper.switch_to_parent_frame` method
 - `dyatel/dyatel_play/helpers/trace.py` module
 
-### Changed  
+#### Changed  
 - `DriverWrapper.get_inner_window_size` now returns a `Size` object instead of a dictionary
 - `Element.click` now uses a JavaScript click for the Safari driver
 - `Element.click_outside` now has default arguments `x=-5, y=-5` across all platforms
@@ -259,7 +269,7 @@ previously such elements did not receive `parent` argument
 - The Safari browser on Selenium uses JavaScript-based `click` instead of the driver's `click` API to enhance compatibility with other platforms
 - Documentation for most methods has been improved
 
-### Fixed  
+#### Fixed  
 - `DriverWrapper.save_screenshot` no longer throws an error when called without the optional `screenshot_base` argument
 - `Element.save_screenshot` no longer throws an error when called without the optional `screenshot_base` argument
 - `VisualComparison.assert_screenshot` with the argument `threshold=0` now respects the provided value instead of defaulting
@@ -267,13 +277,13 @@ previously such elements did not receive `parent` argument
 
 ---
 
-## v2.3.3
+### v2.3.3
 *Release date: 2025-01-09*
 
-### Added
+#### Added
 - `dyatel.mixins/objects.driver.Driver` object
 
-### Changed
+#### Changed
 - **Breaking:** `DriverWrapper` initialization now requires a `Driver` object
 - **Breaking:** Playwright's `context` and `page` creation have been moved out of `dyatel-wrapper`
 
@@ -281,10 +291,10 @@ previously such elements did not receive `parent` argument
 
 ---
 
-## v2.3.2
+### v2.3.2
 *Release date: 2024-12-19*
 
-### Changed
+#### Changed
 - Supported Python-Appium-Client version changed from `2.11.1` to `3.1.0`
 - Supported appium version changed from `2.2.1` to `2.12.1`
 - Supported xcuitest version changed from `5.0.0` to `7.28.3`
@@ -292,18 +302,18 @@ previously such elements did not receive `parent` argument
 
 ---
 
-## v2.3.1
+### v2.3.1
 *Release date: 2024-12-16*
 
-### Fixed
+#### Fixed
 - Memory leak due to misuse of lru_cache
 
 ---
 
-## v2.3.0
+### v2.3.0
 *Release date: 2024-09-12*
 
-### Added
+#### Added
 - [ReadTheDocs documentation](https://dyatel-wrapper.readthedocs.io/)
 - `Locator` object
 - `CutBox` object
@@ -315,7 +325,7 @@ previously such elements did not receive `parent` argument
 - Playwright only: 0.1 seconds delay between requests for a few waiting methods
 - Appium only: exponential delay starting at 0.1 seconds between requests for all waiting methods
 
-### Changed
+#### Changed
 - **Breaking:** `locator_type`, `mobile`, `ios`, `android`, and `desktop` kwargs removed
 - **Breaking:** Most `Element` methods have been renamed
 - **Breaking:** `DriverWrapper.execute_script` now uses the `Element` object instead of the source element object
@@ -327,58 +337,58 @@ previously such elements did not receive `parent` argument
 - Selenium & Appium only: `Element.click` now retries on `ElementNotInteractableException`, `ElementClickInterceptedException`, `StaleElementReferenceException` exceptions
 - Automatically generated `name` argument, based on the attribute name, has been removed
 
-### Fixed
+#### Fixed
 - Playwright: Appending of dummy elements inside `Element.assert_screenshot`
 - Playwright: `DriverWrapper.execute_script` error when multiple elements are available
 
-### Reworked
+#### Reworked
 - Mobile `top_bar_height` and `bottom_bar_height` now use `NativeContext` & `NativeSafari` objects
 - Most `Element` `wait` methods are now resolved with the `wait_condition` decorator
 
 ---
 
-## v2.2.15
+### v2.2.15
 *Release date: 2024-08-13*
 
-### Added  
+#### Added  
 - Python 3.11 and 3.12 support
 
 ---
 
-## v2.2.14
+### v2.2.14
 *Release date: 2024-07-24*
 
-### Added  
+#### Added  
 - assert_screenshot: possibility to hide objects before taking screenshot
 - assert_screenshot: the diff image save on a different sized screenshots (reference/output)
 - assert_screenshot: allure attachments increased for some cases 
 - assert_screenshot: auto label `mobile` for mobile resolution screenshots
 
-### Fixed
+#### Fixed
 - assert_screenshot: bug with default.png for screenshots with given names fixed
 
 ---
 
-## v2.2.12 & v2.2.13
+### v2.2.12 & v2.2.13
 *Release date: 2024-06-08*
 
-### Added  
+#### Added  
 - iPad support 
 
 ---
 
-## v2.2.11
+### v2.2.11
 *Release date: 2024-05-29*
 
-### Changed 
+#### Changed 
 - Minimum playwright version is 1.41.0
 
 ---
 
-## v2.2.1
+### v2.2.1
 *Release date: 2024-04-16*
 
-### Added 
+#### Added 
 - `DriverWrapper.is_tablet`
 - `DriverWrapper.is_appium` 
 - `DriverWrapper.is_ios_tablet` 
@@ -386,16 +396,16 @@ previously such elements did not receive `parent` argument
 - `DriverWrapper.is_android_tablet` 
 - `DriverWrapper.is_android_mobile` 
 
-### Fixed
+#### Fixed
 - `Element.is_fully_visible` calculation 
 - `Element.is_visible` calculation 
 
 ---
 
-## v2.2.0
+### v2.2.0
 *Release date: 2024-03-04*
 
-### Added
+#### Added
 - `Element.size` method
 - `Element.location` method
 - `Element.wait_element_size` method
@@ -404,105 +414,105 @@ previously such elements did not receive `parent` argument
 - `DriverWrapper.wait` method
 - `DriverWrapper/Element.screenshot_image` method
 
-### Changed 
+#### Changed 
 - `DriverWrapper/Element.screenshot_base` method now return image binary
 - `DriverWrapper/Element.save_screenshot` method now saves screenshot and moved to base class
 - iOS only: `DriverWrapper.screenshot_base` returns image binary without native controls
 - iOS only: `Element.screenshot_base` screenshot size for some elements could be changed
 
 
-### Fixed 
+#### Fixed 
 - Type annotations
 - `Element.is_visible/is_fully_visible` calculation
 - iOS only: `Element.get_bottom_bar_height` calculation
 
 ---
 
-## v2.1.9
+### v2.1.9
 *Release date: 2024-02-22*
 
-### Added
+#### Added
 - Playwright `context.tracing` support
 
 ---
 
-## v2.1.8
+### v2.1.8
 *Release date: 2024-01-04*
 
-### Added
+#### Added
 - Playwright `new_context` args supports
 
 ---
 
-## v2.1.7
+### v2.1.7
 *Release date: 2023-12-05*
 
-### Added
+#### Added
 - VisualComparison: Dynamic threshold calculation
 
 ---
 
-## v2.1.6
+### v2.1.6
 *Release date: 2023-11-26*
 
-### Fixed
+#### Fixed
 - Performance fixes for session with 2 or more browser windows
 
 ---
 
-## v2.1.5
+### v2.1.5
 *Release date: 2023-10-17*
 
-### Fixed
+#### Fixed
 - Typo fix inside `MobileDriver`
 
 ---
 
-## v2.1.4
+### v2.1.4
 *Release date: 2023-10-16*
 
-### Fixed
+#### Fixed
 - Internal usage of Element class inside DriverWrapper
 
-### Changed
+#### Changed
 - AssertionError output of visual comparison
 
-### Added
+#### Added
 - Soft visual reference generation
 - Soft assert screenshot
 - `LogLevel` class
 
 ---
 
-## v2.1.3
+### v2.1.3
 *Release date: 2023-09-10*
 
-### Changed
+#### Changed
 - Selenium/Appium only: Additional logging for element enabled
 - Selenium/Appium element gathering and exceptions reworked
 
 ---
 
-## v2.1.2
+### v2.1.2
 *Release date: 2023-09-07*
 
-### Fixed
+#### Fixed
 - Additional logging for element disabled 
 
 ---
 
-## v2.1.1
+### v2.1.1
 *Release date: 2023-09-07*
 
-### Fixed
+#### Fixed
 - `setup.py` packages 
 
 ---
 
-## v2.1.0
+### v2.1.0
 *Release date: 2023-09-07*
 
-### Added
+#### Added
 - Abstract classes and methods
 - `DriverWrapperSessions` class
 - `DriverWrapper.browser_name` attribute
@@ -510,10 +520,10 @@ previously such elements did not receive `parent` argument
 - `Element.scroll_into_view` 'block' argument validation
 - Selenium/Appium only: additional warning for `element` errors 
 
-### Fixed
+#### Fixed
 - Type annotations for some methods
 
-### Changed
+#### Changed
 - `Page.anchor` property now instance attribute
 - Some methods moved to subclasses
 - Internal `Logging` reworked
@@ -521,10 +531,10 @@ previously such elements did not receive `parent` argument
 
 ---
 
-## v2.0.0
+### v2.0.0
 *Release date: 2023-04-06*
 
-### Added
+#### Added
 - `element.wait_enabled` method
 - `element.wait_disabled` method
 - `element.is_enabled` method
@@ -535,13 +545,13 @@ previously such elements did not receive `parent` argument
 - `DriverWrapper.dismiss_alert` method (Selenium Only)
 - `MobileDriver.click_in_alert` method (Appium Only)
 
-### Fixed
+#### Fixed
 - MRO for Mobile + Desktop session
 - Rapidly requests for current context on mobile
 - `element.all_elements` recursion
 - logging stderr to stdout
 
-### Changed
+#### Changed
 - Checkbox class removed (all methods in Element class)
 - New screenshot comparison engine. By: [@laruss](https://github.com/laruss)
 - Elements initialization
@@ -551,62 +561,62 @@ previously such elements did not receive `parent` argument
 
 ---
 
-## v1.3.4
+### v1.3.4
 *Release date: 2023-01-17*
 
-### Fixed
+#### Fixed
 - Error logs fixes
 
 ---
 
-## v1.3.3
+### v1.3.3
 *Release date: 2023-01-12*
 
-### Changed
+#### Changed
 - `element.assert_screenshot` elements removal rework
 
 ---
 
-## v1.3.2
+### v1.3.2
 *Release date: 2022-12-08*
 
-### Added
+#### Added
 - mobile `element.hide_keyboard` method added
 - `fill_background` arg in `element.assert_screenshot`
 
-### Changed
+#### Changed
 - ios safaridriver support removed
 - reruns disabling for visual tests without references
 
-### Fixed
+#### Fixed
 - Pillow warning fixes
 - other fixes and improvements
 
 ---
 
-## v1.3.1
+### v1.3.1
 *Release date: 2022-12-02*
 
-### Added
+#### Added
 - `element.wait_element_hidden_without_error` method
 - `element.assert_screenshot` hard reference generation support
 - `element.assert_screenshot` soft reference generation fix
 - `element.hover` silent argument
 
-### Changed
+#### Changed
 - Reworked wait argument for `element`: False - wait element hidden; True - wait element visible
 - `page.is_page_opened` without url support
 - selenium - tags (locator type) updated
 
-### Fixed
+#### Fixed
 - DifferentDriverWrapper and elements initialization fixes
 
 ---
 
-## v1.3.0
+### v1.3.0
 *Release date: 2022-10-18*
 
-### Added 
+#### Added 
 - `driver_wrapper.get_inner_window_size` method
 - `driver_wrapper.switch_to_frame` method for selenium based driver
 - `driver_wrapper.switch_to_parent_frame` method for selenium based driver
@@ -621,12 +631,12 @@ previously such elements did not receive `parent` argument
 - Auto implemented `parent` in hidden object (function/property etc.) for `element/checkbox`
 - Platform specific locator by object kwargs: ios/android/mobile/desktop
 
-### Changed
+#### Changed
 - `element.get_rect` for selenium desktop
 - All visual comparisons staff moved to `VisualComparison` class 
 - Logging
 
-### Fixed
+#### Fixed
 - `get_object_kwargs` function
 - `initialize_objects_with_args` function
 - `element.assert_screenshot` driver name for remote
@@ -634,77 +644,77 @@ previously such elements did not receive `parent` argument
 
 ---
 
-## v1.2.8
+### v1.2.8
 *Release date: 2022-09-20*
 
-### Added 
+#### Added 
 - `driver_wrapper.is_native_context` property on mobile
 - `driver_wrapper.is_web_context` property on mobile
 - `driver_wrapper.visual_reference_generation` that disable AssertionError exception in `element.assert_screenshot`
 - `ElementNotInteractableException` handler in `element.click`
 
-### Changed
+#### Changed
 - `element.get_rect` output value sorting
 - `PlayDriver`/`CoreDriver` class variables moved to `DriverWrapper`
 - `os.environ['visual']` changed to `driver_wrapper.visual_regression_path`
 - `element.wait_element` exception message
 - Mobile: Finding elements in native context now skips parent
 
-### Fixed
+#### Fixed
 - `autolog` params
 - `driver_wrapper.switch_to_tab` with default params
 
 ---
 
-## v1.2.6/7
+### v1.2.6/7
 *Release date: 2022-09-15*
 
-### Fixed
+#### Fixed
 - screenshot name generation
 
 ---
 
-## v1.2.5
+### v1.2.5
 *Release date: 2022-09-13*
 
-### Added
+#### Added
 - `element.click_into_center` method
 - `driver_wrapper.click_by_coordinates` method
 
-### Fixed
+#### Fixed
 - `calculate_coordinate_to_click` calculation
 - Shared object of groups become unique for each class
 
 ---
 
-## v1.2.4
+### v1.2.4
 *Release date: 2022-09-08*
 
-### Added
+#### Added
 - `assert_screenshot()` elements removal
 
 ---
 
-## v1.2.3
+### v1.2.3
 *Release date: 2022-09-02*
 
-### Fixed
+#### Fixed
 - `element.is_displayed()` exception handler
 
 ---
 
-## v1.2.1/2
+### v1.2.1/2
 *Release date: 2022-08-31*
 
-### Fixed
+#### Fixed
 - Annotations
 
 ---
 
-## v1.2.0
+### v1.2.0
 *Release date: 2022-08-31*
 
-### Added
+#### Added
 - [Allure Screen Diff Plugin](https://github.com/allure-framework/allure2/blob/master/plugins/screen-diff-plugin/README.md) support
 - Driver specific logs 
 - Custom exceptions
@@ -712,7 +722,7 @@ previously such elements did not receive `parent` argument
 - `KeyboardKeys` class
 - `element.send_keyboard_action` method
 
-### Changed
+#### Changed
 - `get_text` property become `text`
 - `get_value` property become `value`
 - `get_screenshot_base` property become `screenshot_base`
@@ -720,16 +730,16 @@ previously such elements did not receive `parent` argument
 - `by_attr` arg of `Checkbox` removed
 - `calculate_coordinate_to_click` now calculate coordinates from element location
 
-### Fixed
+#### Fixed
 - Reduced count of `find_element` execution
 - Page `driver_wrapper` getter exception
 
 ---
 
-## v1.1.1
+### v1.1.1
 *Release date: 2022-08-10*
 
-### Added
+#### Added
 - iOS SafariDriver basic support 
 - Different second driver support (for mobile/desktop safari)
 - Tabs manipulating methods for desktop in `CoreDriver/PlayDriver`
@@ -742,23 +752,23 @@ previously such elements did not receive `parent` argument
 - `page.swipe(_up/_down)` methods for mobile  
 - Default cookie path/domain in `driver_wrapper.set_cookie` method
 
-### Changed
+#### Changed
 - `Driver` becomes `DriverWrapper` for more readability
 - Mixins classes renamed and moved to `dyatel.mixins` folder
 - Selenium `core_element.wait_element` now using `is_displayed`
 - Selenium exception stacktrace reduced in most cases
 
-### Fixed
+#### Fixed
 - Custom `driver_wrapper`/`driver` for child elements
 - Selenium `KeyError` of `driver_wrapper.set_cookie` without `domain` 
 - Driver creation with function scope of pytest
 
 ---
 
-## v1.1.0
+### v1.1.0
 *Release date: 2022-07-23*
 
-### Added
+#### Added
 - `Checkbox` class for Playwright and Selenium 
 - `set_text` method in `Element` class
 - `wait_elements_count` method in `Element` class
@@ -766,35 +776,35 @@ previously such elements did not receive `parent` argument
 - `wait_element_value` method in `Element` class
 - `driver_wrapper` arg for `Group` and `Page`
 
-### Changed
+#### Changed
 - Page/Group `set_driver` workflow
 - `CorePage` and `PlayPage` methods moved to `Page` 
 
 ---
 
-## v1.0.5
+### v1.0.5
 *Release date: 2022-07-10*
 
-### Added
+#### Added
 - `_first_element` property in `PlayElement`
 
-### Changed
+#### Changed
 - `element` property replaced with `_first_element` for elements interactions
 - `parent` nesting of `Element` changed from one level to endless
 - `PlayElement` / `CoreElement` initialization
 
-### Fixed
+#### Fixed
 - `all_elements` execution time/nesting
 
 ---
 
-## v1.0.4
+### v1.0.4
 *Release date: 2022-07-07*
 
-### Added
+#### Added
 - `set_driver` function for page object
 - Multiple drivers support
 
-### Changed
+#### Changed
 - Drivers initialization
 - `driver`, `driver_wrapper` become property methods

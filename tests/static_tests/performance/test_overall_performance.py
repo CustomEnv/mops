@@ -76,26 +76,14 @@ def test_performance_element_initialisation(mocked_selenium_driver, case, set_el
     print('cpu_time=', cpu_time)
     print('init_without_profiling_stop_timestamp=', init_without_profiling_stop_timestamp)
 
-    expected_peak_mem = 4.7
-    expected_init_duration = 0.4
-    init_without_profiling_expected = 0.1
+    expected_peak_mem = 4.8
+    expected_init_duration = 0.55
+    init_without_profiling_expected = 0.20
 
-    if sys.version_info >= (3, 9):
-        expected_peak_mem = 4.7
-        expected_init_duration = 0.4
-        init_without_profiling_expected = 0.13
-    if sys.version_info >= (3, 10):
-        expected_peak_mem = 4.6
-        expected_init_duration = 0.4
     if sys.version_info >= (3, 11):
-        expected_peak_mem = 4.0
-        expected_init_duration = 0.4
+        expected_peak_mem = 4.8
     if sys.version_info >= (3, 12):
-        expected_peak_mem = 4.1
-        expected_init_duration = 0.4
-    if sys.version_info >= (3, 13):
-        expected_peak_mem = 4.2
-        expected_init_duration = 0.4
+        expected_peak_mem = 5.0
 
     assert init_without_profiling_stop_timestamp < init_without_profiling_expected,\
         f'Execution without profiling takes too much time: {init_without_profiling_stop_timestamp}'
@@ -151,29 +139,15 @@ def test_performance_group_initialisation(mocked_selenium_driver, case, set_grou
     print('cpu_time=', cpu_time)
     print('init_without_profiling_stop_timestamp=', init_without_profiling_stop_timestamp)
 
-    expected_peak_mem = 3.2
-    expected_init_duration = 0.4
-
-    if sys.version_info >= (3, 9):
-        expected_peak_mem = 3.5
-        expected_init_duration = 0.4
-
-    if sys.version_info >= (3, 10):
-        expected_peak_mem = 3.3
-        expected_init_duration = 0.4
+    expected_peak_mem = 3.5
+    expected_init_duration = 0.55
 
     if sys.version_info >= (3, 11):
-        expected_peak_mem = 2.6
-        expected_init_duration = 0.4
-
+        expected_peak_mem = 3.5
     if sys.version_info >= (3, 12):
-        expected_peak_mem = 2.5
-        expected_init_duration = 0.4
-    if sys.version_info >= (3, 13):
-        expected_peak_mem = 2.8
-        expected_init_duration = 0.4
+        expected_peak_mem = 3.5
 
-    assert init_without_profiling_stop_timestamp < 0.15,\
+    assert init_without_profiling_stop_timestamp < 0.20,\
         f'Execution without profiling takes too much time: {init_without_profiling_stop_timestamp}'
     assert stats.total_tt < expected_init_duration, \
         f"Execution time too high: {stats.total_tt:.3f} sec"

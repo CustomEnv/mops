@@ -11,7 +11,7 @@
 </p> 
 
 <p align="center">
-    <a href="https://mops.readthedocs.io"><img alt="Documentation Status" src="https://img.shields.io/readthedocs/mops?logo=readthedocs&labelColor=%232E353B&label=docs"></a>
+    <a href="https://mops.readthedocs.io"><img alt="Documentation Status" src="https://readthedocs.org/projects/mops/badge/?version=latest"></a>
     <a href="https://github.com/CustomEnv/mops/actions/workflows/static_tests.yml"><img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/CustomEnv/mops/static_tests.yml?branch=master&logo=github&label=Unit%20Tests&labelColor=%232E353B"></a>
     <a href="https://github.com/CustomEnv/mops/actions/workflows/playwright_tests.yml"><img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/CustomEnv/mops/playwright_tests.yml?branch=master&logo=github&label=Playwright%20Tests&labelColor=%232E353B"></a>
 </p> 
