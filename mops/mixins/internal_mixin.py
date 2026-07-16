@@ -49,6 +49,7 @@ def get_driver_instance(driver_type: type, instance: type) -> bool:
 
 class InternalMixin:
     driver: None
+    driver_wrapper: None
 
     def _driver_is_instance(self, instance: type) -> bool:
         """Check if the current driver is an instance of the given type."""
@@ -58,9 +59,9 @@ class InternalMixin:
         if not hasattr(self, var):
             setattr(self, var, value)
 
-    def _get_protected_attrs(self: Any, current_obj_cls: type) -> set:
+    def _get_protected_attrs(self: Any, current_obj_cls: type) -> frozenset:
         if '_framework_attrs' not in current_obj_cls.__dict__:
-            current_obj_cls._framework_attrs = set(get_all_static_attributes(current_obj_cls))
+            current_obj_cls._framework_attrs = frozenset(get_all_static_attributes(current_obj_cls))
 
         return current_obj_cls.__dict__['_framework_attrs']
 
@@ -87,19 +88,24 @@ class InternalMixin:
 
         _class_configured[obj_cls] = cls
 
-    def _set_shadow_class(self, attrs: dict) -> type:
+    def _set_shadow_class(self, protected: frozenset) -> type:
         """
-        Set shadow class to given object
+        Create or reuse a per-driver shadow subclass. The given *protected*
+        set was computed from the original class before any attributes were
+        injected, so the shadow class starts with the same baseline.
 
-        :param attrs: attrs to set for newly created class
-        :return: type object
+        :param protected: pre-computed _framework_attrs of the original class.
+        :return: the shadow class (a subtype of the original class).
         """
         original_cls = self.__class__
         key = (original_cls, self.driver_wrapper._base_cls.__name__)
         obj_cls = _shadow_classes.get(key)
         if not obj_cls:
-            data = {'_shadow_class': True, '_framework_attrs': attrs}
-            obj_cls = type(original_cls.__name__, (original_cls,), data)
+            obj_cls = type(
+                original_cls.__name__,
+                (original_cls,),
+                {'_shadow_class': True, '_framework_attrs': protected},
+            )
             _shadow_classes[key] = obj_cls
 
         self.__class__ = obj_cls
