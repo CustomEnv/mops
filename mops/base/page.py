@@ -108,7 +108,7 @@ class Page(DriverMixin, InternalMixin, Logging, PageABC):
             )
             raise DriverWrapperException(msg)
 
-        self._set_static(self._base_cls)
+        self._set_static(self._base_cls, with_shadow=True)
         self._base_cls.__init__(self)
 
     @cached_property
