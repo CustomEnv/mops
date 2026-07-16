@@ -9,6 +9,9 @@ from mops.utils.internal_utils import (
     is_driver_wrapper,
 )
 
+_shadow_classes: dict[tuple[type, str], type] = {}
+_class_configured: dict[type, type] = {}
+
 
 def get_element_info(element: Any, label: str = 'Selector=') -> str:
     """
@@ -58,7 +61,15 @@ class InternalMixin:
 
     def _get_protected_attrs(self: Any, current_obj_cls: type) -> set:
         if not is_driver_wrapper(self):
-            return set(get_all_static_attributes(current_obj_cls))
+            cached = current_obj_cls.__dict__.get('_pre_protected')
+
+            if cached is not None:
+                return set(cached)
+
+            protected = set(get_all_static_attributes(current_obj_cls))
+            current_obj_cls._pre_protected = frozenset(protected)
+
+            return protected
 
         if '_framework_attrs' not in current_obj_cls.__dict__:
             current_obj_cls._framework_attrs = set(get_all_static_attributes(current_obj_cls))
@@ -67,22 +78,33 @@ class InternalMixin:
 
     def _set_static(self: Any, cls: type) -> None:
         """
-        Set static from base cls (Web/Mobile/Play Element/Page etc.)
+        Set attributes from base cls onto the class. Uses per-driver shadow
+        classes when multiple driver types are active.
 
         :return: None
         """
-        current_obj_cls = self.__class__
+        obj_cls = self.__class__
 
-        if current_obj_cls.__dict__.get('_configured') is cls:
+        if _class_configured.get(obj_cls) is cls:
             return
 
-        protected = self._get_protected_attrs(current_obj_cls)
+        if not is_driver_wrapper(self) and self.driver_wrapper.session.has_different_driver_types():
+            original_cls = obj_cls
+            key = (original_cls, self.driver_wrapper._base_cls.__name__)
+            obj_cls = _shadow_classes.get(key)
+            if not obj_cls:
+                obj_cls = type(original_cls.__name__, (original_cls,), {'_shadow_class': True})
+                if '_pre_protected' in original_cls.__dict__:
+                    obj_cls._pre_protected = original_cls.__dict__['_pre_protected']
+                _shadow_classes[key] = obj_cls
+            self.__class__ = obj_cls
 
+        protected = self._get_protected_attrs(obj_cls)
         for name, value in get_static_attributes(cls).items():
             if name not in protected:
-                setattr(current_obj_cls, name, value)
+                setattr(obj_cls, name, value)
 
-        current_obj_cls._configured = cls
+        _class_configured[obj_cls] = cls
 
     def _repr_builder(self: Any) -> str | None:
         class_name = self.__class__.__name__

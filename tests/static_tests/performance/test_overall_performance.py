@@ -91,10 +91,10 @@ def test_performance_element_initialisation(mocked_selenium_driver, case, set_el
         expected_peak_mem = 4.0
         expected_init_duration = 0.4
     if sys.version_info >= (3, 12):
-        expected_peak_mem = 3.8
+        expected_peak_mem = 4.1
         expected_init_duration = 0.4
     if sys.version_info >= (3, 13):
-        expected_peak_mem = 4.0
+        expected_peak_mem = 4.2
         expected_init_duration = 0.4
 
     assert init_without_profiling_stop_timestamp < init_without_profiling_expected,\

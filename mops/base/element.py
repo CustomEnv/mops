@@ -66,7 +66,9 @@ class ElementMeta(ABCMeta):
         @functools.wraps(orig_init)
         def wrapped_init(self: Any, *args: Any, **kw: Any) -> None:
             orig_init(self, *args, **kw)
-            if type(self) is cls and getattr(self, '_initialized', False):
+            if getattr(self, '_initialized', False) and (
+                type(self) is cls or getattr(self, '_object', None) == 'group'
+            ):
                 self._modify_sub_elements()
 
         cls.__init__ = wrapped_init

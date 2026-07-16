@@ -7,6 +7,7 @@ from appium.webdriver.webdriver import WebDriver as AppiumDriver
 from selenium.webdriver.remote.webdriver import WebDriver as SeleniumDriver
 
 from mops.base.driver_wrapper import DriverWrapper, DriverWrapperSessions
+from mops.mixins.internal_mixin import _shadow_classes, _class_configured
 from mops.playwright.play_driver import PlayDriver
 from mops.selenium.core.core_driver import CoreDriver
 
@@ -163,8 +164,9 @@ def base_teardown():
                 except AttributeError:
                     pass
         del MockedDriverWrapper._framework_attrs
-    if '_configured' in MockedDriverWrapper.__dict__:
-        del MockedDriverWrapper._configured
+    # Clean up caches to prevent cross-test leakage
+    _shadow_classes.clear()
+    _class_configured.clear()
 
 
 mobile_drivers = [mocked_ios_driver.__name__, mocked_android_driver.__name__]
