@@ -73,7 +73,7 @@ class InternalMixin:
             if name not in protected_attrs:
                 setattr(self.__class__, name, value)
 
-    def _set_static(self: Any, root_cls: type, base_cls: type, with_shadow: bool) -> None:
+    def _set_static(self: Any, cls: type, with_shadow: bool) -> None:
         """
         Set attributes from base cls onto the class. Uses per-driver shadow
         classes when multiple driver types are active.
@@ -82,19 +82,31 @@ class InternalMixin:
         """
         obj_cls = self.__class__
 
-        if _class_configured.get(obj_cls) is base_cls:
+        if _class_configured.get(obj_cls) is cls:
             return
 
         protected = self._get_protected_attrs(obj_cls)
 
-        is_multiple_drivers = self.driver_wrapper.session.has_different_driver_types()
-        is_root_class = obj_cls is root_cls
-        if (with_shadow and is_multiple_drivers) or is_root_class:
+        if with_shadow and self.driver_wrapper.session.has_different_driver_types():
+            original_cls = type(self)
             obj_cls = self._set_shadow_class(protected)
+            # Shadow protects only attrs that were originally on this class
+            # (intersection with clean protected set excludes pollution from
+            # previous driver's class-level injection)
+            shadow_protected = frozenset(
+                k for k in original_cls.__dict__ if not k.startswith('_') and k != 'parent' and k in protected
+            )
+        else:
+            shadow_protected = None
 
-        self._set_static_main(base_cls=base_cls, protected_attrs=protected)
+        for name, value in get_static_attributes(cls).items():
+            if (shadow_protected is None and name in protected) or (
+                shadow_protected is not None and name in shadow_protected
+            ):
+                continue
+            setattr(obj_cls, name, value)
 
-        _class_configured[obj_cls] = base_cls
+        _class_configured[obj_cls] = cls
 
     def _set_shadow_class(self, protected: frozenset) -> type:
         """
