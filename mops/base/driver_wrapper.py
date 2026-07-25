@@ -160,7 +160,6 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
             instance = super().__new__(cls)
         else:
             attrs = get_attributes_from_object(cls)
-            attrs.pop('_configured', None)
             shadow_cls = type('ShadowDriverWrapper', (cls,), attrs)
             instance = super().__new__(shadow_cls)
 

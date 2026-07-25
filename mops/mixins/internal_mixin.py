@@ -73,40 +73,47 @@ class InternalMixin:
             if name not in protected_attrs:
                 setattr(self.__class__, name, value)
 
-    def _set_static(self: Any, cls: type, with_shadow: bool) -> None:
+    def _set_static(self: Any, cls: type) -> None:
         """
-        Set attributes from base cls onto the class. Uses per-driver shadow
-        classes when multiple driver types are active.
+        Copy methods/properties from a driver-specific base class (``WebElement``,
+        ``MobileElement``, ``PlayElement``) onto the element's class so they are
+        available via normal MRO lookup.
 
-        :return: None
+        In multi-driver sessions a per-driver **shadow subclass** is used so that
+        each driver type gets its own copy of the methods without polluting the
+        original class or other driver's shadow.
+
+        The *protected* attribute set prevents user-defined overrides on subclasses
+        (e.g. ``CustomElement.value``) from being overwritten.
         """
-        obj_cls = self.__class__
-
-        if _class_configured.get(obj_cls) is cls:
+        # ── Already configured with this exact driver class → nothing to do ──
+        if _class_configured.get(self.__class__) is cls:
             return
 
-        protected = self._get_protected_attrs(obj_cls)
+        protected = self._get_protected_attrs(self.__class__)
 
-        if with_shadow and self.driver_wrapper.session.has_different_driver_types():
-            original_cls = type(self)
-            obj_cls = self._set_shadow_class(protected)
-            # Shadow protects only attrs that were originally on this class
-            # (intersection with clean protected set excludes pollution from
-            # previous driver's class-level injection)
-            shadow_protected = frozenset(
-                k for k in original_cls.__dict__ if not k.startswith('_') and k != 'parent' and k in protected
-            )
+        # ── Multi-driver: isolate driver methods in a shadow subclass ──
+        if self.driver_wrapper.session.has_different_driver_types():
+            original_class = self.__class__
+            target_cls = self._set_shadow_class(protected)
+
+            # Protect only attrs that the user defined *directly on this class*
+            # (not inherited attrs which may have been polluted by a previous
+            #  driver's ``_set_static`` call on a parent class).
+            own_public_attrs = frozenset(k for k in original_class.__dict__ if not k.startswith('_') and k != 'parent')
+            protected_attrs = protected & own_public_attrs
+
+        # ── Single driver: set methods directly on the class ──
         else:
-            shadow_protected = None
+            target_cls = self.__class__
+            protected_attrs = protected
 
+        # ── Copy —──
         for name, value in get_static_attributes(cls).items():
-            if (shadow_protected is None and name in protected) or (
-                shadow_protected is not None and name in shadow_protected
-            ):
-                continue
-            setattr(obj_cls, name, value)
+            if name not in protected_attrs:
+                setattr(target_cls, name, value)
 
-        _class_configured[obj_cls] = cls
+        _class_configured[target_cls] = cls
 
     def _set_shadow_class(self, protected: frozenset) -> type:
         """
