@@ -15,8 +15,6 @@ from mops.abstraction.driver_wrapper_abc import DriverWrapperABC
 from mops.exceptions import DriverWrapperException
 from mops.js_scripts import storage_get_items_js, storage_set_item_js
 from mops.mixins.internal_mixin import InternalMixin
-from mops.mixins.objects.box import Box
-from mops.mixins.objects.driver import Driver
 from mops.mixins.objects.visual_comaprison_mixin import hide_before_screenshot, reveal_after_screenshot
 from mops.playwright.play_driver import PlayDriver
 from mops.selenium.driver.mobile_driver import MobileDriver
@@ -37,6 +35,7 @@ if TYPE_CHECKING:
 
 class DriverWrapperSessions:
     all_sessions: ClassVar[list[DriverWrapper]] = []
+    _MIN_SESSIONS_FOR_COMPARISON: ClassVar[int] = 2
 
     @classmethod
     def add_session(cls, driver_wrapper: DriverWrapper) -> None:
@@ -86,6 +85,29 @@ class DriverWrapperSessions:
           otherwise :obj:`False`.
         """
         return any(cls.all_sessions)
+
+    @classmethod
+    def has_different_driver_types(cls) -> bool:
+        """
+        Check if the session pool contains different driver types
+        (e.g., Selenium + Appium, Selenium + Playwright).
+
+        :return: :obj:`bool` - :obj:`True` if at least two sessions use different driver types,
+          otherwise :obj:`False`.
+        """
+        if len(cls.all_sessions) < cls._MIN_SESSIONS_FOR_COMPARISON:
+            return False
+
+        driver_types = set()
+        for session in cls.all_sessions:
+            if session.is_playwright:
+                driver_types.add('playwright')
+            elif session.is_appium:
+                driver_types.add('appium')
+            elif session.is_selenium:
+                driver_types.add('selenium')
+
+        return len(driver_types) > 1
 
 
 class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
@@ -138,7 +160,6 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
             instance = super().__new__(cls)
         else:
             attrs = get_attributes_from_object(cls)
-            attrs.pop('_configured', None)
             shadow_cls = type('ShadowDriverWrapper', (cls,), attrs)
             instance = super().__new__(shadow_cls)
 
@@ -478,7 +499,7 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
             )
             raise DriverWrapperException(msg)
 
-        self._set_static(self._base_cls)
+        self._set_static_main(base_cls=self._base_cls)
         self._base_cls.__init__(self, driver_container=self.__driver_container)
 
         for name, value in self.__dict__.items():

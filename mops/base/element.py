@@ -66,7 +66,7 @@ class ElementMeta(ABCMeta):
         @functools.wraps(orig_init)
         def wrapped_init(self: Any, *args: Any, **kw: Any) -> None:
             orig_init(self, *args, **kw)
-            if type(self) is cls and getattr(self, '_initialized', False):
+            if getattr(self, '_initialized', False):
                 self._modify_sub_elements()
 
         cls.__init__ = wrapped_init
@@ -181,7 +181,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
             )
             raise DriverWrapperException(msg)
 
-        self._set_static(self._base_cls)
+        self._set_static(cls=self._base_cls)
         self._base_cls.__init__(self)
         self._initialized = True
 
