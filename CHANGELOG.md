@@ -2,6 +2,17 @@
 
 <br>
 
+### 3.5.4
+
+*Release date: 2026-07-25*
+
+#### Fixed
+
+- Multi-driver method contamination for CustomElement subclasses by computing the shadow's attrs, 
+so user-defined overrides are preserved but driver-injected pollution from parent classes is always overwritten.
+
+---
+
 ### v3.5.3
 
 *Release date: 2026-07-16*

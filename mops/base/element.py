@@ -181,7 +181,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
             )
             raise DriverWrapperException(msg)
 
-        self._set_static(self._base_cls, with_shadow=True)
+        self._set_static(cls=self._base_cls)
         self._base_cls.__init__(self)
         self._initialized = True
 

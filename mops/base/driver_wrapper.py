@@ -160,7 +160,6 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
             instance = super().__new__(cls)
         else:
             attrs = get_attributes_from_object(cls)
-            attrs.pop('_configured', None)
             shadow_cls = type('ShadowDriverWrapper', (cls,), attrs)
             instance = super().__new__(shadow_cls)
 
@@ -500,7 +499,7 @@ class DriverWrapper(InternalMixin, Logging, DriverWrapperABC):
             )
             raise DriverWrapperException(msg)
 
-        self._set_static(self._base_cls, with_shadow=False)
+        self._set_static_main(base_cls=self._base_cls)
         self._base_cls.__init__(self, driver_container=self.__driver_container)
 
         for name, value in self.__dict__.items():
