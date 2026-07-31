@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -92,7 +93,7 @@ class SuccessHealingResult:
     healed_locator: str | None
     healed_locators_candidates: list[str]
     score: float
-    page: str | None = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -102,6 +103,70 @@ class FailedHealingResult:
     locator: str
     reason: str
     error: str | None = None
+    best_score: float | None = None
+    score_threshold: float | None = None
+    candidates_count: int | None = None
+
+
+@dataclass
+class HealingStats:
+    """Process-wide self-healing counters.
+
+    Updated automatically by the :class:`Healer` on every :meth:`Healer.heal` call.
+    Read the current values with :func:`get_healing_stats`.
+
+    .. note::
+        ``healed`` counts candidates found by the Healer. A candidate can still
+        fail DOM verification afterwards (``no-verified-locator``), which is
+        reported via ``on_healing_failure`` but is not reflected in these
+        counters — it happens outside the :class:`Healer`.
+    """
+
+    attempts: int = 0
+    healed: int = 0
+    failed: int = 0
+    failed_reasons: dict[str, int] = field(default_factory=dict)
+    _score_sum: float = 0.0
+    _score_count: int = 0
+
+    @property
+    def avg_best_score(self) -> float | None:
+        """Average best similarity score of successfully healed elements."""
+        if self._score_count == 0:
+            return None
+        return self._score_sum / self._score_count
+
+
+_stats = HealingStats()
+
+
+def get_healing_stats() -> HealingStats:
+    """Return process-wide self-healing statistics.
+
+    Useful for end-of-run reporting, e.g. in ``pytest_sessionfinish``::
+
+        from mops.self_healing import get_healing_stats
+
+        def pytest_sessionfinish(session, exitstatus):
+            stats = get_healing_stats()
+            print(f'healing: {stats.healed} ok, {stats.failed} failed of {stats.attempts}')
+    """
+    return _stats
+
+
+def _record_attempt() -> None:
+    _stats.attempts += 1
+
+
+def _record_heal_success(score: float) -> None:
+    _stats.healed += 1
+    _stats._score_sum += score
+    _stats._score_count += 1
+
+
+def _record_heal_failure(reason: str) -> None:
+    _stats.failed += 1
+    _stats.failed_reasons[reason] = _stats.failed_reasons.get(reason, 0) + 1
 
 
 class Healer:
@@ -120,9 +185,23 @@ class Healer:
         self._on_healing_failure = on_healing_failure
 
     def _fail(
-        self, reason: str, element_name: str, locator_key: str, locator: str, exc: BaseException | None = None
+        self,
+        reason: str,
+        element_name: str,
+        locator_key: str,
+        locator: str,
+        exc: BaseException | None = None,
+        best_score: float | None = None,
+        candidates_count: int | None = None,
     ) -> None:
-        """Fire failure callback and return None."""
+        """Fire failure callback, record stats, and return None.
+
+        :param best_score: Highest similarity score found before the failure,
+            or ``None`` when no candidate was scored (e.g. no snapshot,
+            script error, or empty candidate list).
+        :param candidates_count: Number of DOM candidates scored, or ``None``
+            when candidates were never collected.
+        """
         error: str | None = None
         if exc:
             error = exc.msg if isinstance(exc, WebDriverException) else str(exc)
@@ -132,7 +211,11 @@ class Healer:
             locator=locator,
             reason=reason,
             error=error,
+            best_score=best_score,
+            score_threshold=self._score_threshold,
+            candidates_count=candidates_count,
         )
+        _record_heal_failure(reason)
         if self._on_healing_failure:
             self._on_healing_failure(result)
 
@@ -159,6 +242,7 @@ class Healer:
             :func:`generate_locator`.
         :return: :class:`SuccessHealingResult` if healed, ``None`` otherwise.
         """
+        _record_attempt()
         snapshot = self._storage.load(locator_key)
 
         if not snapshot:
@@ -172,7 +256,7 @@ class Healer:
             return self._fail('candidates-script-error', element_name, locator_key, locator, exc=exc)
 
         if not candidates_data:
-            return self._fail('no-candidates', element_name, locator_key, locator)
+            return self._fail('no-candidates', element_name, locator_key, locator, candidates_count=0)
 
         best_score = 0.0
         best_index = -1
@@ -190,7 +274,14 @@ class Healer:
                 self._score_threshold,
                 element_name,
             )
-            return self._fail('below-threshold', element_name, locator_key, locator)
+            return self._fail(
+                'below-threshold',
+                element_name,
+                locator_key,
+                locator,
+                best_score=best_score,
+                candidates_count=len(candidates_data),
+            )
 
         # Get the actual element by index among elements of the same tag
         _find = find_elements_fn or (lambda tag: driver_wrapper.driver.find_elements(By.TAG_NAME, tag))
@@ -200,18 +291,35 @@ class Healer:
         try:
             web_elements = _find(snapshot.tag)
             if best_index >= len(web_elements):
-                self._fail('index-out-of-bounds', element_name, locator_key, locator)
+                self._fail(
+                    'index-out-of-bounds',
+                    element_name,
+                    locator_key,
+                    locator,
+                    best_score=best_score,
+                    candidates_count=len(candidates_data),
+                )
                 return None
             healed_web_element = web_elements[best_index]
             healed_locators = _gen(healed_web_element, driver_wrapper)
         except Exception as exc:  # noqa: BLE001
             logger.info('Self-healing: failed to generate locator for "%s": %s', element_name, exc)
-            self._fail('generate-locator-error', element_name, locator_key, locator, exc=exc)
+            self._fail(
+                'generate-locator-error',
+                element_name,
+                locator_key,
+                locator,
+                exc=exc,
+                best_score=best_score,
+                candidates_count=len(candidates_data),
+            )
             return None
 
         if healed_locators is None:
+            _record_heal_failure('no-generated-locator')
             return None
 
+        _record_heal_success(best_score)
         result = SuccessHealingResult(
             element_name=element_name,
             original_locator=locator,

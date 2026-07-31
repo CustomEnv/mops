@@ -594,6 +594,8 @@ class CoreElement(ElementABC, ABC):
                     locator=result.original_locator,
                     reason='no-verified-locator',
                     error='All healed locator candidates failed find_element()',
+                    best_score=result.score,
+                    score_threshold=config.score_threshold,
                 )
             )
         raise NoSuchElementException

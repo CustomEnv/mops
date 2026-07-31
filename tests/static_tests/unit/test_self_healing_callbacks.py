@@ -8,13 +8,22 @@ from mops.self_healing.healer import FailedHealingResult, Healer, SuccessHealing
 from mops.self_healing.snapshot import ElementSnapshot
 
 
-def _assert_failed(callback, reason, error=None):
+_ANY = object()
+
+
+def _assert_failed(callback, reason, error=None, best_score=_ANY, score_threshold=_ANY, candidates_count=_ANY):
     """Assert callback was called once with a FailedHealingResult matching reason."""
     callback.assert_called_once()
     args = callback.call_args[0][0]
     assert isinstance(args, FailedHealingResult)
     assert args.reason == reason
     assert args.error == error
+    if best_score is not _ANY:
+        assert args.best_score == best_score
+    if score_threshold is not _ANY:
+        assert args.score_threshold == score_threshold
+    if candidates_count is not _ANY:
+        assert args.candidates_count == candidates_count
 
 
 def _make_snapshot(**overrides: str) -> ElementSnapshot:
@@ -111,6 +120,9 @@ def test_failure_no_snapshot():
     assert args.locator == '#submit'
     assert args.reason == 'no-snapshot'
     assert args.error is None
+    assert args.best_score is None
+    assert args.score_threshold == 0.7
+    assert args.candidates_count is None
 
 
 def test_failure_candidates_script_raises():
@@ -126,7 +138,14 @@ def test_failure_candidates_script_raises():
     result = healer.heal('btn', 'key', '#submit', driver)
 
     assert result is None
-    _assert_failed(callback, reason='candidates-script-error', error='browser error')
+    _assert_failed(
+        callback,
+        reason='candidates-script-error',
+        error='browser error',
+        best_score=None,
+        score_threshold=0.7,
+        candidates_count=None,
+    )
 
 
 def test_failure_no_candidates():
@@ -142,7 +161,7 @@ def test_failure_no_candidates():
     result = healer.heal('btn', 'key', '#submit', driver)
 
     assert result is None
-    _assert_failed(callback, reason='no-candidates')
+    _assert_failed(callback, reason='no-candidates', best_score=None, score_threshold=0.7, candidates_count=0)
 
 
 def test_failure_score_below_threshold():
@@ -161,7 +180,10 @@ def test_failure_score_below_threshold():
     result = healer.heal('btn', 'key', '#submit', driver)
 
     assert result is None
-    _assert_failed(callback, reason='below-threshold')
+    _assert_failed(callback, reason='below-threshold', score_threshold=0.95, candidates_count=1)
+    args = callback.call_args[0][0]
+    assert args.best_score is not None
+    assert 0.0 <= args.best_score < 0.95
 
 
 def test_failure_best_index_out_of_bounds():
@@ -184,7 +206,9 @@ def test_failure_best_index_out_of_bounds():
         result = healer.heal('btn', 'key', '#submit', driver)
 
     assert result is None
-    _assert_failed(callback, reason='index-out-of-bounds')
+    _assert_failed(callback, reason='index-out-of-bounds', score_threshold=0.7, candidates_count=2)
+    args = callback.call_args[0][0]
+    assert args.best_score is not None  # matching candidate 1 was scored before the OOB hit
 
 
 def test_failure_generate_locator_raises():
@@ -199,7 +223,9 @@ def test_failure_generate_locator_raises():
         result = healer.heal('btn', 'key', '#submit', driver)
 
     assert result is None
-    _assert_failed(callback, reason='generate-locator-error', error='no locator')
+    _assert_failed(callback, reason='generate-locator-error', error='no locator', candidates_count=1)
+    args = callback.call_args[0][0]
+    assert args.best_score is not None  # the matching candidate was scored before locator generation
 
 
 def test_failure_callback_not_set():

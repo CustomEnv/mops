@@ -77,12 +77,17 @@ def on_success(result):
     # result.healed_locator — the new working locator
     # result.score — similarity score (0-1)
     # result.original_locator — the broken locator
+    # result.timestamp — when the heal happened (ISO-8601, UTC)
     metrics.increment('healing.success', tags={'element': result.element_name})
 
 def on_failure(result):
     # result.reason — 'no-snapshot', 'below-threshold', 'no-verified-locator'
     # result.locator — the broken locator
-    alerting.send(f'Healing failed for {result.element_name}: {result.reason}')
+    # result.best_score — highest similarity score found before failure
+    #                     (0-1), or None if no candidate could be scored
+    # result.score_threshold — the configured acceptance threshold
+    # result.candidates_count — how many DOM candidates were compared
+    alerting.send(f'Healing failed for {result.element_name}: {result.reason} (best score: {result.best_score})')
 
 configure(
     save_snapshots=True,
@@ -109,6 +114,26 @@ configure(
     ),
 )
 ```
+
+### Healing Statistics
+
+Process-wide counters for end-of-run reporting (e.g. in `pytest_sessionfinish`):
+
+```python
+from mops.self_healing import get_healing_stats
+
+def pytest_sessionfinish(session, exitstatus):
+    stats = get_healing_stats()
+    print(f'healing: {stats.healed} ok, {stats.failed} failed of {stats.attempts}')
+    print(f'average best score: {stats.avg_best_score}')
+    print(f'failure reasons: {stats.failed_reasons}')
+```
+
+`HealingStats` fields: `attempts`, `healed`, `failed`, `failed_reasons` (per-reason breakdown),
+and `avg_best_score` (average similarity of successful heals).
+Note that `healed` counts candidates found by the Healer — a candidate can still fail DOM
+verification afterwards (`no-verified-locator`), which is reported via `on_healing_failure`
+but not counted here.
 
 ### Snapshot Normalization
 
@@ -199,6 +224,12 @@ Temporarily disables `heal_locators` on the global config.
 .. autoclass:: mops.self_healing.healer.ScoringWeights
    :members:
    :undoc-members:
+
+.. autoclass:: mops.self_healing.healer.HealingStats
+   :members:
+   :undoc-members:
+
+.. autofunction:: mops.self_healing.healer.get_healing_stats
 ```
 
 <br>
@@ -244,6 +275,15 @@ Healing failures are non-fatal — the original exception is re-raised if healin
 | Locator generation error | `generate-locator-error` | `on_healing_failure` |
 | No candidate passes DOM verification | `no-verified-locator` | `on_healing_failure` |
 | Candidate passes DOM verification | — | `on_healing_success` |
+
+`FailedHealingResult` exposes diagnostics for external monitoring
+(`SuccessHealingResult` also carries a `timestamp`):
+
+* `best_score` — highest similarity score found before the failure
+  (`below-threshold`, `index-out-of-bounds`, `generate-locator-error`, `no-verified-locator`),
+  or `None` when no candidate could be scored (`no-snapshot`, `candidates-script-error`, `no-candidates`).
+* `score_threshold` — the configured acceptance threshold.
+* `candidates_count` — how many DOM candidates were compared, or `None` when candidates were never collected.
 
 <br>
 
