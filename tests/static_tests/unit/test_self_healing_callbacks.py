@@ -123,6 +123,7 @@ def test_failure_no_snapshot():
     assert args.best_score is None
     assert args.score_threshold == 0.7
     assert args.candidates_count is None
+    assert args.breakdown is None
 
 
 def test_failure_candidates_script_raises():
@@ -184,6 +185,7 @@ def test_failure_score_below_threshold():
     args = callback.call_args[0][0]
     assert args.best_score is not None
     assert 0.0 <= args.best_score < 0.95
+    assert args.breakdown is not None  # best candidate breakdown reported even on failure
 
 
 def test_failure_best_index_out_of_bounds():

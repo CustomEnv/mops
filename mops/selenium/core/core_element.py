@@ -596,6 +596,7 @@ class CoreElement(ElementABC, ABC):
                     error='All healed locator candidates failed find_element()',
                     best_score=result.score,
                     score_threshold=config.score_threshold,
+                    breakdown=result.breakdown,
                 )
             )
         raise NoSuchElementException

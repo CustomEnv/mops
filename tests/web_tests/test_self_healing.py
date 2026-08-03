@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch
 
 from mops.base.element import Element
+from mops.exceptions import NoSuchElementException
 from mops.playwright.play_driver import PlayDriver
 from mops.playwright.play_element import PlayElement
 from mops.selenium.core.core_element import CoreElement
@@ -32,9 +33,22 @@ def _key(element):
 
 @pytest.fixture(autouse=True)
 def setup():
-    configure(save_snapshots=True, heal_locators=True, score_threshold=0.5, storage=JsonFileSnapshotStorage())
+    configure(
+        save_snapshots=True,
+        heal_locators=True,
+        score_threshold=0.5,
+        storage=JsonFileSnapshotStorage(),
+        on_healing_success=None,
+        on_healing_failure=None,
+    )
     yield
-    configure(save_snapshots=False, heal_locators=False)
+    configure(
+        save_snapshots=False,
+        heal_locators=False,
+        score_threshold=0.5,
+        on_healing_success=None,
+        on_healing_failure=None,
+    )
 
 
 def test_self_healing_recovers_broken_locator(second_playground_page):
@@ -239,3 +253,87 @@ def test_parent_healing_not_triggered_during_child_healing(second_playground_pag
 
     assert cls is not None, 'Child was not healed'
     assert parent.name not in spy['instances'], f'Parent healing was triggered: {spy["instances"]}'
+
+
+def _break_row_class(page):
+    """Replace the class of every `.row` element so class no longer matches the snapshot."""
+    page.driver_wrapper.execute_script("""
+        var elements = document.querySelectorAll('.row');
+        for (var i = 0; i < elements.length; i++) {
+            elements[i].className = 'broken-row';
+        }
+    """)
+
+
+def _save_snapshot_for_broken_element(page, element_name):
+    """Save the snapshot of the real row under a key of an element with a broken locator."""
+    row = page.row_with_cards
+    row.wait_visibility(silent=True)
+
+    storage = get_config().storage
+    real_key = _key(row)
+    snapshot = storage.load(real_key)
+    assert snapshot is not None, f'Snapshot was not saved for key: {real_key!r}'
+
+    broken_row = Element('.row-broken-locator-self-healing-test', name=element_name)
+    storage.save(_key(broken_row), snapshot)
+    return broken_row
+
+
+def test_healing_success_breakdown_reports_matched_and_mismatched(second_playground_page):
+    """Real browser: on_healing_success exposes which attributes matched the snapshot and which did not."""
+    results = []
+    configure(on_healing_success=results.append)
+
+    broken_row = _save_snapshot_for_broken_element(second_playground_page, element_name='row with cards')
+    _break_row_class(second_playground_page)
+
+    cls = broken_row.get_attribute('class', silent=True)
+    assert cls is not None, 'Self-healing did not recover the element'
+
+    assert results, 'on_healing_success was not fired'
+    result = results[0]
+    assert result.breakdown is not None, 'Success result must carry a SimilarityBreakdown'
+    assert result.breakdown.score == result.score
+
+    assert 'class' in result.breakdown.attributes, 'class attribute missing from breakdown'
+    class_match = result.breakdown.attributes['class']
+    assert 'row' in (class_match.snapshot_value or '')
+    assert class_match.candidate_value == 'broken-row'
+    assert class_match.matched is False
+    assert 'class' in result.breakdown.mismatched_attributes
+    assert 'class' not in result.breakdown.matched_attributes
+    # Other signals still pushed the score above the 0.5 threshold
+    assert result.breakdown.score > 0.5
+    assert result.breakdown.text_score is not None
+    assert result.breakdown.parent_tag_matched is not None
+    # The raw snapshot of the recovered candidate is attached
+    assert result.breakdown.candidate_snapshot is not None
+    assert result.breakdown.candidate_snapshot.attributes.get('class') == 'broken-row'
+    assert result.breakdown.candidate_snapshot.tag is not None
+
+
+def test_healing_failure_below_threshold_has_breakdown(second_playground_page):
+    """Real browser: on_healing_failure still reports the best candidate breakdown."""
+    results = []
+    configure(on_healing_failure=results.append, score_threshold=1.0)
+
+    broken_row = _save_snapshot_for_broken_element(second_playground_page, element_name='row with cards')
+    _break_row_class(second_playground_page)
+
+    with pytest.raises(NoSuchElementException):
+        broken_row.get_attribute('class', silent=True)
+
+    assert results, 'on_healing_failure was not fired'
+    result = results[0]
+    assert result.reason == 'below-threshold'
+    assert result.breakdown is not None, 'Failure result must carry a SimilarityBreakdown'
+
+    assert 'class' in result.breakdown.attributes, 'class attribute missing from breakdown'
+    class_match = result.breakdown.attributes['class']
+    assert class_match.matched is False
+    assert 'class' in result.breakdown.mismatched_attributes
+    assert result.breakdown.score < 1.0
+    # Even on failure the best candidate's raw snapshot is attached
+    assert result.breakdown.candidate_snapshot is not None
+    assert result.breakdown.candidate_snapshot.attributes.get('class') == 'broken-row'

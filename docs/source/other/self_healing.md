@@ -78,6 +78,7 @@ def on_success(result):
     # result.score — similarity score (0-1)
     # result.original_locator — the broken locator
     # result.timestamp — when the heal happened (ISO-8601, UTC)
+    # result.breakdown — SimilarityBreakdown of the best candidate
     metrics.increment('healing.success', tags={'element': result.element_name})
 
 def on_failure(result):
@@ -87,6 +88,7 @@ def on_failure(result):
     #                     (0-1), or None if no candidate could be scored
     # result.score_threshold — the configured acceptance threshold
     # result.candidates_count — how many DOM candidates were compared
+    # result.breakdown — SimilarityBreakdown of the best candidate, or None
     alerting.send(f'Healing failed for {result.element_name}: {result.reason} (best score: {result.best_score})')
 
 configure(
@@ -98,14 +100,47 @@ configure(
 )
 ```
 
-### Scoring Weights
-
-Tune similarity scoring per attribute type:
+Both callbacks receive a `SimilarityBreakdown` in `result.breakdown` for the **best candidate** —
+regardless of whether healing succeeded or failed. It tells you exactly which attributes
+matched the snapshot and which did not:
 
 ```python
-from mops.self_healing.healer import ScoringWeights
+def on_healing_result(result):
+    b = result.breakdown
+    print(f'matched: {b.matched_attributes}')        # ['id', 'name']
+    print(f'mismatched: {b.mismatched_attributes}')  # ['class']
+
+    # Inspect a specific attribute to spot dynamic data
+    id_match = b.attributes['id']
+    print(id_match.snapshot_value, '->', id_match.candidate_value)  # 'user-123' -> 'user-456'
+    print(id_match.matched, id_match.score)  # False 0.0
+
+    # The raw DOM snapshot of the best candidate as found on the page
+    snap = b.candidate_snapshot
+    print(snap.attributes, snap.text, snap.parent_tag)
+```
+
+* `AttributeMatch` — one per attribute: `attribute`, `snapshot_value`, `candidate_value`,
+  `matched`, `score` (0-1), `weight` (0.0 for attributes that do not affect scoring).
+* `SimilarityBreakdown` — `score`, `attributes` (dict), `text_snapshot`, `text_candidate`,
+  `text_score`, `parent_tag_*`, `parent_attrs_score`, `siblings_score`,
+  `siblings_snapshot_count`, `siblings_candidate_count`, `candidate_snapshot`
+  (a raw `ElementSnapshot` of the best candidate — reflects the actual DOM state,
+  unlike the normalized reference stored in the storage), plus convenience
+  `matched_attributes` / `mismatched_attributes` lists.
+
+### Scoring Weights
+
+Tune similarity scoring per attribute type — externally, from any project that
+uses the framework. Pass your own `ScoringWeights` through `configure()`:
+
+```python
+from mops.self_healing import configure, ScoringWeights, JsonFileSnapshotStorage
 
 configure(
+    save_snapshots=True,
+    heal_locators=True,
+    storage=JsonFileSnapshotStorage(),
     scoring_weights=ScoringWeights(
         attribute={'id': 1.0, 'class': 0.3, 'name': 0.7},
         text=0.5,
@@ -114,6 +149,14 @@ configure(
     ),
 )
 ```
+
+`attribute` maps an attribute name to its weight; keys not present are ignored
+during scoring (weight `0.0`). Weights apply to every element globally. Changing
+them at runtime is picked up on the next heal: the `Healer` singleton
+re-initialises when `scoring_weights`, `score_threshold`, `storage`, or
+`on_healing_failure` change. Mutating the same `ScoringWeights` object in place
+(e.g. `get_config().scoring_weights.attribute['id'] = 0.9`) also works because
+the `Healer` keeps a reference to it.
 
 ### Healing Statistics
 
@@ -225,6 +268,14 @@ Temporarily disables `heal_locators` on the global config.
    :members:
    :undoc-members:
 
+.. autoclass:: mops.self_healing.healer.AttributeMatch
+   :members:
+   :undoc-members:
+
+.. autoclass:: mops.self_healing.healer.SimilarityBreakdown
+   :members:
+   :undoc-members:
+
 .. autoclass:: mops.self_healing.healer.HealingStats
    :members:
    :undoc-members:
@@ -284,6 +335,10 @@ Healing failures are non-fatal — the original exception is re-raised if healin
   or `None` when no candidate could be scored (`no-snapshot`, `candidates-script-error`, `no-candidates`).
 * `score_threshold` — the configured acceptance threshold.
 * `candidates_count` — how many DOM candidates were compared, or `None` when candidates were never collected.
+* `breakdown` — a `SimilarityBreakdown` of the best candidate whenever one was scored
+  (`below-threshold`, `index-out-of-bounds`, `generate-locator-error`, `no-verified-locator`),
+  or `None` when no candidate could be scored. The same breakdown is available on
+  `SuccessHealingResult` after a successful heal.
 
 <br>
 

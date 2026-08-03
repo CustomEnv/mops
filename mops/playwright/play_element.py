@@ -607,6 +607,7 @@ class PlayElement(ElementABC, Logging, ABC):
                 error='All healed locator candidates failed DOM verification',
                 best_score=result.score,
                 score_threshold=config.score_threshold,
+                breakdown=result.breakdown,
             )
             config.on_healing_failure(result)
 
