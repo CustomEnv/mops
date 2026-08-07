@@ -144,7 +144,7 @@ class SnapshotStorage(ABC):
             siblings=raw['siblings'],
         )
 
-        snapshot = self._normalize_snapshot(snapshot)
+        snapshot = self.normalize_snapshot(snapshot)
         self.save(locator_key, snapshot)
         self._saved_this_session.add(locator_key)
 
@@ -188,8 +188,16 @@ class SnapshotStorage(ABC):
             key = pattern.sub(replacement, key)
         return key
 
-    def _normalize_snapshot(self, snapshot: ElementSnapshot) -> ElementSnapshot:
-        """Return a normalized copy of *snapshot* with dynamic data cleaned out."""
+    def normalize_snapshot(self, snapshot: ElementSnapshot) -> ElementSnapshot:
+        """Return a normalized copy of *snapshot* with dynamic data cleaned out.
+
+        This is applied both when a snapshot is saved (so the reference stored
+        in the storage is clean) and to DOM candidates during healing — so both
+        sides of the similarity comparison use the same normalization rules.
+
+        External projects can plug their own cleanup via
+        :meth:`set_normalization_rules`.
+        """
         return ElementSnapshot(
             tag=snapshot.tag,
             attributes=self._normalize_attrs(snapshot.attributes),

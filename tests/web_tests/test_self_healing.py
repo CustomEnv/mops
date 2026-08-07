@@ -22,8 +22,8 @@ def _backend_cls(page):
 def _patch_generate_locator(page, side_effect):
     """Patch generate_locator for the current backend."""
     if isinstance(page.driver_wrapper, PlayDriver):
-        return patch('mops.self_healing.locator_generator.generate_locator_pw', side_effect=side_effect)
-    return patch('mops.self_healing.healer.generate_locator', side_effect=side_effect)
+        return patch('mops.playwright.play_element.generate_locator_pw', side_effect=side_effect)
+    return patch('mops.selenium.core.core_element.generate_locator', side_effect=side_effect)
 
 
 def _key(element):
@@ -337,3 +337,193 @@ def test_healing_failure_below_threshold_has_breakdown(second_playground_page):
     # Even on failure the best candidate's raw snapshot is attached
     assert result.breakdown.candidate_snapshot is not None
     assert result.breakdown.candidate_snapshot.attributes.get('class') == 'broken-row'
+
+
+def test_healing_normalizes_dynamic_class_before_scoring(second_playground_page):
+    """A CSS-module hash in the class is cleaned on both sides before comparison."""
+    results = []
+    configure(on_healing_success=results.append)
+
+    broken_row = _save_snapshot_for_broken_element(second_playground_page, element_name='row with cards')
+    # Add a CSS-module-hash token to the row class — normalization must strip it
+    second_playground_page.driver_wrapper.execute_script("""
+        var elements = document.querySelectorAll('.row');
+        for (var i = 0; i < elements.length; i++) {
+            elements[i].className = elements[i].className + ' Button_1a2b3__xy';
+        }
+    """)
+
+    cls = broken_row.get_attribute('class', silent=True)
+    assert cls is not None, 'Self-healing did not recover the element'
+
+    assert results, 'on_healing_success was not fired'
+    result = results[0]
+
+    # `matched` compares NORMALIZED values on both sides. 'Button_1a2b3__xy' is a
+    # CSS-module hash — a default normalization rule strips that exact token, so
+    # snapshot ('row ...') and candidate ('row ... Button_1a2b3__xy' -> 'row ...')
+    # become equal. This is NOT "any occurrence matches": an ordinary class token
+    # would survive normalization and make matched=False.
+    assert result.breakdown.attributes['class'].matched is True, 'normalized class should match'
+    # the raw candidate snapshot still shows the hash token from the real DOM
+    assert 'Button_1a2b3__xy' in result.breakdown.candidate_snapshot.attributes.get('class', '')
+
+
+def test_healing_canonicalizes_class_case(second_playground_page):
+    """Real browser: class differing only in case is matched canonically."""
+    results = []
+    configure(on_healing_success=results.append)
+
+    broken_row = _save_snapshot_for_broken_element(second_playground_page, element_name='row with cards')
+    # 'row' -> 'Row': same word, different case — must still match canonically
+    second_playground_page.driver_wrapper.execute_script("""
+        var elements = document.querySelectorAll('.row');
+        for (var i = 0; i < elements.length; i++) {
+            elements[i].className = 'Row';
+        }
+    """)
+
+    cls = broken_row.get_attribute('class', silent=True)
+    assert cls is not None, 'Self-healing did not recover the element'
+
+    assert results, 'on_healing_success was not fired'
+    result = results[0]
+    class_match = result.breakdown.attributes['class']
+    assert class_match.candidate_value == 'Row'
+    assert class_match.matched is False  # exact string equality is False
+    # before the canonical comparison 'row' vs 'Row' scored 0.0 (different tokens);
+    # now the shared word 'row' gives a real contribution
+    assert class_match.score > 0.0, 'canonical class comparison should give a real score'
+
+
+def test_healing_matches_parent_class_canonically(second_playground_page):
+    """Real browser: parent snake_case class matches a camelCase candidate class."""
+    results = []
+    configure(on_healing_success=results.append)
+
+    driver = second_playground_page.driver_wrapper
+    # build a container with a snake_case class and a child span
+    driver.execute_script("""
+        var container = document.createElement('div');
+        container.className = 'checkout_form_submit';
+        container.innerHTML = '<span id="canonical-parent-child">child</span>';
+        document.body.appendChild(container);
+    """)
+
+    # snapshot the child while its parent still has the snake_case class
+    child = Element('#canonical-parent-child', name='canonical parent child')
+    child.wait_visibility(silent=True)
+
+    storage = get_config().storage
+    snapshot = storage.load(_key(child))
+    assert snapshot is not None
+    assert snapshot.parent_tag == 'div'
+    assert snapshot.parent_attributes.get('class') == 'checkout_form_submit'
+
+    # flip the parent class to camelCase — same words, different case/separators
+    driver.execute_script(
+        "document.getElementById('canonical-parent-child').parentElement.className = 'checkoutFormSubmit';"
+    )
+
+    # break the child locator and heal
+    broken = Element('#broken-canonical-parent-child', name=child.name)
+    storage.save(_key(broken), snapshot)
+
+    healed = broken.get_attribute('id', silent=True)
+    assert healed is not None, 'Self-healing did not recover the element'
+
+    assert results, 'on_healing_success was not fired'
+    result = results[0]
+    assert result.breakdown.parent_tag_matched is True
+    assert result.breakdown.parent_attrs_score == 1.0, 'parent class should match canonically'
+
+
+def test_healing_matches_sibling_class_canonically(second_playground_page):
+    """Real browser: sibling BEM class matches a PascalCase candidate class."""
+    results = []
+    configure(on_healing_success=results.append)
+
+    driver = second_playground_page.driver_wrapper
+    # build a container: a target span plus a sibling with a BEM-style class
+    driver.execute_script("""
+        var container = document.createElement('div');
+        container.className = 'container';
+        container.innerHTML =
+            '<span id="sibling-target">target</span>' +
+            '<span class="modal__close-btn">close</span>';
+        document.body.appendChild(container);
+    """)
+
+    target = Element('#sibling-target', name='sibling target')
+    target.wait_visibility(silent=True)
+
+    storage = get_config().storage
+    snapshot = storage.load(_key(target))
+    assert snapshot is not None
+    assert snapshot.siblings, 'expected a sibling in the snapshot'
+    assert snapshot.siblings[0]['attrs'].get('class') == 'modal__close-btn'
+
+    # flip the sibling class to PascalCase — same words, different case/separators
+    driver.execute_script(
+        "document.getElementById('sibling-target').nextElementSibling.className = 'ModalCloseBtn';"
+    )
+
+    # break the target locator and heal
+    broken = Element('#broken-sibling-target', name=target.name)
+    storage.save(_key(broken), snapshot)
+
+    healed = broken.get_attribute('id', silent=True)
+    assert healed is not None, 'Self-healing did not recover the element'
+
+    assert results, 'on_healing_success was not fired'
+    result = results[0]
+    assert result.breakdown.siblings_score == 1.0, 'sibling class should match canonically'
+
+
+def test_healing_matches_element_class_canonically(second_playground_page):
+    """Real browser: the ELEMENT's own class kebab vs PascalCase passes scoring."""
+    results = []
+    configure(on_healing_success=results.append)
+
+    driver = second_playground_page.driver_wrapper
+    # element whose own class is the kebab form
+    driver.execute_script("""
+        var el = document.createElement('span');
+        el.className = 'user-profile-card';
+        el.textContent = 'canonical-element-child';
+        document.body.appendChild(el);
+    """)
+
+    el = Element('//span[.="canonical-element-child"]', name='canonical element child')
+    el.wait_visibility(silent=True)
+
+    storage = get_config().storage
+    snapshot = storage.load(_key(el))
+    assert snapshot is not None
+    assert snapshot.attributes.get('class') == 'user-profile-card'
+
+    # flip the ELEMENT's own class to PascalCase — same words, different format
+    driver.execute_script("""
+        var spans = document.querySelectorAll('span');
+        for (var i = 0; i < spans.length; i++) {
+            if (spans[i].textContent === 'canonical-element-child') {
+                spans[i].className = 'UserProfileCard';
+            }
+        }
+    """)
+
+    # break the locator and heal — scoring must accept the canonical class match
+    broken = Element('#broken-canonical-element', name=el.name)
+    storage.save(_key(broken), snapshot)
+
+    cls = broken.get_attribute('class', silent=True)
+    assert cls is not None, 'Self-healing did not recover the element'
+    assert cls == 'UserProfileCard'
+
+    assert results, 'on_healing_success was not fired'
+    result = results[0]
+    class_match = result.breakdown.attributes['class']
+    assert class_match.snapshot_value == 'user-profile-card'
+    assert class_match.candidate_value == 'UserProfileCard'
+    assert class_match.matched is False  # exact string equality is False
+    assert class_match.score == 1.0, 'element class should match canonically'

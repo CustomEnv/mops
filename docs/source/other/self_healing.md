@@ -193,6 +193,14 @@ storage.set_normalization_rules([
 ])
 ```
 
+The same rules are applied on **both sides** of the similarity comparison:
+snapshots are normalized when saved, and every DOM candidate is normalized with
+`SnapshotStorage.normalize_snapshot()` before scoring. This means dynamic data
+covered by the rules (e.g. a CSS-module hash in `class` or a numeric id suffix)
+does not unfairly penalise a candidate. The `candidate_snapshot` attached to a
+`SimilarityBreakdown` is the **raw** (non-normalized) candidate — so you can still
+see the actual DOM values for diagnostics.
+
 <br>
 
 ## Architecture
@@ -227,8 +235,20 @@ Temporarily disables `heal_locators` on the global config.
 
 4. **Similarity scoring** — each candidate is scored against the saved snapshot.
    Attributes (`id`, `name`, `class`, `aria-label`, etc.) have per-key weights.
-   Text, parent tag/attributes, and sibling structure contribute additional weighted scores.
-   The best candidate must exceed `score_threshold` (default `0.7`).
+   `class` is compared **canonically** — kebab/snake/camel/Pascal variants of the
+   same words are treated as equal (`user-profile-card` == `UserProfileCard`,
+   `checkout_form_submit` == `checkoutFormSubmit`, `modal__close-btn` ==
+   `ModalCloseBtn`), for the element, its parent, and its
+   siblings. Text matching rejects short (1–2 char) substring false-positives and
+   only counts whole-word matches. Parent tag/attributes and sibling structure
+   contribute additional weighted scores. The best candidate must exceed
+   `score_threshold` (default `0.7`).
+
+   After a candidate is picked, the resolved DOM element is re-snapshotted and
+   compared against the best candidate — protecting against DOM changes (e.g.
+   React re-renders) that shift element indices between the candidate scan and
+   element resolution. If they differ, healing fails with
+   `dom-changed-during-healing` instead of silently healing the wrong element.
 
 5. **Locator generation** — stable XPath locators are generated for the best candidate:
    `@id` → `data-testid` → `@name` → `@aria-label` → `@type` → stable `@class` → visible text → positional XPath.
@@ -324,6 +344,7 @@ Healing failures are non-fatal — the original exception is re-raised if healin
 | Best score below threshold | `below-threshold` | `on_healing_failure` |
 | Best index out of bounds | `index-out-of-bounds` | `on_healing_failure` |
 | Locator generation error | `generate-locator-error` | `on_healing_failure` |
+| DOM changed between candidate scan and element resolution | `dom-changed-during-healing` | `on_healing_failure` |
 | No candidate passes DOM verification | `no-verified-locator` | `on_healing_failure` |
 | Candidate passes DOM verification | — | `on_healing_success` |
 
@@ -331,12 +352,14 @@ Healing failures are non-fatal — the original exception is re-raised if healin
 (`SuccessHealingResult` also carries a `timestamp`):
 
 * `best_score` — highest similarity score found before the failure
-  (`below-threshold`, `index-out-of-bounds`, `generate-locator-error`, `no-verified-locator`),
+  (`below-threshold`, `index-out-of-bounds`, `generate-locator-error`,
+  `dom-changed-during-healing`, `no-verified-locator`),
   or `None` when no candidate could be scored (`no-snapshot`, `candidates-script-error`, `no-candidates`).
 * `score_threshold` — the configured acceptance threshold.
 * `candidates_count` — how many DOM candidates were compared, or `None` when candidates were never collected.
 * `breakdown` — a `SimilarityBreakdown` of the best candidate whenever one was scored
-  (`below-threshold`, `index-out-of-bounds`, `generate-locator-error`, `no-verified-locator`),
+  (`below-threshold`, `index-out-of-bounds`, `generate-locator-error`,
+  `dom-changed-during-healing`, `no-verified-locator`),
   or `None` when no candidate could be scored. The same breakdown is available on
   `SuccessHealingResult` after a successful heal.
 

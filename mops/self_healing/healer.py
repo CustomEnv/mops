@@ -3,18 +3,21 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 from selenium.common.exceptions import WebDriverException
-from selenium.webdriver.common.by import By
 
-from mops.self_healing.locator_generator import generate_locator
 from mops.self_healing.snapshot import ElementSnapshot
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from mops.self_healing.snapshot import SnapshotStorage
+
+_MIN_SUBSTRING_LENGTH = 3
+_CAMEL_BOUNDARY_RE = re.compile(r'([a-z0-9])([A-Z])')
+_NON_WORD_RE = re.compile(r'[^a-zA-Z0-9]+')
 
 logger = logging.getLogger('mops.self_healing')
 
@@ -290,14 +293,14 @@ class Healer:
         if self._on_healing_failure:
             self._on_healing_failure(result)
 
-    def heal(  # noqa: PLR0911
+    def heal(
         self,
         element_name: str,
         locator_key: str,
         locator: str,
         driver_wrapper: Any,
-        find_elements_fn: Callable[[str], list[Any]] | None = None,
-        generate_locator_fn: Callable[[Any, Any], list[str]] | None = None,
+        find_elements_fn: Callable[[str], list[Any]],
+        generate_locator_fn: Callable[[Any, Any], list[str]],
     ) -> SuccessHealingResult | None:
         """Try to find a healed locator for a failed element lookup.
 
@@ -305,12 +308,10 @@ class Healer:
         :param locator_key: Storage key used to load the saved snapshot.
         :param locator: The original locator string (for the result record).
         :param driver_wrapper: Driver wrapper with an ``execute_script(script, *args)`` method.
-        :param find_elements_fn: Optional callback ``(tag: str) -> list`` to find
-            all elements with a given tag name. Defaults to Selenium's
-            ``driver.find_elements(By.TAG_NAME, tag)``.
-        :param generate_locator_fn: Optional callback ``(element, driver_wrapper) -> list[str]``
-            to generate candidate locators from a live element. Defaults to
-            :func:`generate_locator`.
+        :param find_elements_fn: Callback ``(tag: str) -> list`` to find all
+            elements with a given tag name (backend-specific).
+        :param generate_locator_fn: Callback ``(element, driver_wrapper) -> list[str]``
+            to generate candidate locators from a live element (backend-specific).
         :return: :class:`SuccessHealingResult` if healed, ``None`` otherwise.
         """
         _record_attempt()
@@ -320,79 +321,29 @@ class Healer:
             logger.info('Self-healing: no snapshot for "%s", skipping', element_name)
             return self._fail('no-snapshot', element_name, locator_key, locator)
 
-        try:
-            candidates_data: list[dict] = driver_wrapper.execute_script(_GET_CANDIDATES_JS, snapshot.tag)
-        except WebDriverException as exc:
-            logger.info('Self-healing: failed to get candidates for "%s": %s', element_name, exc)
-            return self._fail('candidates-script-error', element_name, locator_key, locator, exc=exc)
-
-        if not candidates_data:
-            return self._fail('no-candidates', element_name, locator_key, locator, candidates_count=0)
-
-        best_score = -1.0
-        best_index = -1
-        best_breakdown: SimilarityBreakdown | None = None
-
-        for item in candidates_data:
-            breakdown = _compute_similarity_breakdown(item, snapshot, self._scoring_weights)
-            if breakdown.score > best_score:
-                best_score = breakdown.score
-                best_index = item['index']
-                best_breakdown = breakdown
-
-        if best_score < self._score_threshold or best_index < 0:
-            logger.info(
-                'Self-healing: best score %.2f below threshold %.2f for "%s"',
-                best_score,
-                self._score_threshold,
-                element_name,
-            )
-            return self._fail(
-                'below-threshold',
-                element_name,
-                locator_key,
-                locator,
-                best_score=best_score,
-                candidates_count=len(candidates_data),
-                breakdown=best_breakdown,
-            )
-
-        # Get the actual element by index among elements of the same tag
-        _find = find_elements_fn or (lambda tag: driver_wrapper.driver.find_elements(By.TAG_NAME, tag))
-        _gen = generate_locator_fn or generate_locator
-
-        healed_locators: list[str] | None = None
-        try:
-            web_elements = _find(snapshot.tag)
-            if best_index >= len(web_elements):
-                self._fail(
-                    'index-out-of-bounds',
-                    element_name,
-                    locator_key,
-                    locator,
-                    best_score=best_score,
-                    candidates_count=len(candidates_data),
-                    breakdown=best_breakdown,
-                )
-                return None
-            healed_web_element = web_elements[best_index]
-            healed_locators = _gen(healed_web_element, driver_wrapper)
-        except Exception as exc:  # noqa: BLE001
-            logger.info('Self-healing: failed to generate locator for "%s": %s', element_name, exc)
-            self._fail(
-                'generate-locator-error',
-                element_name,
-                locator_key,
-                locator,
-                exc=exc,
-                best_score=best_score,
-                candidates_count=len(candidates_data),
-                breakdown=best_breakdown,
-            )
+        candidates = self._collect_candidates(driver_wrapper, snapshot.tag, element_name, locator_key, locator)
+        if candidates is None:
             return None
 
+        scored = self._score_candidates(candidates, snapshot, element_name, locator_key, locator)
+        if scored is None:
+            return None
+
+        best_score, best_index, best_breakdown = scored
+        healed_locators = self._resolve_element(
+            driver_wrapper,
+            find_elements_fn,
+            generate_locator_fn,
+            snapshot.tag,
+            best_index,
+            best_score,
+            best_breakdown,
+            candidates,
+            element_name,
+            locator_key,
+            locator,
+        )
         if healed_locators is None:
-            _record_heal_failure('no-generated-locator')
             return None
 
         _record_heal_success(best_score)
@@ -415,27 +366,162 @@ class Healer:
 
         return result
 
+    def _collect_candidates(
+        self,
+        driver_wrapper: Any,
+        tag: str,
+        element_name: str,
+        locator_key: str,
+        locator: str,
+    ) -> list[dict] | None:
+        """Collect DOM candidates of the same tag; returns ``None`` on failure."""
+        try:
+            candidates: list[dict] = driver_wrapper.execute_script(_GET_CANDIDATES_JS, tag)
+        except WebDriverException as exc:
+            logger.info('Self-healing: failed to get candidates for "%s": %s', element_name, exc)
+            return self._fail('candidates-script-error', element_name, locator_key, locator, exc=exc)
 
-def _score_similarity(
-    candidate: dict[str, Any],
+        if not candidates:
+            return self._fail('no-candidates', element_name, locator_key, locator, candidates_count=0)
+
+        return candidates
+
+    def _score_candidates(
+        self,
+        candidates_data: list[dict],
+        snapshot: ElementSnapshot,
+        element_name: str,
+        locator_key: str,
+        locator: str,
+    ) -> tuple[float, int, SimilarityBreakdown] | None:
+        """Score all candidates and return the best ``(score, index, breakdown)``.
+
+        Returns ``None`` when the best score is below the threshold.
+        """
+        best_score = -1.0
+        best_index = -1
+        best_breakdown: SimilarityBreakdown | None = None
+
+        for item in candidates_data:
+            # Normalize the candidate with the same rules applied to snapshots,
+            # so both sides of the comparison are cleaned equally.
+            raw_candidate_snapshot = _candidate_to_snapshot(item, snapshot.tag)
+            normalized_candidate_snapshot = self._storage.normalize_snapshot(raw_candidate_snapshot)
+
+            breakdown = _compute_similarity_breakdown(
+                normalized_candidate_snapshot,
+                snapshot,
+                self._scoring_weights,
+                candidate_snapshot=raw_candidate_snapshot,
+            )
+            if breakdown.score > best_score:
+                best_score = breakdown.score
+                best_index = item['index']
+                best_breakdown = breakdown
+
+        if best_score < self._score_threshold or best_index < 0:
+            logger.info(
+                'Self-healing: best score %.2f below threshold %.2f for "%s"',
+                best_score,
+                self._score_threshold,
+                element_name,
+            )
+            self._fail(
+                'below-threshold',
+                element_name,
+                locator_key,
+                locator,
+                best_score=best_score,
+                candidates_count=len(candidates_data),
+                breakdown=best_breakdown,
+            )
+            return None
+
+        return best_score, best_index, best_breakdown
+
+    def _resolve_element(
+        self,
+        driver_wrapper: Any,
+        find_elements_fn: Callable[[str], list[Any]],
+        generate_locator_fn: Callable[[Any, Any], list[str]],
+        tag: str,
+        best_index: int,
+        best_score: float,
+        best_breakdown: SimilarityBreakdown | None,
+        candidates_data: list[dict],
+        element_name: str,
+        locator_key: str,
+        locator: str,
+    ) -> list[str] | None:
+        """Resolve the best-index element and generate locators for it.
+
+        Returns the generated locator list, or ``None`` on failure (the failure
+        callback is fired inside).
+        """
+        try:
+            web_elements = find_elements_fn(tag)
+            if best_index >= len(web_elements):
+                self._fail(
+                    'index-out-of-bounds',
+                    element_name,
+                    locator_key,
+                    locator,
+                    best_score=best_score,
+                    candidates_count=len(candidates_data),
+                    breakdown=best_breakdown,
+                )
+                return None
+            healed_locators = generate_locator_fn(web_elements[best_index], driver_wrapper)
+        except Exception as exc:  # noqa: BLE001
+            logger.info('Self-healing: failed to generate locator for "%s": %s', element_name, exc)
+            self._fail(
+                'generate-locator-error',
+                element_name,
+                locator_key,
+                locator,
+                exc=exc,
+                best_score=best_score,
+                candidates_count=len(candidates_data),
+                breakdown=best_breakdown,
+            )
+            return None
+
+        if healed_locators is None:
+            _record_heal_failure('no-generated-locator')
+            return None
+
+        return healed_locators
+
+
+def _candidate_to_snapshot(candidate: dict[str, Any], tag: str) -> ElementSnapshot:
+    """Convert a raw DOM candidate dict (from the candidates JS) into an ElementSnapshot."""
+    return ElementSnapshot(
+        tag=tag,
+        attributes=candidate.get('attrs', {}),
+        text=candidate.get('text', ''),
+        parent_tag=candidate.get('parentTag'),
+        parent_attributes=candidate.get('parentAttrs', {}),
+        siblings=candidate.get('siblings', []),
+    )
+
+
+def _compute_similarity_breakdown(
+    candidate: ElementSnapshot,
     snapshot: ElementSnapshot,
     weights: ScoringWeights | None = None,
-) -> float:
-    """Compute a 0-1 similarity score between a candidate DOM element and a saved snapshot."""
-    return _compute_similarity_breakdown(candidate, snapshot, weights).score
-
-
-def _compute_similarity_breakdown(  # noqa: PLR0912, PLR0915
-    candidate: dict[str, Any],
-    snapshot: ElementSnapshot,
-    weights: ScoringWeights | None = None,
+    candidate_snapshot: ElementSnapshot | None = None,
 ) -> SimilarityBreakdown:
     """Compute a similarity score and a per-signal breakdown for one candidate.
 
-    The returned :class:`SimilarityBreakdown` contains the same aggregate
-    ``score`` as :func:`_score_similarity`, plus an ``AttributeMatch`` for every
-    snapshot attribute (and every weighted attribute) so callers can see which
-    attributes matched and which did not.
+    The returned :class:`SimilarityBreakdown` contains the aggregate 0-1 ``score``
+    plus an ``AttributeMatch`` for every snapshot attribute (and every weighted
+    attribute) so callers can see which attributes matched and which did not.
+
+    :param candidate: The normalized candidate snapshot to score — already cleaned
+        with the same rules as *snapshot* (see :meth:`SnapshotStorage.normalize_snapshot`).
+    :param candidate_snapshot: Optional raw (non-normalized) snapshot of the
+        candidate as found on the page, attached to the breakdown for diagnostics.
+        Defaults to *candidate*.
     """
     w = weights or ScoringWeights()
     score = 0.0
@@ -447,7 +533,7 @@ def _compute_similarity_breakdown(  # noqa: PLR0912, PLR0915
     weighted_attrs = set(w.attribute)
     for attr in set(snapshot.attributes) | weighted_attrs:
         snap_val = snapshot.attributes.get(attr)
-        cand_val = candidate['attrs'].get(attr)
+        cand_val = candidate.attributes.get(attr)
         weight = w.attribute.get(attr, 0.0)
 
         if snap_val is None and cand_val is None:
@@ -455,12 +541,7 @@ def _compute_similarity_breakdown(  # noqa: PLR0912, PLR0915
 
         if weight:
             total_weight += weight
-            if snap_val == cand_val:
-                attr_score = 1.0
-            elif snap_val and cand_val:
-                attr_score = _token_overlap(snap_val, cand_val)
-            else:
-                attr_score = 0.0
+            attr_score = _attribute_similarity(attr, snap_val, cand_val)
             score += weight * attr_score
         else:
             # Unweighted attribute — diagnostics only, binary match indicator
@@ -477,7 +558,7 @@ def _compute_similarity_breakdown(  # noqa: PLR0912, PLR0915
 
     # Text similarity
     snap_text = snapshot.text
-    cand_text = candidate.get('text', '')
+    cand_text = candidate.text
     text_score: float | None = None
     if snap_text:
         total_weight += w.text
@@ -492,17 +573,17 @@ def _compute_similarity_breakdown(  # noqa: PLR0912, PLR0915
     # Parent tag match
     parent_tag_matched: bool | None = None
     parent_attrs_score: float | None = None
-    if snapshot.parent_tag and candidate.get('parentTag'):
+    if snapshot.parent_tag and candidate.parent_tag:
         total_weight += w.parent
-        parent_tag_matched = candidate['parentTag'] == snapshot.parent_tag
+        parent_tag_matched = candidate.parent_tag == snapshot.parent_tag
         if parent_tag_matched:
             score += w.parent * 0.5
-            parent_attrs_score = _attrs_overlap(snapshot.parent_attributes, candidate.get('parentAttrs', {}))
+            parent_attrs_score = _attrs_overlap(snapshot.parent_attributes, candidate.parent_attributes)
             score += w.parent * 0.5 * parent_attrs_score
 
     # Sibling similarity
     snap_siblings = snapshot.siblings
-    cand_siblings = candidate.get('siblings', [])
+    cand_siblings = candidate.siblings
     siblings_score: float | None = None
     if snap_siblings:
         total_weight += w.siblings
@@ -511,14 +592,8 @@ def _compute_similarity_breakdown(  # noqa: PLR0912, PLR0915
 
     final_score = 0.0 if total_weight == 0 else score / total_weight
 
-    candidate_snapshot = ElementSnapshot(
-        tag=snapshot.tag,
-        attributes=candidate.get('attrs', {}),
-        text=cand_text,
-        parent_tag=candidate.get('parentTag'),
-        parent_attributes=candidate.get('parentAttrs', {}),
-        siblings=cand_siblings,
-    )
+    if candidate_snapshot is None:
+        candidate_snapshot = candidate
 
     return SimilarityBreakdown(
         score=final_score,
@@ -527,7 +602,7 @@ def _compute_similarity_breakdown(  # noqa: PLR0912, PLR0915
         text_candidate=cand_text,
         text_score=text_score,
         parent_tag_snapshot=snapshot.parent_tag,
-        parent_tag_candidate=candidate.get('parentTag'),
+        parent_tag_candidate=candidate.parent_tag,
         parent_tag_matched=parent_tag_matched,
         parent_attrs_score=parent_attrs_score,
         siblings_score=siblings_score,
@@ -538,7 +613,7 @@ def _compute_similarity_breakdown(  # noqa: PLR0912, PLR0915
 
 
 def _token_overlap(a: str, b: str) -> float:
-    """Jaccard token overlap for strings (e.g. CSS class lists)."""
+    """Jaccard token overlap for strings (e.g. space-separated value lists)."""
     a_tokens = set(a.split())
     b_tokens = set(b.split())
     if not a_tokens or not b_tokens:
@@ -548,22 +623,90 @@ def _token_overlap(a: str, b: str) -> float:
     return len(intersection) / len(union)
 
 
+def _class_to_tokens(class_str: str) -> set[str]:
+    """Split a CSS class into canonical lowercase word tokens.
+
+    Handles kebab-case, snake_case, camelCase, PascalCase and BEM/CSS-module
+    separators (``_``, ``__``, ``--``)::
+
+        'user-profile-card'    -> {'user', 'profile', 'card'}
+        'UserProfileCard'      -> {'user', 'profile', 'card'}
+        'checkout_form_submit' -> {'checkout', 'form', 'submit'}
+        'checkoutFormSubmit'   -> {'checkout', 'form', 'submit'}
+        'modal__close-btn'     -> {'modal', 'close', 'btn'}
+        'ModalCloseBtn'        -> {'modal', 'close', 'btn'}
+
+    So classes that only differ in case or word separators compare as equal.
+    """
+    # split camelCase / PascalCase word boundaries first
+    split_case = _CAMEL_BOUNDARY_RE.sub(r'\1 \2', class_str)
+    # then split on any non-alphanumeric separator (kebab, snake, __, ...)
+    tokens = _NON_WORD_RE.split(split_case)
+    return {token.lower() for token in tokens if token}
+
+
+def _class_similarity(a: str, b: str) -> float:
+    """Jaccard similarity of two CSS classes after canonical word tokenization."""
+    a_tokens = _class_to_tokens(a)
+    b_tokens = _class_to_tokens(b)
+    if not a_tokens or not b_tokens:
+        return 0.0
+    if a_tokens == b_tokens:
+        return 1.0
+    intersection = a_tokens & b_tokens
+    union = a_tokens | b_tokens
+    return len(intersection) / len(union)
+
+
+def _attribute_similarity(attr: str, snap_val: str | None, cand_val: str | None) -> float:
+    """0-1 similarity of a single attribute value between snapshot and candidate.
+
+    ``class`` uses canonical word-token comparison; everything else falls back to
+    exact match (``1.0``) or token overlap for partial matches.
+    """
+    if snap_val is None or cand_val is None:
+        return 0.0
+    if snap_val == cand_val:
+        return 1.0
+    if attr == 'class':
+        return _class_similarity(snap_val, cand_val)
+    return _token_overlap(snap_val, cand_val)
+
+
 def _text_similarity(a: str, b: str) -> float:
+    """0-1 text similarity without short-substring false positives."""
     a_lower = a.lower()
     b_lower = b.lower()
     if a_lower == b_lower:
         return 1.0
-    if a_lower in b_lower or b_lower in a_lower:
+    # Substring matches are only meaningful for longer strings and must respect
+    # word boundaries — otherwise 's' or 'al' would match any longer text.
+    if (
+        len(a_lower) >= _MIN_SUBSTRING_LENGTH
+        and len(b_lower) >= _MIN_SUBSTRING_LENGTH
+        and (_is_word_substring(a_lower, b_lower) or _is_word_substring(b_lower, a_lower))
+    ):
         return 0.7
     return _token_overlap(a_lower, b_lower)
 
 
+def _is_word_substring(short: str, long: str) -> bool:
+    """Return True when *short* appears in *long* as a whole word."""
+    return re.search(rf'\b{re.escape(short)}\b', long) is not None
+
+
 def _attrs_overlap(snap_attrs: dict[str, str], cand_attrs: dict[str, str]) -> float:
-    """Average match score across attributes present in the snapshot."""
+    """Average match score across attributes present in the snapshot.
+
+    Uses the same per-attribute comparator as element scoring, so e.g. ``class``
+    values that differ only in case/separators still contribute.
+    """
     if not snap_attrs:
         return 0.0
-    matches = sum(1 for k, v in snap_attrs.items() if cand_attrs.get(k) == v)
-    return matches / len(snap_attrs)
+    total = sum(
+        _attribute_similarity(k, v, cand_attrs.get(k)) for k, v in snap_attrs.items() if cand_attrs.get(k) is not None
+    )
+    return total / len(snap_attrs)
 
 
 def _siblings_similarity(snap_siblings: list[dict], cand_siblings: list[dict]) -> float:

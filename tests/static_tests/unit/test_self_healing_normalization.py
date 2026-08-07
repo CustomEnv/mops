@@ -152,7 +152,7 @@ def test_normalize_snapshot_cleans_attrs_and_text():
             {'tag': 'span', 'text': 'Hint', 'attrs': {'class': 'helper #rdT'}},
         ],
     )
-    result = storage._normalize_snapshot(snapshot)
+    result = storage.normalize_snapshot(snapshot)
     assert result.tag == 'button'
     # Class tokens cleaned (active and #sb removed)
     assert result.attributes['class'] == 'btn'
@@ -179,7 +179,7 @@ def test_normalize_snapshot_without_parent():
         parent_attributes={},
         siblings=[],
     )
-    result = storage._normalize_snapshot(snapshot)
+    result = storage.normalize_snapshot(snapshot)
     assert result.parent_tag is None
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import mops.self_healing.healer as healer_module
 from mops.self_healing.healer import HealingStats, get_healing_stats
@@ -21,6 +21,13 @@ def _make_snapshot(**overrides: str) -> ElementSnapshot:
     return ElementSnapshot(**defaults)
 
 
+def _make_storage():
+    """Build a mock storage whose normalization is a no-op (candidates already clean)."""
+    storage = MagicMock()
+    storage.normalize_snapshot.side_effect = lambda snap: snap
+    return storage
+
+
 def _make_candidate(index: int = 0, **extra: str) -> dict:
     """Build a candidate dict with values matching the default snapshot."""
     return {
@@ -31,6 +38,21 @@ def _make_candidate(index: int = 0, **extra: str) -> dict:
         'parentAttrs': {},
         **extra,
     }
+
+
+def _heal(healer, *args, generate_fn=None):
+    """Call heal() with backend callbacks bound to the mock driver.
+
+    :param generate_fn: Optional locator generator mock; defaults to a stub
+        returning a single xpath locator.
+    """
+    driver = args[3]
+    gen = generate_fn if generate_fn is not None else (lambda *_: ['xpath=//button'])
+    return healer.heal(
+        *args,
+        find_elements_fn=lambda tag: driver.driver.find_elements('tag name', tag),
+        generate_locator_fn=gen,
+    )
 
 
 def _fresh_stats(monkeypatch) -> HealingStats:
@@ -49,7 +71,7 @@ def test_get_healing_stats_returns_live_stats(monkeypatch):
 def test_stats_count_successful_heal(monkeypatch):
     """A successful heal() increments attempts and healed, and records a score."""
     stats = _fresh_stats(monkeypatch)
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = _make_snapshot()
     driver = MagicMock()
     driver.driver = MagicMock()
@@ -57,8 +79,7 @@ def test_stats_count_successful_heal(monkeypatch):
     driver.driver.find_elements.return_value = [MagicMock()]
     healer = healer_module.Healer(storage, 0.7)
 
-    with patch('mops.self_healing.healer.generate_locator', return_value=['xpath=//button']):
-        assert healer.heal('btn', 'key', '#submit', driver) is not None
+    assert _heal(healer, 'btn', 'key', '#submit', driver) is not None
 
     assert stats.attempts == 1
     assert stats.healed == 1
@@ -71,11 +92,11 @@ def test_stats_count_successful_heal(monkeypatch):
 def test_stats_count_failure_by_reason(monkeypatch):
     """A failed heal() increments failed and records the reason."""
     stats = _fresh_stats(monkeypatch)
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = None
     healer = healer_module.Healer(storage, 0.7)
 
-    assert healer.heal('btn', 'key', '#submit', MagicMock()) is None
+    assert _heal(healer, 'btn', 'key', '#submit', MagicMock()) is None
 
     assert stats.attempts == 1
     assert stats.healed == 0
@@ -87,7 +108,7 @@ def test_stats_count_failure_by_reason(monkeypatch):
 def test_stats_accumulate_across_heals(monkeypatch):
     """Multiple heals accumulate attempts/healed/failed."""
     stats = _fresh_stats(monkeypatch)
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = _make_snapshot()
     driver = MagicMock()
     driver.driver = MagicMock()
@@ -95,16 +116,14 @@ def test_stats_accumulate_across_heals(monkeypatch):
     driver.driver.find_elements.return_value = [MagicMock()]
     healer = healer_module.Healer(storage, 0.7)
 
-    with patch('mops.self_healing.healer.generate_locator', return_value=['xpath=//button']):
-        assert healer.heal('btn', 'key1', '#submit', driver) is not None
+    assert _heal(healer, 'btn', 'key1', '#submit', driver) is not None
 
     # Same snapshot key but different element name — still a separate heal() call
-    with patch('mops.self_healing.healer.generate_locator', return_value=['xpath=//button']):
-        assert healer.heal('btn2', 'key2', '#submit', driver) is not None
+    assert _heal(healer, 'btn2', 'key2', '#submit', driver) is not None
 
     # A failing heal
     storage.load.return_value = None
-    assert healer.heal('btn3', 'missing', '#submit', driver) is None
+    assert _heal(healer, 'btn3', 'missing', '#submit', driver) is None
 
     assert stats.attempts == 3
     assert stats.healed == 2
@@ -115,7 +134,7 @@ def test_stats_accumulate_across_heals(monkeypatch):
 def test_stats_avg_best_score_over_multiple_healed(monkeypatch):
     """avg_best_score averages best scores across all successful heals."""
     stats = _fresh_stats(monkeypatch)
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = _make_snapshot()
     driver = MagicMock()
     driver.driver = MagicMock()
@@ -124,13 +143,11 @@ def test_stats_avg_best_score_over_multiple_healed(monkeypatch):
 
     # First heal: perfect match
     driver.execute_script.return_value = [_make_candidate()]
-    with patch('mops.self_healing.healer.generate_locator', return_value=['xpath=//button']):
-        healer.heal('btn', 'key1', '#submit', driver)
+    _heal(healer, 'btn', 'key1', '#submit', driver)
 
     # Second heal: partial match (same text, different id/parent) → lower but > 0 score
     driver.execute_script.return_value = [_make_candidate(attrs={'id': 'other'}, text='Click', parentTag='div')]
-    with patch('mops.self_healing.healer.generate_locator', return_value=['xpath=//button']):
-        healer.heal('btn2', 'key2', '#submit', driver)
+    _heal(healer, 'btn2', 'key2', '#submit', driver)
 
     assert stats.healed == 2
     first_score = stats.avg_best_score * 2  # sum of both scores

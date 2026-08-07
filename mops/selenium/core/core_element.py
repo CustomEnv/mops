@@ -31,6 +31,7 @@ from mops.selenium.sel_utils import ActionChains
 from mops.self_healing.config import get_config
 from mops.self_healing.healer import FailedHealingResult, SuccessHealingResult
 from mops.self_healing.healer_factory import get_healer
+from mops.self_healing.locator_generator import generate_locator
 from mops.shared_utils import _scaled_screenshot, cut_log_data
 from mops.utils.decorators import healing, retry
 from mops.utils.internal_utils import WAIT_EL, get_dict, is_group, safe_call
@@ -503,6 +504,8 @@ class CoreElement(ElementABC, ABC):
         """
         Get driver with depends on parent element if available
 
+        :param wait_strategy: wait strategy for the parent element before it is used
+            as a base for the child lookup. ``True`` waits for the parent to be visible.
         :return: driver
         """
         base = self.driver
@@ -515,10 +518,7 @@ class CoreElement(ElementABC, ABC):
             return base
 
         if self.parent:
-            if self.parent._is_element_still_available(self.parent._element):
-                base = self.parent._element
-            else:
-                base = self.parent._find_element(wait_parent=False)
+            base = self.parent._get_element(wait_strategy=wait_strategy)
 
         return base
 
@@ -555,7 +555,14 @@ class CoreElement(ElementABC, ABC):
         try:
             healer = get_healer()
             locator_key = get_config().storage.extract_full_locator_key(self)
-            result = healer.heal(self.name, locator_key, self.locator, self.driver_wrapper)
+            result = healer.heal(
+                element_name=self.name,
+                locator_key=locator_key,
+                locator=self.locator,
+                driver_wrapper=self.driver_wrapper,
+                find_elements_fn=lambda tag: self.driver.find_elements(By.TAG_NAME, tag),
+                generate_locator_fn=generate_locator,
+            )
             if type(result) is SuccessHealingResult:
                 return result
         except Exception as exc:  # noqa: BLE001

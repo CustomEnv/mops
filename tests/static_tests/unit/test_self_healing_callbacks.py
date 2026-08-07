@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from selenium.common.exceptions import WebDriverException
 
@@ -40,6 +40,13 @@ def _make_snapshot(**overrides: str) -> ElementSnapshot:
     return ElementSnapshot(**defaults)
 
 
+def _make_storage():
+    """Build a mock storage whose normalization is a no-op (candidates already clean)."""
+    storage = MagicMock()
+    storage.normalize_snapshot.side_effect = lambda snap: snap
+    return storage
+
+
 def _make_driver_wrapper(candidates=None, elements=None):
     """Build a mock driver_wrapper with execute_script and .driver.find_elements."""
     dw = MagicMock()
@@ -60,6 +67,21 @@ def _make_candidate(index: int = 0, **extra: str) -> dict:
     }
 
 
+def _heal(healer, *args, generate_fn=None):
+    """Call heal() with backend callbacks bound to the mock driver.
+
+    :param generate_fn: Optional locator generator mock; defaults to a stub
+        returning a single xpath locator.
+    """
+    driver = args[3]
+    gen = generate_fn if generate_fn is not None else (lambda *_: ['xpath=//button'])
+    return healer.heal(
+        *args,
+        find_elements_fn=lambda tag: driver.driver.find_elements('tag name', tag),
+        generate_locator_fn=gen,
+    )
+
+
 # ---------------------------------------------------------------------------
 # on_healing_success
 # ---------------------------------------------------------------------------
@@ -68,14 +90,13 @@ def _make_candidate(index: int = 0, **extra: str) -> dict:
 def test_success_callback_not_fired_during_heal():
     """on_healing_success does NOT fire during heal() — it fires later in _try_healed_locators."""
     callback = MagicMock()
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = _make_snapshot()
     driver = _make_driver_wrapper(candidates=[_make_candidate()], elements=[MagicMock()])
 
     healer = Healer(storage, 0.7)
 
-    with patch('mops.self_healing.healer.generate_locator', return_value=['xpath=//button']):
-        result = healer.heal('btn', 'key', '#submit', driver)
+    result = _heal(healer, 'btn', 'key', '#submit', driver)
 
     assert result is not None
     assert isinstance(result, SuccessHealingResult)
@@ -85,14 +106,13 @@ def test_success_callback_not_fired_during_heal():
 
 def test_success_callback_not_set():
     """Healing works even when on_healing_success is None."""
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = _make_snapshot()
     driver = _make_driver_wrapper(candidates=[_make_candidate()], elements=[MagicMock()])
 
     healer = Healer(storage, 0.7)
 
-    with patch('mops.self_healing.healer.generate_locator', return_value=['xpath=//button']):
-        result = healer.heal('btn', 'key', '#submit', driver)
+    result = _heal(healer, 'btn', 'key', '#submit', driver)
 
     assert result is not None
 
@@ -105,11 +125,11 @@ def test_success_callback_not_set():
 def test_failure_no_snapshot():
     """No snapshot → on_healing_failure fired with FailedHealingResult."""
     callback = MagicMock()
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = None
     healer = Healer(storage, 0.7, on_healing_failure=callback)
 
-    result = healer.heal('btn', 'missing-key', '#submit', MagicMock())
+    result = _heal(healer, 'btn', 'missing-key', '#submit', MagicMock())
 
     assert result is None
     callback.assert_called_once()
@@ -129,14 +149,14 @@ def test_failure_no_snapshot():
 def test_failure_candidates_script_raises():
     """driver.execute_script raises → on_healing_failure fired."""
     callback = MagicMock()
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = _make_snapshot()
     driver = MagicMock()
     driver.driver = MagicMock()
     driver.execute_script.side_effect = WebDriverException('browser error')
     healer = Healer(storage, 0.7, on_healing_failure=callback)
 
-    result = healer.heal('btn', 'key', '#submit', driver)
+    result = _heal(healer, 'btn', 'key', '#submit', driver)
 
     assert result is None
     _assert_failed(
@@ -152,14 +172,14 @@ def test_failure_candidates_script_raises():
 def test_failure_no_candidates():
     """Empty candidates list → on_healing_failure fired."""
     callback = MagicMock()
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = _make_snapshot()
     driver = MagicMock()
     driver.driver = MagicMock()
     driver.execute_script.return_value = []
     healer = Healer(storage, 0.7, on_healing_failure=callback)
 
-    result = healer.heal('btn', 'key', '#submit', driver)
+    result = _heal(healer, 'btn', 'key', '#submit', driver)
 
     assert result is None
     _assert_failed(callback, reason='no-candidates', best_score=None, score_threshold=0.7, candidates_count=0)
@@ -168,7 +188,7 @@ def test_failure_no_candidates():
 def test_failure_score_below_threshold():
     """Low similarity score → on_healing_failure fired."""
     callback = MagicMock()
-    storage = MagicMock()
+    storage = _make_storage()
     # Snapshot with mismatched attributes/text so score stays low
     storage.load.return_value = _make_snapshot(attributes={'class': 'x'}, text='foo')
     driver = MagicMock()
@@ -178,7 +198,7 @@ def test_failure_score_below_threshold():
     ]
     healer = Healer(storage, 0.95, on_healing_failure=callback)
 
-    result = healer.heal('btn', 'key', '#submit', driver)
+    result = _heal(healer, 'btn', 'key', '#submit', driver)
 
     assert result is None
     _assert_failed(callback, reason='below-threshold', score_threshold=0.95, candidates_count=1)
@@ -191,7 +211,7 @@ def test_failure_score_below_threshold():
 def test_failure_best_index_out_of_bounds():
     """best_index >= len(web_elements) → on_healing_failure fired."""
     callback = MagicMock()
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = _make_snapshot()
     driver = MagicMock()
     driver.driver = MagicMock()
@@ -204,8 +224,7 @@ def test_failure_best_index_out_of_bounds():
     driver.driver.find_elements.return_value = [MagicMock()]  # only 1 element → index 1 is OOB
     healer = Healer(storage, 0.7, on_healing_failure=callback)
 
-    with patch('mops.self_healing.healer.generate_locator', return_value=['xpath=//button']):
-        result = healer.heal('btn', 'key', '#submit', driver)
+    result = _heal(healer, 'btn', 'key', '#submit', driver)
 
     assert result is None
     _assert_failed(callback, reason='index-out-of-bounds', score_threshold=0.7, candidates_count=2)
@@ -216,13 +235,13 @@ def test_failure_best_index_out_of_bounds():
 def test_failure_generate_locator_raises():
     """generate_locator raises → on_healing_failure fired."""
     callback = MagicMock()
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = _make_snapshot()
     driver = _make_driver_wrapper(candidates=[_make_candidate()], elements=[MagicMock()])
     healer = Healer(storage, 0.7, on_healing_failure=callback)
 
-    with patch('mops.self_healing.healer.generate_locator', side_effect=WebDriverException('no locator')):
-        result = healer.heal('btn', 'key', '#submit', driver)
+    gen = MagicMock(side_effect=WebDriverException('no locator'))
+    result = _heal(healer, 'btn', 'key', '#submit', driver, generate_fn=gen)
 
     assert result is None
     _assert_failed(callback, reason='generate-locator-error', error='no locator', candidates_count=1)
@@ -232,11 +251,11 @@ def test_failure_generate_locator_raises():
 
 def test_failure_callback_not_set():
     """Healing failure works even when on_healing_failure is None."""
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = None
     healer = Healer(storage, 0.7)
 
-    result = healer.heal('btn', 'key', '#submit', MagicMock())
+    result = _heal(healer, 'btn', 'key', '#submit', MagicMock())
 
     assert result is None
 
@@ -248,15 +267,14 @@ def test_failure_callback_not_set():
 
 def test_multiple_locators_stored_in_result():
     """All generated locators are stored in healed_locators_candidates."""
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = _make_snapshot()
     driver = _make_driver_wrapper(candidates=[_make_candidate()], elements=[MagicMock()])
 
     healer = Healer(storage, 0.7)
 
     locators = ['xpath=//button[1]', 'xpath=//button[2]', 'xpath=//button[3]']
-    with patch('mops.self_healing.healer.generate_locator', return_value=locators):
-        result = healer.heal('btn', 'key', '#submit', driver)
+    result = _heal(healer, 'btn', 'key', '#submit', driver, generate_fn=lambda *_: locators)
 
     assert result is not None
     assert result.healed_locators_candidates == locators
@@ -265,7 +283,7 @@ def test_multiple_locators_stored_in_result():
 
 
 # ---------------------------------------------------------------------------
-# siblings in _score_similarity
+# siblings in similarity scoring
 # ---------------------------------------------------------------------------
 
 
@@ -276,7 +294,7 @@ def _make_siblings_snapshot(siblings: list[dict]):
 
 def test_siblings_matching_boosts_score():
     """Matching siblings increase the similarity score compared to no siblings."""
-    storage = MagicMock()
+    storage = _make_storage()
     siblings = [{'tag': 'span', 'attrs': {'class': 'helper'}, 'text': 'label'}]
     storage.load.return_value = _make_siblings_snapshot(siblings)
     driver = MagicMock()
@@ -290,8 +308,7 @@ def test_siblings_matching_boosts_score():
 
     healer_no_threshold = Healer(storage, 0.0)
 
-    with patch('mops.self_healing.healer.generate_locator', return_value=['xpath=//button']):
-        result = healer_no_threshold.heal('btn', 'key', '#submit', driver)
+    result = _heal(healer_no_threshold, 'btn', 'key', '#submit', driver)
 
     assert result is not None
     assert result.score > 0
@@ -303,7 +320,7 @@ def test_siblings_matching_boosts_score():
 
 def test_mismatched_siblings_lower_score():
     """Having siblings but none matching the snapshot yields a lower score."""
-    storage = MagicMock()
+    storage = _make_storage()
     snap_siblings = [{'tag': 'span', 'attrs': {'class': 'helper'}, 'text': 'label'}]
     storage.load.return_value = _make_siblings_snapshot(snap_siblings)
 
@@ -320,8 +337,7 @@ def test_mismatched_siblings_lower_score():
 
     healer = Healer(storage, 0.0)
 
-    with patch('mops.self_healing.healer.generate_locator', return_value=['xpath=//button']):
-        result = healer.heal('btn', 'key', '#submit', driver)
+    result = _heal(healer, 'btn', 'key', '#submit', driver)
 
     assert result is not None
     # The attrs/text/parent all match perfectly, so score starts high,
@@ -336,14 +352,13 @@ def test_mismatched_siblings_lower_score():
 
 def test_success_callback_not_fired_by_heal():
     """on_healing_success is not fired by heal() — only by _try_healed_locators."""
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = _make_snapshot()
     driver = _make_driver_wrapper(candidates=[_make_candidate()], elements=[MagicMock()])
 
     healer = Healer(storage, 0.7)
 
-    with patch('mops.self_healing.healer.generate_locator', return_value=['xpath=//button']):
-        result = healer.heal('btn', 'key', '#submit', driver)
+    result = _heal(healer, 'btn', 'key', '#submit', driver)
 
     assert result is not None
     assert isinstance(result, SuccessHealingResult)
@@ -351,7 +366,7 @@ def test_success_callback_not_fired_by_heal():
 
 def test_failure_callback_does_not_crash_healing():
     """A misbehaving on_healing_failure does not prevent returning None."""
-    storage = MagicMock()
+    storage = _make_storage()
     storage.load.return_value = None
 
     def crash(_result):
@@ -363,4 +378,4 @@ def test_failure_callback_does_not_crash_healing():
 
     # The exception propagates — users should see broken callbacks
     with pytest.raises(RuntimeError, match='callback failed'):
-        healer.heal('btn', 'key', '#submit', MagicMock())
+        _heal(healer, 'btn', 'key', '#submit', MagicMock())
