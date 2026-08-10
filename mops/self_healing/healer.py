@@ -357,9 +357,8 @@ class Healer:
         )
 
         logger.info(
-            'Self-healing: healed "%s"  %s -> %s  (score=%.2f)',
+            'Self-healing: candidate locators generated for "%s": %s (score=%.2f)',
             element_name,
-            locator,
             healed_locators,
             best_score,
         )

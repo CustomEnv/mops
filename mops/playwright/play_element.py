@@ -575,43 +575,52 @@ class PlayElement(ElementABC, Logging, ABC):
     def _try_healed_locators(self, result: SuccessHealingResult) -> None:
         """Try each healed locator candidate and persist the first working one.
 
-        Fires ``on_healing_success`` after a candidate passes DOM verification,
-        or ``on_healing_failure`` if none of the candidates work.
+        A healing attempt always ends with a terminal callback: ``on_healing_success``
+        when a candidate passes DOM verification, or ``on_healing_failure`` otherwise
+        (including when verification itself fails or cannot be performed).
 
         :param result: The healing result containing candidate locators.
         :raises NoSuchElementException: If no candidate locator resolves to an element.
         """
-        base = self._get_base(wait_strategy=False)
         config = get_config()
-        for locator_str in result.healed_locators_candidates:
-            selector = self._parse_healed_locator_pw(locator_str)
-            try:
-                candidate = base.locator(selector)
-                if candidate.count() > 0:
-                    result.healed_locator = locator_str
-                    self.locator = selector
-                    self._element = candidate
-                    # Fire success callback AFTER locator is verified against DOM
-                    if config.on_healing_success:
-                        config.on_healing_success(result)
-                    return
-            except Error:
-                continue
-        # None of the candidates worked — fire failure callback
-        if config.on_healing_failure:
-            result = FailedHealingResult(
-                element_name=result.element_name,
-                locator_key='',
-                locator=result.original_locator,
-                reason='no-verified-locator',
-                error='All healed locator candidates failed DOM verification',
-                best_score=result.score,
-                score_threshold=config.score_threshold,
-                breakdown=result.breakdown,
-            )
-            config.on_healing_failure(result)
+        try:
+            base = self._get_base(wait_strategy=False)
+            for locator_str in result.healed_locators_candidates:
+                selector = self._parse_healed_locator_pw(locator_str)
+                try:
+                    candidate = base.locator(selector)
+                    if candidate.count() > 0:
+                        result.healed_locator = locator_str
+                        self.locator = selector
+                        self._element = candidate
+                        self.log(f'Self-healing: healed "{self.name}" with locator "{locator_str}"')
+                        # Fire success callback AFTER locator is verified against DOM
+                        if config.on_healing_success:
+                            config.on_healing_success(result)
+                        return
+                except Error:
+                    continue
+            error = 'All healed locator candidates failed DOM verification'
+        except Exception as exc:  # noqa: BLE001
+            error = str(exc)
 
-        raise NoSuchElementException
+        # Terminal failure — none of the candidates passed DOM verification
+        if config.on_healing_failure:
+            config.on_healing_failure(
+                FailedHealingResult(
+                    element_name=result.element_name,
+                    locator_key='',
+                    locator=result.original_locator,
+                    reason='no-verified-locator',
+                    error=error,
+                    best_score=result.score,
+                    score_threshold=config.score_threshold,
+                    breakdown=result.breakdown,
+                )
+            )
+
+        msg = error or 'Healed locator candidates did not match any element'
+        raise NoSuchElementException(msg)
 
     def _apply_healing(self) -> bool:
         """Attempt healing and persist the first working locator.

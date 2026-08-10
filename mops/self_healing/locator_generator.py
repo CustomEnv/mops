@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from selenium.common.exceptions import WebDriverException
 
+from mops.self_healing.healer import _HTML_DEFAULT_ATTRS
+
 _GET_POSITIONAL_XPATH_JS = """
 return (function(el) {
     var parts = [];
@@ -26,7 +28,7 @@ _TEST_ATTRS = ('data-testid', 'data-test', 'data-cy', 'data-qa', 'data-automatio
 _MAX_TEXT_LENGTH = 50
 
 
-def generate_locator(web_element: object, driver: object) -> list[str]:
+def generate_locator(web_element: object, driver: object) -> list[str]:  # noqa: PLR0912
     """Generate all possible stable XPath locators from a live Selenium WebElement.
 
     Returns locators ordered by preference (most stable first).
@@ -38,6 +40,14 @@ def generate_locator(web_element: object, driver: object) -> list[str]:
         tag: str = web_element.tag_name
 
         for attr_name in ('id', *_TEST_ATTRS, 'name', 'aria-label', 'placeholder', 'type', 'role', 'href', 'class'):
+            # get_attribute() reports HTML defaults (e.g. 'text' for <input>,
+            # 'submit' for <button>) even when the attribute is absent — that
+            # would yield an XPath that never matches. Skip phantom attributes
+            # that have an HTML default for this tag unless physically present.
+            if attr_name in _HTML_DEFAULT_ATTRS.get(tag, {}) and not driver.execute_script(
+                f'return arguments[0].hasAttribute("{attr_name}")', web_element
+            ):
+                continue
             val = web_element.get_attribute(attr_name)
             if val:
                 attrs[attr_name] = val.strip()
@@ -100,7 +110,7 @@ def _positional_xpath(web_element: object, driver: object) -> str:
         return f'xpath={path}'
 
 
-def generate_locator_pw(locator_element: object, driver_wrapper: object) -> list[str]:
+def generate_locator_pw(locator_element: object, driver_wrapper: object) -> list[str]:  # noqa: PLR0912
     """Generate all possible stable XPath locators from a live Playwright Locator.
 
     Returns locators ordered by preference (most stable first).
@@ -115,6 +125,13 @@ def generate_locator_pw(locator_element: object, driver_wrapper: object) -> list
 
         attrs: dict[str, str] = {}
         for attr_name in ('id', *_TEST_ATTRS, 'name', 'aria-label', 'placeholder', 'type', 'role', 'href', 'class'):
+            # get_attribute() may report HTML defaults even when the attribute is
+            # absent from the DOM — skip phantom attributes (those with an HTML
+            # default for this tag) unless physically present.
+            if attr_name in _HTML_DEFAULT_ATTRS.get(tag, {}) and not locator_element.evaluate(
+                f'el => el.hasAttribute("{attr_name}")'
+            ):
+                continue
             val = locator_element.get_attribute(attr_name)
             if val:
                 attrs[attr_name] = val.strip()

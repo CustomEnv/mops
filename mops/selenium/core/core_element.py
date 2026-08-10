@@ -572,27 +572,33 @@ class CoreElement(ElementABC, ABC):
     def _try_healed_locators(self, result: SuccessHealingResult) -> SeleniumWebElement:
         """Try each healed locator and persist the first working one.
 
-        Fires ``on_healing_success`` after a candidate passes DOM verification,
-        or ``on_healing_failure`` if none of the candidates work.
+        A healing attempt always ends with a terminal callback: ``on_healing_success``
+        when a candidate passes DOM verification, or ``on_healing_failure`` otherwise
+        (including when verification itself fails or cannot be performed).
         """
-        base = self._get_base(wait_strategy=False)
-        for locator in result.healed_locators_candidates:
-            healed_locator_type, healed_locator_value = _parse_healed_locator(locator)
-            try:
-                healed = base.find_element(healed_locator_type, healed_locator_value)
-            except SeleniumNoSuchElementException:
-                continue
-            result.healed_locator = locator
-            self.locator_type = healed_locator_type
-            self.locator = healed_locator_value
-            self._cached_element = healed
-            # Fire success callback AFTER locator is verified against DOM
-            config = get_config()
-            if config.on_healing_success:
-                config.on_healing_success(result)
-            return healed
-        # None of the candidates worked — fire failure callback
         config = get_config()
+        try:
+            base = self._get_base(wait_strategy=False)
+            for locator in result.healed_locators_candidates:
+                healed_locator_type, healed_locator_value = _parse_healed_locator(locator)
+                try:
+                    healed = base.find_element(healed_locator_type, healed_locator_value)
+                except SeleniumNoSuchElementException:
+                    continue
+                result.healed_locator = locator
+                self.locator_type = healed_locator_type
+                self.locator = healed_locator_value
+                self._cached_element = healed
+                self.log(f'Self-healing: healed "{self.name}" with locator "{locator}"')
+                # Fire success callback AFTER locator is verified against DOM
+                if config.on_healing_success:
+                    config.on_healing_success(result)
+                return healed
+            error = 'All healed locator candidates failed find_element()'
+        except Exception as exc:  # noqa: BLE001
+            error = exc.msg if isinstance(exc, SeleniumWebDriverException) else str(exc)
+
+        # Terminal failure — none of the candidates passed DOM verification
         if config.on_healing_failure:
             config.on_healing_failure(
                 FailedHealingResult(
@@ -600,13 +606,14 @@ class CoreElement(ElementABC, ABC):
                     locator_key='',
                     locator=result.original_locator,
                     reason='no-verified-locator',
-                    error='All healed locator candidates failed find_element()',
+                    error=error,
                     best_score=result.score,
                     score_threshold=config.score_threshold,
                     breakdown=result.breakdown,
                 )
             )
-        raise NoSuchElementException
+        msg = error or 'Healed locator candidates did not match any element'
+        raise NoSuchElementException(msg)
 
     def _apply_healing(self) -> bool:
         """Attempt healing and persist the first working locator.

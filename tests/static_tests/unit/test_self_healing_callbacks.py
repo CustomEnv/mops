@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
+import pytest
+from selenium.common.exceptions import NoSuchElementException as SeleniumNoSuchElementException
 from selenium.common.exceptions import WebDriverException
 
+from mops.exceptions import NoSuchElementException
 from mops.self_healing.healer import FailedHealingResult, Healer, SuccessHealingResult
 from mops.self_healing.snapshot import ElementSnapshot
 
@@ -374,8 +378,146 @@ def test_failure_callback_does_not_crash_healing():
 
     healer = Healer(storage, 0.7, on_healing_failure=crash)
 
-    import pytest
-
     # The exception propagates — users should see broken callbacks
     with pytest.raises(RuntimeError, match='callback failed'):
         _heal(healer, 'btn', 'key', '#submit', MagicMock())
+
+
+# ---------------------------------------------------------------------------
+# terminal callback guarantee — _try_healed_locators
+# ---------------------------------------------------------------------------
+
+
+def _selenium_element_stub(base=None):
+    """Build a minimal object exposing the attrs _try_healed_locators touches."""
+    fake = SimpleNamespace(
+        _get_base=MagicMock(return_value=base or MagicMock()),
+        locator_type=None,
+        locator=None,
+        _cached_element=None,
+        name='fake element',
+        driver_wrapper=MagicMock(),
+    )
+    fake.log = lambda *a, **k: None
+    return fake
+
+
+def _healing_result(**overrides):
+    """Build a SuccessHealingResult with a single candidate locator."""
+    defaults = dict(
+        element_name='fake element',
+        original_locator='.broken',
+        healed_locator=None,
+        healed_locators_candidates=['xpath=//div'],
+        score=0.9,
+        breakdown=MagicMock(),
+    )
+    defaults.update(overrides)
+    return SuccessHealingResult(**defaults)
+
+
+def _assert_no_verified_failure(callback):
+    """Assert on_healing_failure was called once with reason='no-verified-locator'."""
+    callback.assert_called_once()
+    args = callback.call_args[0][0]
+    assert isinstance(args, FailedHealingResult)
+    assert args.reason == 'no-verified-locator'
+    assert args.breakdown is not None
+
+
+def test_try_healed_locators_fires_failure_when_no_candidate_matches():
+    """All candidates missing → on_healing_failure(no-verified-locator) fired."""
+    from mops.selenium.core.core_element import CoreElement
+
+    fake = _selenium_element_stub()
+    fake._get_base.return_value.find_element.side_effect = SeleniumNoSuchElementException
+
+    callback = MagicMock()
+    config = SimpleNamespace(on_healing_success=None, on_healing_failure=callback, score_threshold=0.7)
+
+    with patch('mops.selenium.core.core_element.get_config', return_value=config):
+        with pytest.raises(NoSuchElementException):
+            CoreElement._try_healed_locators(fake, _healing_result())
+
+    _assert_no_verified_failure(callback)
+
+
+def test_try_healed_locators_fires_failure_when_base_raises():
+    """Base resolution failing must still fire the terminal failure callback."""
+    from mops.selenium.core.core_element import CoreElement
+
+    fake = _selenium_element_stub()
+    fake._get_base.side_effect = NoSuchElementException('parent not found')
+
+    callback = MagicMock()
+    config = SimpleNamespace(on_healing_success=None, on_healing_failure=callback, score_threshold=0.7)
+
+    with patch('mops.selenium.core.core_element.get_config', return_value=config):
+        with pytest.raises(NoSuchElementException):
+            CoreElement._try_healed_locators(fake, _healing_result())
+
+    _assert_no_verified_failure(callback)
+
+
+def test_try_healed_locators_fires_failure_on_verification_error():
+    """A non-miss exception during verification still fires the failure callback."""
+    from mops.selenium.core.core_element import CoreElement
+
+    fake = _selenium_element_stub()
+    fake._get_base.return_value.find_element.side_effect = WebDriverException('stale element')
+
+    callback = MagicMock()
+    config = SimpleNamespace(on_healing_success=None, on_healing_failure=callback, score_threshold=0.7)
+
+    with patch('mops.selenium.core.core_element.get_config', return_value=config):
+        with pytest.raises(NoSuchElementException):
+            CoreElement._try_healed_locators(fake, _healing_result())
+
+    _assert_no_verified_failure(callback)
+
+
+def test_try_healed_locators_fires_success_when_candidate_found():
+    """A verified candidate fires on_healing_success exactly once."""
+    from mops.selenium.core.core_element import CoreElement
+
+    healed_element = MagicMock()
+    fake = _selenium_element_stub()
+    fake._get_base.return_value.find_element.return_value = healed_element
+
+    success_cb = MagicMock()
+    failure_cb = MagicMock()
+    config = SimpleNamespace(on_healing_success=success_cb, on_healing_failure=failure_cb, score_threshold=0.7)
+
+    with patch('mops.selenium.core.core_element.get_config', return_value=config):
+        returned = CoreElement._try_healed_locators(fake, _healing_result())
+
+    assert returned is healed_element
+    success_cb.assert_called_once()
+    failure_cb.assert_not_called()
+    assert fake.locator == '//div'  # healed locator persisted
+
+
+def test_playwright_try_healed_locators_fires_failure_when_no_candidate_matches():
+    """Playwright: all candidates missing → on_healing_failure fired."""
+    from mops.playwright.play_element import PlayElement
+
+    fake = SimpleNamespace(
+        _get_base=MagicMock(return_value=MagicMock()),
+        _parse_healed_locator_pw=MagicMock(side_effect=lambda s: s[len('xpath='):]),
+        locator=None,
+        _element=None,
+        name='fake element',
+        driver_wrapper=MagicMock(),
+    )
+    fake.log = lambda *a, **k: None
+    # base.locator(selector).count() == 0 for every candidate
+    fake._get_base.return_value.locator.return_value.count.return_value = 0
+
+    callback = MagicMock()
+    config = SimpleNamespace(on_healing_success=None, on_healing_failure=callback, score_threshold=0.7)
+
+    with patch('mops.playwright.play_element.get_config', return_value=config):
+        with pytest.raises(NoSuchElementException):
+            PlayElement._try_healed_locators(fake, _healing_result())
+
+    _assert_no_verified_failure(callback)
