@@ -210,3 +210,116 @@ def test_healing_text_match_helps_target_over_short_avatar():
 # TODO: the dom-changed-during-healing guard was temporarily removed from
 # Healer.heal(). Re-add it together with these tests when index-drift
 # protection is reintroduced.
+
+
+# ---------------------------------------------------------------------------
+# HTML defaults / missing-data tolerance
+# ---------------------------------------------------------------------------
+
+
+def test_html_default_type_does_not_penalize():
+    """<input> without a type attribute matches a snapshot type='text'."""
+    storage = _make_storage()
+    storage.load.return_value = _make_snapshot(tag='input', attributes={'id': 'submit', 'type': 'text'})
+    driver = _driver_with(
+        candidates=[_make_candidate(attrs={'id': 'submit'})],  # candidate has no type
+        elements=[MagicMock()],
+    )
+
+    result = _heal(storage, driver)
+
+    assert result is not None
+    type_match = result.breakdown.attributes['type']
+    assert type_match.score == 1.0  # HTML default for <input>
+    assert type_match.matched is False  # but not an exact attribute match
+
+
+def test_html_default_depends_on_tag():
+    """type='text' is only an HTML default for <input>, not for <button>."""
+    storage = _make_storage()
+    # <button> default type is 'submit', so a missing type is NOT 'text'
+    storage.load.return_value = _make_snapshot(tag='button', attributes={'type': 'text'})
+    driver = _driver_with(
+        candidates=[_make_candidate(attrs={})],  # no type
+        elements=[MagicMock()],
+    )
+
+    result = _heal(storage, driver, threshold=0.0)
+
+    assert result is not None
+    type_match = result.breakdown.attributes['type']
+    assert type_match.score == 0.0  # not an HTML default for <button>
+    assert type_match.matched is False
+
+
+def test_empty_parent_attrs_not_penalized():
+    """Snapshot with no parent attribute info does not drag the parent score down."""
+    storage = _make_storage()
+    storage.load.return_value = _make_snapshot(parent_tag='div', parent_attributes={})
+    driver = _driver_with(
+        candidates=[_make_candidate(parentTag='div', parentAttrs={'class': 'FieldContainer__content'})],
+        elements=[MagicMock()],
+    )
+
+    result = _heal(storage, driver, threshold=0.0)
+
+    assert result is not None
+    assert result.breakdown.parent_tag_matched is True
+    assert result.breakdown.parent_attrs_score is None  # no info in snapshot → not penalized
+
+
+def test_missing_siblings_not_penalized():
+    """A candidate without siblings is not penalized (siblings are optional)."""
+    storage = _make_storage()
+    snap_sib = {'tag': 'div', 'attrs': {'class': 'modal-title'}, 'text': 'title'}
+    storage.load.return_value = _make_snapshot(siblings=[snap_sib])
+    driver = _driver_with(
+        candidates=[_make_candidate(siblings=[])],  # candidate lost its siblings
+        elements=[MagicMock()],
+    )
+
+    result = _heal(storage, driver, threshold=0.0)
+
+    assert result is not None
+    assert result.breakdown.siblings_score is None
+
+
+def test_react_wrapper_case_passes_threshold():
+    """Semantic anchor (placeholder + tag) wins despite class/DOM changes."""
+    storage = _make_storage()
+    storage.load.return_value = _make_snapshot(
+        tag='input',
+        attributes={
+            'class': 'field input classic-form__field text-medium',
+            'placeholder': 'Enter search query',
+            'type': 'text',
+        },
+        parent_tag='div',
+        parent_attributes={},
+        siblings=[
+            {'tag': 'div', 'attrs': {'class': 'classic-form__heading'}, 'text': 'title'},
+            {'tag': 'div', 'attrs': {'class': 'classic-form__hint'}, 'text': 'hint'},
+        ],
+    )
+    driver = _driver_with(
+        candidates=[_make_candidate(
+            attrs={
+                'aria-invalid': 'false',
+                'class': 'ModernField ModernField_lg',
+                'placeholder': 'Enter search query',
+            },
+            parentTag='div',
+            parentAttrs={'class': 'FieldContainer__content'},
+            siblings=[],
+        )],
+        elements=[MagicMock()],
+    )
+
+    result = _heal(storage, driver, threshold=0.8)
+
+    assert result is not None, 'semantic anchor should pass the threshold'
+    assert result.score > 0.8
+    assert result.breakdown.attributes['placeholder'].score == 1.0
+    assert result.breakdown.attributes['type'].score == 1.0  # HTML default
+    assert result.breakdown.parent_attrs_score is None
+    assert result.breakdown.siblings_score is None

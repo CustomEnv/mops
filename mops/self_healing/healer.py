@@ -505,7 +505,7 @@ def _candidate_to_snapshot(candidate: dict[str, Any], tag: str) -> ElementSnapsh
     )
 
 
-def _compute_similarity_breakdown(
+def _compute_similarity_breakdown(  # noqa: PLR0912
     candidate: ElementSnapshot,
     snapshot: ElementSnapshot,
     weights: ScoringWeights | None = None,
@@ -541,7 +541,7 @@ def _compute_similarity_breakdown(
 
         if weight:
             total_weight += weight
-            attr_score = _attribute_similarity(attr, snap_val, cand_val)
+            attr_score = _attribute_similarity(attr, snap_val, cand_val, tag=snapshot.tag)
             score += weight * attr_score
         else:
             # Unweighted attribute — diagnostics only, binary match indicator
@@ -570,7 +570,9 @@ def _compute_similarity_breakdown(
             text_score = 0.0
         score += w.text * text_score
 
-    # Parent tag match
+    # Parent tag match. An empty ``snapshot.parent_attributes`` means the snapshot
+    # carries no parent attribute info — that is an absence of data, not a
+    # mismatch, so it is never penalized.
     parent_tag_matched: bool | None = None
     parent_attrs_score: float | None = None
     if snapshot.parent_tag and candidate.parent_tag:
@@ -578,14 +580,17 @@ def _compute_similarity_breakdown(
         parent_tag_matched = candidate.parent_tag == snapshot.parent_tag
         if parent_tag_matched:
             score += w.parent * 0.5
-            parent_attrs_score = _attrs_overlap(snapshot.parent_attributes, candidate.parent_attributes)
-            score += w.parent * 0.5 * parent_attrs_score
+            if snapshot.parent_attributes:
+                parent_attrs_score = _attrs_overlap(snapshot.parent_attributes, candidate.parent_attributes)
+                score += w.parent * 0.5 * parent_attrs_score
 
-    # Sibling similarity
+    # Sibling similarity is optional: a candidate may lose its siblings entirely
+    # (e.g. a new React wrapper), so an empty candidate sibling list is treated as
+    # missing data rather than a mismatch.
     snap_siblings = snapshot.siblings
     cand_siblings = candidate.siblings
     siblings_score: float | None = None
-    if snap_siblings:
+    if snap_siblings and cand_siblings:
         total_weight += w.siblings
         siblings_score = _siblings_similarity(snap_siblings, cand_siblings)
         score += w.siblings * siblings_score
@@ -658,13 +663,36 @@ def _class_similarity(a: str, b: str) -> float:
     return len(intersection) / len(union)
 
 
-def _attribute_similarity(attr: str, snap_val: str | None, cand_val: str | None) -> float:
+_HTML_DEFAULT_ATTRS: dict[str, dict[str, str]] = {
+    'input': {'type': 'text'},
+    'button': {'type': 'submit'},
+    'script': {'type': 'text/javascript'},
+    'style': {'type': 'text/css'},
+    'link': {'type': 'text/css'},
+    'ol': {'type': '1'},
+}
+
+
+def _attribute_similarity(
+    attr: str,
+    snap_val: str | None,
+    cand_val: str | None,
+    tag: str | None = None,
+) -> float:
     """0-1 similarity of a single attribute value between snapshot and candidate.
 
     ``class`` uses canonical word-token comparison; everything else falls back to
     exact match (``1.0``) or token overlap for partial matches.
+
+    HTML defaults are applied when *tag* is known: e.g. an ``<input>`` without a
+    ``type`` attribute is ``type="text"``, a ``<button>`` without ``type`` is
+    ``type="submit"`` — so a candidate missing the attribute matches the
+    snapshot's default value.
     """
     if snap_val is None or cand_val is None:
+        defaults = _HTML_DEFAULT_ATTRS.get(tag or '')
+        if defaults and attr in defaults and snap_val == defaults[attr]:
+            return 1.0  # HTML default for <tag>
         return 0.0
     if snap_val == cand_val:
         return 1.0
