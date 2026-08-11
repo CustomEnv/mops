@@ -388,13 +388,21 @@ def test_failure_callback_does_not_crash_healing():
 # ---------------------------------------------------------------------------
 
 
-def _selenium_element_stub(base=None):
-    """Build a minimal object exposing the attrs _try_healed_locators touches."""
+def _selenium_element_stub(base=None, original_miss: bool = True):
+    """Build a minimal object exposing the attrs _try_healed_locators touches.
+
+    :param original_miss: When :obj:`True` (default), the original locator lookup
+        raises ``NoSuchElement`` — so the healed-candidates path is exercised.
+    """
+    base = base or MagicMock()
+    if original_miss:
+        base.find_element.side_effect = SeleniumNoSuchElementException
     fake = SimpleNamespace(
-        _get_base=MagicMock(return_value=base or MagicMock()),
+        _get_base=MagicMock(return_value=base),
+        _resolve_base=MagicMock(return_value=(base, None)),
         _verify_healed_locators=MagicMock(return_value=None),
-        locator_type=None,
-        locator=None,
+        locator_type='xpath',
+        locator='.original',
         _cached_element=None,
         parent=None,
         name='fake element',
@@ -452,7 +460,7 @@ def test_try_healed_locators_fires_failure_when_base_raises():
     from mops.selenium.core.core_element import CoreElement
 
     fake = _selenium_element_stub()
-    fake._get_base.side_effect = NoSuchElementException('parent not found')
+    fake._resolve_base.return_value = (None, 'parent not found')
 
     callback = MagicMock()
     config = SimpleNamespace(on_healing_success=None, on_healing_failure=callback, score_threshold=0.7)
@@ -499,36 +507,43 @@ def test_try_healed_locators_fires_success_when_candidate_found():
     failure_cb.assert_not_called()
 
 
-def test_try_healed_locators_heals_parent_when_base_missing():
-    """A missing parent is healed first, then the element locators are verified."""
+def test_resolve_base_heals_parent_when_base_missing():
+    """_resolve_base heals a missing parent and retries inside the healed context."""
     from mops.selenium.core.core_element import CoreElement
 
-    healed_element = MagicMock()
     base_after_parent_heal = MagicMock()
-    fake = _selenium_element_stub(base=base_after_parent_heal)
-    fake._verify_healed_locators.return_value = healed_element
-    # first _get_base raises (stale parent), second succeeds after parent healing
+    fake = _selenium_element_stub()
     fake._get_base.side_effect = [NoSuchElementException('parent not found'), base_after_parent_heal]
     fake.parent = SimpleNamespace(_apply_healing=MagicMock(return_value=True))
 
-    failure_cb = MagicMock()
-    config = SimpleNamespace(on_healing_success=None, on_healing_failure=failure_cb, score_threshold=0.7)
+    base, error = CoreElement._resolve_base(fake, 0)
 
-    with patch('mops.selenium.core.core_element.get_config', return_value=config):
-        returned = CoreElement._try_healed_locators(fake, _healing_result())
-
-    assert returned is healed_element
+    assert base is base_after_parent_heal
+    assert error is None
     fake.parent._apply_healing.assert_called_once_with(1)
-    failure_cb.assert_not_called()
 
 
-def test_try_healed_locators_fails_when_parent_cannot_be_healed():
-    """If the parent cannot be healed, the terminal failure callback still fires."""
+def test_resolve_base_fails_when_parent_cannot_be_healed():
+    """_resolve_base returns None with an error when the parent cannot be healed."""
     from mops.selenium.core.core_element import CoreElement
 
     fake = _selenium_element_stub()
     fake._get_base.side_effect = NoSuchElementException('parent not found')
     fake.parent = SimpleNamespace(_apply_healing=MagicMock(return_value=False))
+
+    base, error = CoreElement._resolve_base(fake, 0)
+
+    assert base is None
+    assert error is not None
+    fake.parent._apply_healing.assert_called_once_with(1)
+
+
+def test_try_healed_locators_fires_failure_when_parent_cannot_be_healed():
+    """If the parent cannot be healed, the terminal failure callback still fires."""
+    from mops.selenium.core.core_element import CoreElement
+
+    fake = _selenium_element_stub()
+    fake._resolve_base.return_value = (None, 'parent not healed')
 
     callback = MagicMock()
     config = SimpleNamespace(on_healing_success=None, on_healing_failure=callback, score_threshold=0.7)
@@ -547,7 +562,7 @@ def test_verify_healed_locators_fires_success_and_persists_locator():
     healed_element = MagicMock()
     base = MagicMock()
     base.find_element.return_value = healed_element
-    fake = _selenium_element_stub(base=base)
+    fake = _selenium_element_stub(base=base, original_miss=False)
     result = _healing_result()
 
     success_cb = MagicMock()
@@ -561,21 +576,78 @@ def test_verify_healed_locators_fires_success_and_persists_locator():
     assert result.healed_locator == 'xpath=//div'
 
 
-def test_playwright_try_healed_locators_fires_failure_when_no_candidate_matches():
-    """Playwright: all candidates missing → on_healing_failure fired."""
+def test_try_healed_locators_original_locator_works_no_metrics():
+    """If the original locator works again, no success/failure metrics are emitted."""
+    from mops.selenium.core.core_element import CoreElement
+
+    original_element = MagicMock()
+    base = MagicMock()
+    base.find_element.return_value = original_element  # original locator hits
+    fake = _selenium_element_stub(base=base, original_miss=False)
+
+    success_cb = MagicMock()
+    failure_cb = MagicMock()
+    config = SimpleNamespace(on_healing_success=success_cb, on_healing_failure=failure_cb, score_threshold=0.7)
+
+    with patch('mops.selenium.core.core_element.get_config', return_value=config):
+        returned = CoreElement._try_healed_locators(fake, _healing_result())
+
+    assert returned is original_element
+    assert fake._cached_element is original_element
+    success_cb.assert_not_called()
+    failure_cb.assert_not_called()
+
+
+def test_playwright_try_healed_locators_original_works_no_metrics():
+    """Playwright: original locator working again emits no metrics."""
     from mops.playwright.play_element import PlayElement
 
+    base = MagicMock()
     fake = SimpleNamespace(
-        _get_base=MagicMock(return_value=MagicMock()),
+        _get_base=MagicMock(return_value=base),
+        _resolve_base=MagicMock(return_value=(base, None)),
         _verify_healed_locators=MagicMock(return_value=None),
         _parse_healed_locator_pw=MagicMock(side_effect=lambda s: s[len('xpath='):]),
-        locator=None,
+        locator='.original',
         _element=None,
         parent=None,
         name='fake element',
         driver_wrapper=MagicMock(),
     )
     fake.log = lambda *a, **k: None
+    # original locator hits: count() > 0
+    fake._get_base.return_value.locator.return_value.count.return_value = 1
+
+    success_cb = MagicMock()
+    failure_cb = MagicMock()
+    config = SimpleNamespace(on_healing_success=success_cb, on_healing_failure=failure_cb, score_threshold=0.7)
+
+    with patch('mops.playwright.play_element.get_config', return_value=config):
+        PlayElement._try_healed_locators(fake, _healing_result())
+
+    success_cb.assert_not_called()
+    failure_cb.assert_not_called()
+
+
+def test_playwright_try_healed_locators_fires_failure_when_no_candidate_matches():
+    """Playwright: all candidates missing → on_healing_failure fired."""
+    from mops.playwright.play_element import PlayElement
+
+    base = MagicMock()
+    fake = SimpleNamespace(
+        _get_base=MagicMock(return_value=base),
+        _resolve_base=MagicMock(return_value=(base, None)),
+        _verify_healed_locators=MagicMock(return_value=None),
+        _parse_healed_locator_pw=MagicMock(side_effect=lambda s: s[len('xpath='):]),
+        locator='.original',
+        _element=None,
+        parent=None,
+        name='fake element',
+        driver_wrapper=MagicMock(),
+    )
+    fake.log = lambda *a, **k: None
+    # original locator miss by default: count() == 0
+    fake._get_base.return_value.locator.return_value.count.return_value = 0
 
     callback = MagicMock()
     config = SimpleNamespace(on_healing_success=None, on_healing_failure=callback, score_threshold=0.7)

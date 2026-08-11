@@ -573,6 +573,23 @@ class PlayElement(ElementABC, Logging, ABC):
             self.log(f'Self-healing failed with unexpected exception: {exc}', level='warning')
             return None
 
+    def _resolve_base(self, depth: int) -> tuple[PlaywrightPage | Locator | None, str | None]:
+        """Resolve the base (parent) context, healing a missing parent first.
+
+        Returns a ``(base, error)`` pair; *base* is ``None`` (with an error message)
+        when the parent could not be resolved even after healing.
+        """
+        try:
+            return self._get_base(wait_strategy=False), None
+        except (NoSuchElementException, NoSuchParentException) as exc:
+            # Parent is missing — heal it first, then retry inside the healed context.
+            if depth < MAX_HEALING_DEPTH and self.parent is not None and self.parent._apply_healing(depth + 1):
+                try:
+                    return self._get_base(wait_strategy=False), None
+                except (NoSuchElementException, NoSuchParentException) as exc2:
+                    return None, str(exc2)
+            return None, str(exc)
+
     def _try_healed_locators(self, result: SuccessHealingResult, depth: int = 0) -> None:
         """Try each healed locator candidate and persist the first working one.
 
@@ -588,23 +605,21 @@ class PlayElement(ElementABC, Logging, ABC):
         :raises NoSuchElementException: If no candidate locator resolves to an element.
         """
         config = get_config()
-        error: str | None = None
-        try:
-            base = self._get_base(wait_strategy=False)
-        except (NoSuchElementException, NoSuchParentException) as exc:
-            # Parent is missing — heal it first, then verify the element inside the
-            # healed parent context instead of the stale one.
-            if depth < MAX_HEALING_DEPTH and self.parent is not None and self.parent._apply_healing(depth + 1):
-                try:
-                    base = self._get_base(wait_strategy=False)
-                except (NoSuchElementException, NoSuchParentException) as exc2:
-                    error = str(exc2)
-                    base = None
-            else:
-                error = str(exc)
-                base = None
+        base, error = self._resolve_base(depth)
 
         if base is not None:
+            # Try the ORIGINAL locator first — the DOM may have settled while
+            # healing was running (e.g. async re-render) and it could work again.
+            # If it does, no healing actually happened, so no metrics are emitted.
+            try:
+                original = base.locator(self.locator)
+                if original.count() > 0:
+                    self._element = original
+                    self.log(f'Self-healing: original locator "{self.locator}" works again for "{self.name}"')
+                    return
+            except Error:
+                pass
+
             try:
                 healed = self._verify_healed_locators(base, result, config)
             except Exception as exc:  # noqa: BLE001
