@@ -19,6 +19,9 @@ _MIN_SUBSTRING_LENGTH = 3
 _CAMEL_BOUNDARY_RE = re.compile(r'([a-z0-9])([A-Z])')
 _NON_WORD_RE = re.compile(r'[^a-zA-Z0-9]+')
 
+# Recursion guard when an element's healing needs to heal missing parents first.
+MAX_HEALING_DEPTH = 3
+
 logger = logging.getLogger('mops.self_healing')
 
 _GET_CANDIDATES_JS = """
@@ -161,6 +164,8 @@ class SuccessHealingResult:
     healed_locator: str | None
     healed_locators_candidates: list[str]
     score: float
+    locator_key: str = ''
+    candidates_count: int | None = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     breakdown: SimilarityBreakdown | None = None
 
@@ -353,6 +358,8 @@ class Healer:
             healed_locator=None,
             healed_locators_candidates=healed_locators,
             score=best_score,
+            locator_key=locator_key,
+            candidates_count=len(candidates),
             breakdown=best_breakdown,
         )
 

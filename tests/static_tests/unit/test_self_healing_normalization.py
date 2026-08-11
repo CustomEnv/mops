@@ -34,9 +34,9 @@ def test_extract_key_with_parent():
 
     grandparent = _make_element('Section', '#section')
     parent = _make_element('Form', '#form', parent=grandparent)
-    child = _make_element('Submit button', '#submit', parent=parent)
+    element = _make_element('Submit button', '#submit', parent=parent)
 
-    result = storage.extract_full_locator_key(child)
+    result = storage.extract_full_locator_key(element)
     assert result == 'Submit button::#submit -> Form::#form -> Section::#section'
 
 
@@ -47,10 +47,10 @@ def test_extract_key_with_parent_normalized():
     # The default class-only rules don't affect locator keys (token-removal skipped),
     # so no normalization happens with defaults. But custom rules should apply.
     parent = _make_element('Form', '#form')
-    child = _make_element('User card', '#user-12345', parent=parent)
+    element = _make_element('User card', '#user-12345', parent=parent)
 
     # Default rules don't strip #user-12345 because id rules were removed
-    result = storage.extract_full_locator_key(child)
+    result = storage.extract_full_locator_key(element)
     assert 'User card::#user-12345' in result
 
 
@@ -217,7 +217,7 @@ def test_custom_rules_affect_extracted_key():
         (None, re.compile(r'-\d+'), ''),
     ])
     parent = _make_element('Form', '#form-99')
-    child = _make_element('User card', '#user-12345', parent=parent)
+    element = _make_element('User card', '#user-12345', parent=parent)
 
-    result = storage.extract_full_locator_key(child)
+    result = storage.extract_full_locator_key(element)
     assert result == 'User card::#user -> Form::#form'

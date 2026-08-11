@@ -231,27 +231,27 @@ def test_wait_visibility_without_error_does_not_heal(second_playground_page):
     assert not row.is_displayed(silent=True), 'Element should not be visible'
 
 
-def test_parent_healing_not_triggered_during_child_healing(second_playground_page):
+def test_parent_healing_not_triggered_during_sub_element_healing(second_playground_page):
     row = second_playground_page.row_with_cards
     parent = row
-    child_with_parent = Element('a', name='card link', parent=parent)
-    child_with_parent.wait_visibility(silent=True)
+    sub_element_with_parent = Element('a', name='card link', parent=parent)
+    sub_element_with_parent.wait_visibility(silent=True)
 
     storage = get_config().storage
-    real_key = _key(child_with_parent)
+    real_key = _key(sub_element_with_parent)
     snapshot = storage.load(real_key)
     assert snapshot is not None
 
     broken_locator = '.broken-card-link'
-    broken_child = Element(broken_locator, name=child_with_parent.name, parent=row)
-    broken_key = _key(broken_child)
+    broken_sub_element = Element(broken_locator, name=sub_element_with_parent.name, parent=row)
+    broken_key = _key(broken_sub_element)
     storage.save(broken_key, snapshot)
 
     HealingCls = _backend_cls(second_playground_page)
     with spy_healing(HealingCls) as spy:
-        cls = broken_child.get_attribute('class', silent=True)
+        cls = broken_sub_element.get_attribute('class', silent=True)
 
-    assert cls is not None, 'Child was not healed'
+    assert cls is not None, 'Element was not healed'
     assert parent.name not in spy['instances'], f'Parent healing was triggered: {spy["instances"]}'
 
 
@@ -402,31 +402,31 @@ def test_healing_matches_parent_class_canonically(second_playground_page):
     configure(on_healing_success=results.append)
 
     driver = second_playground_page.driver_wrapper
-    # build a container with a snake_case class and a child span
+    # build a container with a snake_case class and a sub-element span
     driver.execute_script("""
         var container = document.createElement('div');
         container.className = 'checkout_form_submit';
-        container.innerHTML = '<span id="canonical-parent-child">child</span>';
+        container.innerHTML = '<span id="canonical-parent-sub-element">sub-element</span>';
         document.body.appendChild(container);
     """)
 
-    # snapshot the child while its parent still has the snake_case class
-    child = Element('#canonical-parent-child', name='canonical parent child')
-    child.wait_visibility(silent=True)
+    # snapshot the sub-element while its parent still has the snake_case class
+    element = Element('#canonical-parent-sub-element', name='canonical parent sub-element')
+    element.wait_visibility(silent=True)
 
     storage = get_config().storage
-    snapshot = storage.load(_key(child))
+    snapshot = storage.load(_key(element))
     assert snapshot is not None
     assert snapshot.parent_tag == 'div'
     assert snapshot.parent_attributes.get('class') == 'checkout_form_submit'
 
     # flip the parent class to camelCase — same words, different case/separators
     driver.execute_script(
-        "document.getElementById('canonical-parent-child').parentElement.className = 'checkoutFormSubmit';"
+        "document.getElementById('canonical-parent-sub-element').parentElement.className = 'checkoutFormSubmit';"
     )
 
-    # break the child locator and heal
-    broken = Element('#broken-canonical-parent-child', name=child.name)
+    # break the sub-element locator and heal
+    broken = Element('#broken-canonical-parent-sub-element', name=element.name)
     storage.save(_key(broken), snapshot)
 
     healed = broken.get_attribute('id', silent=True)
@@ -490,11 +490,11 @@ def test_healing_matches_element_class_canonically(second_playground_page):
     driver.execute_script("""
         var el = document.createElement('span');
         el.className = 'user-profile-card';
-        el.textContent = 'canonical-element-child';
+        el.textContent = 'canonical-target-element';
         document.body.appendChild(el);
     """)
 
-    el = Element('//span[.="canonical-element-child"]', name='canonical element child')
+    el = Element('//span[.="canonical-target-element"]', name='canonical target element')
     el.wait_visibility(silent=True)
 
     storage = get_config().storage
@@ -506,7 +506,7 @@ def test_healing_matches_element_class_canonically(second_playground_page):
     driver.execute_script("""
         var spans = document.querySelectorAll('span');
         for (var i = 0; i < spans.length; i++) {
-            if (spans[i].textContent === 'canonical-element-child') {
+            if (spans[i].textContent === 'canonical-target-element') {
                 spans[i].className = 'UserProfileCard';
             }
         }

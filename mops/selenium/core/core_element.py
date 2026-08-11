@@ -29,7 +29,7 @@ from mops.mixins.objects.location import Location
 from mops.mixins.objects.size import Size
 from mops.selenium.sel_utils import ActionChains
 from mops.self_healing.config import get_config
-from mops.self_healing.healer import FailedHealingResult, SuccessHealingResult
+from mops.self_healing.healer import MAX_HEALING_DEPTH, FailedHealingResult, SuccessHealingResult
 from mops.self_healing.healer_factory import get_healer
 from mops.self_healing.locator_generator import generate_locator
 from mops.shared_utils import _scaled_screenshot, cut_log_data
@@ -505,7 +505,7 @@ class CoreElement(ElementABC, ABC):
         Get driver with depends on parent element if available
 
         :param wait_strategy: wait strategy for the parent element before it is used
-            as a base for the child lookup. ``True`` waits for the parent to be visible.
+            as a base for the sub-element lookup. ``True`` waits for the parent to be visible.
         :return: driver
         """
         base = self.driver
@@ -569,65 +569,101 @@ class CoreElement(ElementABC, ABC):
             self.log(f'Self-healing failed with unexpected exception: {exc}', level='warning')
             return None
 
-    def _try_healed_locators(self, result: SuccessHealingResult) -> SeleniumWebElement:
+    def _try_healed_locators(self, result: SuccessHealingResult, depth: int = 0) -> SeleniumWebElement:
         """Try each healed locator and persist the first working one.
 
         A healing attempt always ends with a terminal callback: ``on_healing_success``
         when a candidate passes DOM verification, or ``on_healing_failure`` otherwise
         (including when verification itself fails or cannot be performed).
+
+        If the base (parent) context is stale and cannot be resolved, the parent is
+        healed first so the sub-element locators are verified inside the healed parent.
         """
         config = get_config()
+        error: str | None = None
         try:
             base = self._get_base(wait_strategy=False)
-            for locator in result.healed_locators_candidates:
-                healed_locator_type, healed_locator_value = _parse_healed_locator(locator)
+        except (NoSuchElementException, NoSuchParentException) as exc:
+            # Parent is missing — heal it first, then verify the element inside the
+            # healed parent context instead of the stale one.
+            if depth < MAX_HEALING_DEPTH and self.parent is not None and self.parent._apply_healing(depth + 1):
                 try:
-                    healed = base.find_element(healed_locator_type, healed_locator_value)
-                except SeleniumNoSuchElementException:
-                    continue
-                result.healed_locator = locator
-                self.locator_type = healed_locator_type
-                self.locator = healed_locator_value
-                self._cached_element = healed
-                self.log(f'Self-healing: healed "{self.name}" with locator "{locator}"')
-                # Fire success callback AFTER locator is verified against DOM
-                if config.on_healing_success:
-                    config.on_healing_success(result)
+                    base = self._get_base(wait_strategy=False)
+                except (NoSuchElementException, NoSuchParentException) as exc2:
+                    error = str(exc2)
+                    base = None
+            else:
+                error = str(exc)
+                base = None
+
+        if base is not None:
+            try:
+                healed = self._verify_healed_locators(base, result, config)
+            except Exception as exc:  # noqa: BLE001
+                healed = None
+                error = exc.msg if isinstance(exc, SeleniumWebDriverException) else str(exc)
+            if healed is not None:
                 return healed
-            error = 'All healed locator candidates failed find_element()'
-        except Exception as exc:  # noqa: BLE001
-            error = exc.msg if isinstance(exc, SeleniumWebDriverException) else str(exc)
+            if error is None:
+                error = 'All healed locator candidates failed find_element()'
 
         # Terminal failure — none of the candidates passed DOM verification
         if config.on_healing_failure:
             config.on_healing_failure(
                 FailedHealingResult(
                     element_name=result.element_name,
-                    locator_key='',
+                    locator_key=result.locator_key,
                     locator=result.original_locator,
                     reason='no-verified-locator',
                     error=error,
                     best_score=result.score,
                     score_threshold=config.score_threshold,
+                    candidates_count=result.candidates_count,
                     breakdown=result.breakdown,
                 )
             )
         msg = error or 'Healed locator candidates did not match any element'
         raise NoSuchElementException(msg)
 
-    def _apply_healing(self) -> bool:
+    def _verify_healed_locators(
+        self,
+        base: SeleniumWebDriver | SeleniumWebElement,
+        result: SuccessHealingResult,
+        config: Any,
+    ) -> SeleniumWebElement | None:
+        """Try each healed locator against *base*; persist and callback the first hit."""
+        for locator in result.healed_locators_candidates:
+            healed_locator_type, healed_locator_value = _parse_healed_locator(locator)
+            try:
+                healed = base.find_element(healed_locator_type, healed_locator_value)
+            except SeleniumNoSuchElementException:
+                continue
+            result.healed_locator = locator
+            self.locator_type = healed_locator_type
+            self.locator = healed_locator_value
+            self._cached_element = healed
+            self.log(f'Self-healing: healed "{self.name}" with locator "{locator}"')
+            # Fire success callback AFTER locator is verified against DOM
+            if config.on_healing_success:
+                config.on_healing_success(result)
+            return healed
+        return None
+
+    def _apply_healing(self, depth: int = 0) -> bool:
         """Attempt healing and persist the first working locator.
 
         Called by :func:`@healing <mops.utils.decorators.healing>` and
         :func:`@healing_after_wait <mops.utils.decorators.healing_after_wait>`.
 
+        :param depth: Recursion depth guard used when a parent needs to be healed
+            first so the element can be verified inside the healed parent context.
         :return: :obj:`True` if a healed locator was found and applied.
         """
         result = self._attempt_healing()
         if not result:
             return False
         try:
-            self._try_healed_locators(result)
+            self._try_healed_locators(result, depth=depth)
         except NoSuchElementException:
             return False
         return True
