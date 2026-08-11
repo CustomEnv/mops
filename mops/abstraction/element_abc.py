@@ -371,6 +371,17 @@ class ElementABC(MixinABC, ABC):
         """
         raise NotImplementedError
 
+    def _apply_healing(self) -> bool:
+        """
+        Attempt self-healing and persist the first working locator.
+
+        Called by the :func:`@healing <mops.utils.decorators.healing>` decorator
+        and :func:`@healing_after_wait <mops.utils.decorators.healing_after_wait>`.
+
+        :return: :obj:`True` if a healed locator was found and applied.
+        """
+        raise NotImplementedError
+
     def is_displayed(self, silent: bool = False) -> bool:
         """
         Check if the element is displayed.

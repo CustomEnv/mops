@@ -7,7 +7,7 @@ from selenium.common import JavascriptException
 
 from mops.js_scripts import js_click
 from mops.selenium.core.core_element import CoreElement
-from mops.utils.decorators import retry
+from mops.utils.decorators import healing, retry
 from mops.utils.internal_utils import calculate_coordinate_to_click
 from mops.utils.selector_synchronizer import get_platform_locator, set_selenium_selector
 
@@ -40,6 +40,7 @@ class WebElement(CoreElement, ABC):
 
         return self
 
+    @healing
     @retry(JavascriptException)
     def hover(self, silent: bool = False) -> WebElement:
         """

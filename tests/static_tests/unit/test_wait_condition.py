@@ -1,11 +1,12 @@
 import time
 from types import SimpleNamespace
 from typing import Union
+from unittest.mock import patch
 
 import pytest
 from mops.exceptions import TimeoutException
 from mops.utils.internal_utils import WAIT_METHODS_DELAY
-from mops.utils.decorators import wait_condition
+from mops.utils.decorators import healing_after_wait, wait_condition
 from mops.utils.logs import autolog
 from mops.mixins.objects.wait_result import Result
 
@@ -136,6 +137,104 @@ def test_wait_condition_mobile_delay_increasing():
     assert end_time < 0.75
 
 
+# ---------------------------------------------------------------------------
+# Healing-after-wait tests
+# ---------------------------------------------------------------------------
+
+
+class MockHealableNamespace(MockNamespace):
+    """Like MockNamespace but supports _heal_after_wait for wait_condition healing."""
+
+    def __init__(self, log_msg: str, call_count: int, heal_after_wait_result: bool = False, **kwargs):
+        super().__init__(log_msg, call_count, **kwargs)
+        self._heal_after_wait_result = heal_after_wait_result
+        self.heal_after_wait_called = False
+        self._post_heal_retry = False
+
+    def get_result(self):
+        # After healing, the retry call should always succeed
+        if self._post_heal_retry:
+            return True
+        return super().get_result()
+
+    def _heal_after_wait(self) -> bool:
+        self.heal_after_wait_called = True
+        if self._heal_after_wait_result:
+            self._post_heal_retry = True
+        return self._heal_after_wait_result
+
+    @healing_after_wait
+    @wait_condition
+    def wait_something(self, *, timeout: Union[int, float] = 1, silent: bool = False) -> bool:  # noqa
+        return Result(  # noqa
+            execution_result=self.get_result(),
+            log=self.log_msg,
+            exc=TimeoutException('wait some condition failed!'),
+        )
+
+
+def test_wait_condition_heal_on_timeout_called():
+    """After wait times out, _heal_after_wait is called."""
+    namespace = MockHealableNamespace('wait', call_count=10, heal_after_wait_result=False)
+
+    with patch('mops.utils.decorators.get_config') as mock_cfg:
+        mock_cfg.return_value.heal_locators = True
+        with pytest.raises(TimeoutException):
+            namespace.wait_something(timeout=0.1)
+
+    assert namespace.heal_after_wait_called
+
+
+def test_wait_condition_heal_success_retries():
+    """_heal_after_wait returns True -> wait is retried and succeeds."""
+    namespace = MockHealableNamespace('wait', call_count=10, heal_after_wait_result=True)
+
+    with patch('mops.utils.decorators.get_config') as mock_cfg:
+        mock_cfg.return_value.heal_locators = True
+        result = namespace.wait_something(timeout=0.1)
+
+    assert result is namespace
+    assert namespace.heal_after_wait_called
+
+
+def test_wait_condition_heal_fails_raises():
+    """_heal_after_wait returns False -> original exception raised."""
+    namespace = MockHealableNamespace('wait', call_count=10, heal_after_wait_result=False)
+
+    with patch('mops.utils.decorators.get_config') as mock_cfg:
+        mock_cfg.return_value.heal_locators = True
+        with pytest.raises(TimeoutException) as exc_info:
+            namespace.wait_something(timeout=0.1)
+
+    assert 'wait some condition failed!' in str(exc_info.value)
+    assert namespace.heal_after_wait_called
+
+
+def test_wait_condition_no_heal_method():
+    """Element without _heal_after_wait -> no healing, original exception."""
+    namespace = MockNamespace('wait', call_count=10)
+
+    with pytest.raises(TimeoutException):
+        namespace.wait_something(timeout=0.1)
+
+
+def test_wait_condition_heal_retry_also_times_out():
+    """If the retry after healing also fails, original exception is raised."""
+    namespace = MockHealableNamespace('wait', call_count=10, heal_after_wait_result=True)
+    # After _heal_after_wait, the retry gets result from get_result().
+    # Since _post_heal_retry is True, get_result() returns True.
+    # To test retry failure, override the retry behavior.
+    original_heal = namespace._heal_after_wait
+
+    def heal_and_no_retry():
+        original_heal()
+        namespace._post_heal_retry = False  # undo the retry-success flag
+        return True
+
+    namespace._heal_after_wait = heal_and_no_retry
+
+    with pytest.raises(TimeoutException):
+        namespace.wait_something(timeout=0.1)
 
 def test_wait_condition_desktop_default_delay():
     """ sleep for 0.1 seconds between iterations """

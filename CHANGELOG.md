@@ -23,6 +23,38 @@ types are active, preventing cross-driver method overwrites on shared Element/Pa
 
 ---
 
+## v4.0.0rc1
+
+*Release date: 2026-07-14*
+
+### Added
+- **Self-healing locators** — automatic recovery of broken element locators at runtime
+  - `mops/self_healing/` package with config, healer, locator generator, and snapshot storage
+  - `@healing` decorator — applied to action methods (`click`, `type_text`, `get_attribute`, `text`, etc.),
+    catches `NoSuchElementException`, heals the locator via similarity scoring, and retries the method
+  - `@healing_after_wait` decorator — applied to `wait_visibility` and `wait_availability`;
+    triggers healing after the wait condition times out
+  - `@no_healing` decorator — temporarily disables healing for specific methods (`is_displayed`, `wait_hidden`)
+  - `SelfHealingConfig` with `configure()` / `get_config()` for global configuration
+  - Snapshot capture on successful element lookup (tag, attributes, text, parent, up to 5 siblings)
+  - Candidate search — JS script collects all same-tag elements, scores each against the saved snapshot
+  - Similarity scoring with tunable per-attribute weights (`ScoringWeights`)
+  - Locator generation pipeline
+  - `SnapshotStorage` ABC for pluggable backends (Redis, S3, PostgreSQL, etc.)
+  - `JsonFileSnapshotStorage` — default JSON file-based backend
+  - Snapshot normalization rules to strip dynamic data (CSS hashes, state classes, etc.)
+  - Callbacks: `on_healing_success` / `on_healing_failure` for external integrations (metrics, alerting)
+  - Full documentation in `docs/source/other/self_healing.md`
+
+### Changed
+- Selenium & Playwright action methods now decorated with `@healing` for transparent self-healing
+- `wait_visibility` refactored into `_wait_visibility_base` to properly stack `@healing_after_wait` with `@wait_condition` / `@wait_continuous`
+- `wait_availability` decorated with `@healing_after_wait` for wait-timeout healing
+- Playwright element methods (`click`, `type_text`, `type_slowly`, `clear_text`, `hover`) now convert `playwright.Error` to `NoSuchElementException` for consistent healing trigger
+- `wait_visibility_without_error` — corrected log message from "hidden" to "visible" for non-continuous mode
+
+---
+
 ### v3.5.2
 
 #### Added

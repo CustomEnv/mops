@@ -4,7 +4,8 @@ from functools import wraps
 import time
 from typing import TYPE_CHECKING, Any
 
-from mops.exceptions import ContinuousWaitException
+from mops.exceptions import ContinuousWaitException, NoSuchElementException
+from mops.self_healing.config import get_config
 from mops.utils.internal_utils import (
     HALF_WAIT_EL,
     QUARTER_WAIT_EL,
@@ -52,6 +53,69 @@ def retry(exceptions: type | tuple, timeout: int = HALF_WAIT_EL) -> Callable:
         return wrapper
 
     return decorator
+
+
+def healing(method: Callable) -> Callable:
+    """Attempt self-healing when a :class:`NoSuchElementException` is raised.
+
+    Catches the exception, heals the locator via ``self._apply_healing()``,
+    then retries the original method once with the healed locator.
+    """
+
+    @wraps(method)
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        try:
+            return method(self, *args, **kwargs)
+        except NoSuchElementException:
+            if not get_config().heal_locators:
+                raise
+            if not self._apply_healing():
+                raise
+            return method(self, *args, **kwargs)
+
+    return wrapper
+
+
+def no_healing(method: Callable) -> Callable:
+    """Temporarily disable self-healing for the wrapped method.
+
+    Sets ``heal_locators`` to :obj:`False` on the global config before the call
+    and restores the original value afterwards. Use on methods that must never
+    trigger healing (e.g. ``is_displayed``, ``wait_hidden``).
+    """
+
+    @wraps(method)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        config = get_config()
+        saved = config.heal_locators
+        config.heal_locators = False
+        try:
+            return method(*args, **kwargs)
+        finally:
+            config.heal_locators = saved
+
+    return wrapper
+
+
+def healing_after_wait(method: Callable) -> Callable:
+    """Defer self-healing until a wait condition times out.
+
+    Wraps a ``@wait_condition`` method. When the wait times out, attempts
+    healing and retries ONCE.
+    """
+
+    @wraps(method)
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        try:
+            return method(self, *args, **kwargs)
+        except Exception as exc:
+            if getattr(exc, '_timeout', None) is not None and get_config().heal_locators:
+                heal = getattr(self, '_heal_after_wait', None)
+                if heal and heal():
+                    return method(self, *args, **kwargs)
+            raise
+
+    return wrapper
 
 
 def wait_condition(method: Callable) -> Callable:

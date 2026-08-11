@@ -30,6 +30,7 @@ caption: Other
 
 other/objects_initialisation
 other/visual_comparison
+other/self_healing
 ```
 
 ```{toctree}
