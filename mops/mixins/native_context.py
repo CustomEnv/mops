@@ -30,6 +30,7 @@ class NativeContext:
 class NativeSafari:
     _IOS_VERSION_18_2 = 18.2
     _IOS_VERSION_26 = 26.0
+    _IOS_VERSION_27 = 27.0
 
     ios_keyboard_hide_button = "//XCUIElementTypeButton[@name='Done']"
 
@@ -40,9 +41,13 @@ class NativeSafari:
     ios_26_bottom_bar_locator = (
         '//*[@name="CapsuleViewController"]/XCUIElementTypeOther[2]'  # `Compact` at Safari settings
     )
+    ios_bottom_bar_locator = '//*[@name="CapsuleViewController"]/XCUIElementTypeOther[1]'  # iOS 27+
 
     ipados_top_bar_locator = '//XCUIElementTypeOther[@name="UnifiedBar?isStandaloneBar=true"]/XCUIElementTypeOther[1]'
     ios_mobile_top_bar_locator = (
+        '//*[contains(@name, "SafariWindow")]/XCUIElementTypeOther[1]/XCUIElementTypeOther/XCUIElementTypeOther[2]'
+    )  # iOS 27+
+    ios_26_mobile_top_bar_locator = (
         '//*[contains(@name, "SafariWindow")]/XCUIElementTypeOther[1]/XCUIElementTypeOther/XCUIElementTypeOther'
     )
 
@@ -76,6 +81,20 @@ class NativeSafari:
             driver_wrapper=driver_wrapper,
         )
 
+    def get_top_bar_height(self) -> int:
+        """
+        Get iOS/iPadOS top bar height
+
+        :return: int
+        """
+        if not self.custom_top_bar_locator and not self.driver_wrapper.is_tablet:
+            ios_version = float(self.driver_wrapper.driver.caps.get('platformVersion', 18.2))
+
+            if ios_version < self._IOS_VERSION_27:
+                self.top_bar.locator = self.ios_26_mobile_top_bar_locator
+
+        return self.top_bar.size.height
+
     def get_bottom_bar_height(self) -> int:
         """
         Get iOS/iPadOS bottom bar height
@@ -88,7 +107,9 @@ class NativeSafari:
         if not self.custom_bottom_bar_locator:
             ios_version = float(self.driver_wrapper.driver.caps.get('platformVersion', 18.2))
 
-            if ios_version >= self._IOS_VERSION_26:
+            if ios_version >= self._IOS_VERSION_27:
+                self.bottom_bar.locator = self.ios_bottom_bar_locator
+            elif ios_version >= self._IOS_VERSION_26:
                 self.bottom_bar.locator = self.ios_26_bottom_bar_locator
             elif ios_version >= self._IOS_VERSION_18_2:
                 self.bottom_bar.locator = self.ios_18_bottom_bar_locator

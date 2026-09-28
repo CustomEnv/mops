@@ -180,7 +180,7 @@ class MobileDriver(CoreDriver):
         """
         if self._top_bar_height is None:
             with NativeContext(self):
-                self._top_bar_height = self.native_safari.top_bar.size.height
+                self._top_bar_height = self.native_safari.get_top_bar_height()
 
         return self._top_bar_height
 
