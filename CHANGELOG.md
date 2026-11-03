@@ -23,6 +23,38 @@ types are active, preventing cross-driver method overwrites on shared Element/Pa
 
 ---
 
+## v4.0.0rc2
+
+*Release date: 2026-xx-xx*
+
+### Fixed
+- **Generated locators are verified, not trusted** — healing previously accepted the first
+  generated XPath that resolved. Generated locators are frequently not unique
+  (`//input[@type="text"]`, `contains(@class, ...)`), so a heal could silently act on a different
+  element than the one that was scored. A locator matching a single element is still accepted
+  as-is; when it matches several, every match is snapshotted and scored against the saved
+  snapshot, and only the best verified match is accepted (verification uses the single
+  `score_threshold`, with the number of scored matches capped at `_MAX_VERIFY_MATCHES` = 10). Failing candidates are skipped, so the unique
+  positional XPath wins over a broad one. Implemented for both Selenium/Appium and Playwright.
+  Verification is batched: a single script call returns the match count *and* the snapshots
+  of the matches, so scoring runs locally instead of costing one round-trip per matched element.
+- **Self-healing is now scoped to the parent container** — the candidate scan and the healed
+  locator lookup run against the element's resolved base (parent element) instead of always
+  scanning the whole document, mirroring how MOPS resolves a regular locator. When the parent is
+  missing it is healed first, recursively through its own ancestors (`MAX_HEALING_DEPTH`).
+- **Candidate search is no longer tag-restricted** — when no element with the snapshot's tag
+  exists, the scan retries tag-agnostically inside the same context, so a redesign that changes
+  the tag (`div` → `button`) can still be healed. Scan size is capped (`_MAX_CANDIDATES`).
+- **Locator generation hardening** — build-time generated values are no longer used:
+  hash suffixes inside a token (`some-element#Tep`), React `:r1a:`, Angular `_ngcontent-*`,
+  short mixed-case blobs (`Tep`, `MdO`) and long alphanumeric hashes are dropped for `id`,
+  and stripped from `class` tokens (both in the generator and in snapshot normalization).
+  Also: valid XPath escaping via `_xpath_literal()` (with `concat()` when both quote kinds
+  occur — the previous backslash escape produced invalid XPath), `@name + @type` combination
+  and multi-token `@class` matching, and de-duplicated candidates.
+
+---
+
 ## v4.0.0rc1
 
 *Release date: 2026-07-14*
@@ -52,20 +84,6 @@ types are active, preventing cross-driver method overwrites on shared Element/Pa
 - `wait_availability` decorated with `@healing_after_wait` for wait-timeout healing
 - Playwright element methods (`click`, `type_text`, `type_slowly`, `clear_text`, `hover`) now convert `playwright.Error` to `NoSuchElementException` for consistent healing trigger
 - `wait_visibility_without_error` — corrected log message from "hidden" to "visible" for non-continuous mode
-
-### Fixed
-- **Generated locators are verified, not trusted** — healing previously accepted the first
-  generated XPath that resolved. Generated locators are frequently not unique
-  (`//input[@type="text"]`, `contains(@class, ...)`), so a heal could silently act on a different
-  element than the one that was scored. A locator matching a single element is still accepted
-  as-is; when it matches several, every match is snapshotted and scored against the saved
-  snapshot (`min_verify_score`, defaults to `score_threshold`; `max_verify_matches`, default `10`),
-  and only the best verified match is accepted. Failing candidates are skipped, so the unique
-  positional XPath wins over a broad one. Implemented for both Selenium/Appium and Playwright.
-- **Self-healing is now scoped to the parent container** — the candidate scan and the healed
-  locator lookup run against the element's resolved base (parent element) instead of always
-  scanning the whole document, mirroring how MOPS resolves a regular locator. When the parent is
-  missing it is healed first, recursively through its own ancestors (`MAX_HEALING_DEPTH`).
 
 ---
 

@@ -15,10 +15,9 @@ from mops.exceptions import (
 from mops.mixins.objects.location import Location
 from mops.mixins.objects.size import Size
 from mops.self_healing.config import get_config
-from mops.self_healing.healer import _compute_similarity_breakdown
+from mops.self_healing.healer import _GET_MATCHES_JS
 from mops.self_healing.locator_generator import generate_locator_pw
-from mops.self_healing.mixin import HealingMixin
-from mops.self_healing.snapshot import _GET_ELEMENT_SNAPSHOT_JS, ElementSnapshot
+from mops.self_healing.mixin import _MAX_VERIFY_MATCHES, HealingMixin
 from mops.shared_utils import cut_log_data, get_image
 from mops.utils.decorators import healing, retry
 from mops.utils.internal_utils import (
@@ -566,11 +565,15 @@ class PlayElement(HealingMixin, ElementABC, Logging, ABC):
         """Strip the ``xpath=`` prefix from a healed locator for Playwright use."""
         return self._parse_healed_locator_pw(locator)
 
-    def _healing_find_matches(self, base: PlaywrightPage | Locator, selector: str) -> list[Locator]:
-        """Resolve a locator to individual matches, bounded by ``max_verify_matches``."""
-        candidate = base.locator(selector)
-        limit = min(candidate.count(), getattr(get_config(), 'max_verify_matches', 10))
-        return [candidate.nth(index) for index in range(limit)]
+    def _healing_scan_matches(self, base: PlaywrightPage | Locator, selector: str) -> list[dict[str, Any]]:
+        """Return DOM snapshots of the selector's matches (count + data in one round-trip)."""
+        return self.driver_wrapper.execute_script(
+            _GET_MATCHES_JS, 'xpath', selector, self._healing_scope(base), _MAX_VERIFY_MATCHES
+        )
+
+    def _healing_resolve_match(self, base: PlaywrightPage | Locator, selector: str, index: int) -> Any:
+        """Return the element at *index* among the selector's matches (lazy locator)."""
+        return base.locator(selector).nth(index)
 
     def _healing_try_original_locator(self, base: PlaywrightPage | Locator) -> Any:
         """Return the element when the current locator works again, else :obj:`None`."""
@@ -579,27 +582,6 @@ class PlayElement(HealingMixin, ElementABC, Logging, ABC):
             return None
         self._element = original
         return original
-
-    def _healing_score_element(self, element: Locator, snapshot: Any, config: Any) -> float | None:
-        """Score a live element against the reference snapshot with the healer's rules."""
-        try:
-            raw = self.driver_wrapper.execute_script(_GET_ELEMENT_SNAPSHOT_JS, element)
-        except Error:
-            return None
-
-        candidate = ElementSnapshot(
-            tag=raw['tag'],
-            attributes=raw['attrs'],
-            text=raw['text'],
-            parent_tag=raw['parentTag'],
-            parent_attributes=raw['parentAttrs'],
-            siblings=raw['siblings'],
-        )
-        storage = getattr(config, 'storage', None)
-        if storage is not None:
-            candidate = storage.normalize_snapshot(candidate)
-
-        return _compute_similarity_breakdown(candidate, snapshot, getattr(config, 'scoring_weights', None)).score
 
     def _healing_apply_locator(self, selector: str, element: Locator) -> None:
         """Persist the verified locator and the resolved element."""

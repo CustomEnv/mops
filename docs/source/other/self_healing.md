@@ -201,6 +201,11 @@ does not unfairly penalise a candidate. The `candidate_snapshot` attached to a
 `SimilarityBreakdown` is the **raw** (non-normalized) candidate — so you can still
 see the actual DOM values for diagnostics.
 
+Build-time hash suffixes (**not** configurable rules, they are always applied) are
+stripped from `class`/`id` values inside a token: `some-element#Tep` → `some-element`.
+Unlike the user rules above, this never touches locator keys, where `#` is a legal
+CSS id selector.
+
 <br>
 
 ## Architecture
@@ -235,6 +240,9 @@ Temporarily disables `heal_locators` on the global config.
    first, recursively, so a chain of missing ancestors is healed top-down (element → parent →
    grandparent, bounded by `MAX_HEALING_DEPTH`). JS then collects all elements with the same
    tag *inside that context*, extracting their attributes, text, parent, and up to 5 siblings.
+   When the snapshot's tag matches nothing, the scan retries tag-agnostically (a redesign can
+   change the tag itself, e.g. `div` → `button`); the scan is capped (`_MAX_CANDIDATES`) and the
+   same tag is reused for the element lookup so indices stay consistent.
 
 4. **Similarity scoring** — each candidate is scored against the saved snapshot.
    Attributes (`id`, `name`, `class`, `aria-label`, etc.) have per-key weights.
@@ -248,15 +256,23 @@ Temporarily disables `heal_locators` on the global config.
    `score_threshold` (default `0.7`).
 
 5. **Locator generation** — stable XPath locators are generated for the best candidate:
-   `@id` → `data-testid` → `@name` → `@aria-label` → `@type` → stable `@class` → visible text → positional XPath.
-   The caller tries each in order until one resolves.
+   `@id` → `data-testid` → `@name` → `@aria-label` → `@name + @type` → `@type` → stable `@class`
+   → visible text → positional XPath. The caller tries each in order until one is verified.
+
+   Build-time generated values are never emitted: hashed suffixes (`some-element#Tep`),
+   React `:r1a:`, Angular `_ngcontent-*`, short mixed-case blobs (`Tep`, `MdO`) and long
+   alphanumeric hashes. Such a locator would break on the next frontend build. Values
+   containing quotes are wrapped correctly for XPath 1.0 (including `concat()` when both
+   quote kinds are present).
 
 6. **Verification** — a generated locator resolving is **not** proof that it resolved to the
    scored element: `//input[@type="text"]` or a broad class match can hit a different node.
+   Costs one script round-trip per candidate: the same call returns the match count and the
+   DOM snapshots of the matches, so scoring happens locally in Python.
    A locator matching exactly one element is accepted as-is; when it matches several, every
-   match (up to `max_verify_matches`, default `10`) is snapshotted and scored against the saved
-   snapshot, and only the best match is accepted — and only if it reaches `min_verify_score`
-   (defaults to `score_threshold`). Candidates that fail verification are skipped, so the
+   match (up to `_MAX_VERIFY_MATCHES`, `10`) is snapshotted and scored against the saved
+   snapshot, and only the best match is accepted — and only if it reaches `score_threshold`.
+   Candidates that fail verification are skipped, so the
    unique positional XPath at the end of the list wins over a broad one.
 
 7. **Locator persistence** — the first verified locator is written to the element's `locator` attribute.

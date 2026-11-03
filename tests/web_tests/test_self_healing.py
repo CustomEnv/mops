@@ -31,6 +31,25 @@ def _key(element):
     return get_config().storage.extract_full_locator_key(element)
 
 
+#: These tests deliberately look for broken locators — waiting the full ``WAIT_EL`` (10s)
+#: on an element that will never appear only delays healing.
+FAST_WAIT = 0.5
+
+
+@pytest.fixture(autouse=True)
+def fast_element_waits(monkeypatch):
+    """Clamp internal element waits for this module so healing is reached quickly."""
+    from mops.base.element import Element
+    from mops.utils.internal_utils import WAIT_EL
+
+    original = Element._wait_visibility_base
+
+    def _fast_wait(self, *, timeout=WAIT_EL, silent=False, continuous=False):
+        return original(self, timeout=min(timeout, FAST_WAIT), silent=silent, continuous=continuous)
+
+    monkeypatch.setattr(Element, '_wait_visibility_base', _fast_wait)
+
+
 @pytest.fixture(autouse=True)
 def setup():
     configure(
@@ -527,3 +546,106 @@ def test_healing_matches_element_class_canonically(second_playground_page):
     assert class_match.candidate_value == 'UserProfileCard'
     assert class_match.matched is False  # exact string equality is False
     assert class_match.score == 1.0, 'element class should match canonically'
+
+
+# ---------------------------------------------------------------------------
+# tag-agnostic fallback scan and build-time hash tokens
+# ---------------------------------------------------------------------------
+
+_WIDGET_TAG = 'mops-healing-widget'
+_WIDGET_TAG_RENAMED = 'mops-healing-widget-v2'
+_WIDGET_CLASS = 'mops-healing-widget'
+
+
+def _inject_widget(page, class_name=_WIDGET_CLASS):
+    """Append a custom-tag element and wait until it is visible."""
+    page.driver_wrapper.execute_script(f"""
+        var el = document.createElement('{_WIDGET_TAG}');
+        el.className = '{class_name}';
+        el.textContent = 'widget payload';
+        document.body.appendChild(el);
+    """)
+    # located by a class substring: the injected class may carry a '#hash' token
+    widget = Element(f'[class*="{class_name.split("#", 1)[0]}"]', name='healing widget')
+    widget.wait_visibility(silent=True)
+    return widget
+
+
+def _remove_widgets(page):
+    page.driver_wrapper.execute_script("""
+        var tags = ['mops-healing-widget', 'mops-healing-widget-v2'];
+        for (var t = 0; t < tags.length; t++) {
+            var els = document.getElementsByTagName(tags[t]);
+            for (var i = els.length - 1; i >= 0; i--) {
+                els[i].parentNode.removeChild(els[i]);
+            }
+        }
+    """)
+
+
+def test_self_healing_falls_back_when_snapshot_tag_is_gone(second_playground_page):
+    """Real browser: a redesign that changes the tag alone is still healed (tag-agnostic scan)."""
+    driver = second_playground_page.driver_wrapper
+    try:
+        widget = _inject_widget(second_playground_page)
+
+        storage = get_config().storage
+        snapshot = storage.load(_key(widget))
+        assert snapshot is not None, 'Snapshot was not saved for the widget'
+        assert snapshot.tag == _WIDGET_TAG
+
+        # rename the tag, keep class and text: a tag-restricted scan can never find it
+        driver.execute_script(f"""
+            var els = document.getElementsByTagName('{_WIDGET_TAG}');
+            for (var i = els.length - 1; i >= 0; i--) {{
+                var old = els[i];
+                var replacement = document.createElement('{_WIDGET_TAG_RENAMED}');
+                replacement.className = old.className;
+                while (old.firstChild) replacement.appendChild(old.firstChild);
+                old.parentNode.replaceChild(replacement, old);
+            }}
+        """)
+
+        broken = Element('#broken-widget-tag', name=widget.name)
+        storage.save(_key(broken), snapshot)
+
+        cls = broken.get_attribute('class', silent=True)
+        assert cls is not None, 'Self-healing did not recover the renamed-tag element'
+        assert _WIDGET_CLASS in cls
+    finally:
+        _remove_widgets(second_playground_page)
+
+
+def test_generated_locator_ignores_build_time_hash_suffix(second_playground_page):
+    """Real browser: a class token like 'some-element#Tep' never leaks into the healed locator."""
+    results = []
+    configure(on_healing_success=results.append)
+
+    driver = second_playground_page.driver_wrapper
+    try:
+        widget = _inject_widget(second_playground_page, class_name=f'{_WIDGET_CLASS}#Tep')
+
+        storage = get_config().storage
+        snapshot = storage.load(_key(widget))
+        assert snapshot is not None
+
+        # same element, next frontend build → different generated suffix
+        driver.execute_script(f"""
+            var els = document.getElementsByTagName('{_WIDGET_TAG}');
+            for (var i = 0; i < els.length; i++) {{
+                els[i].className = '{_WIDGET_CLASS}#Xyz';
+            }}
+        """)
+
+        broken = Element('#broken-widget-hash', name=widget.name)
+        storage.save(_key(broken), snapshot)
+
+        cls = broken.get_attribute('class', silent=True)
+        assert cls is not None, 'Self-healing did not recover the element'
+        assert _WIDGET_CLASS in cls
+
+        assert results, 'on_healing_success was not fired'
+        healed = results[0].healed_locator or ''
+        assert '#Tep' not in healed and '#Xyz' not in healed, f'Hash leaked into locator: {healed}'
+    finally:
+        _remove_widgets(second_playground_page)

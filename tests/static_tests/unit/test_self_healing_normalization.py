@@ -221,3 +221,24 @@ def test_custom_rules_affect_extracted_key():
 
     result = storage.extract_full_locator_key(element)
     assert result == 'User card::#user -> Form::#form'
+
+
+def test_normalize_attrs_strips_hash_suffix_inside_class_token():
+    """Build-time suffix inside a token: 'some-element#Tep' → 'some-element'."""
+    storage = JsonFileSnapshotStorage()
+    attrs = {'class': 'some-element#Tep button'}
+    result = storage._normalize_attrs(attrs)
+    assert result['class'] == 'some-element button'
+
+
+def test_normalize_attrs_strips_hash_suffix_from_id():
+    """Same for id values — the generated suffix is not part of the identity."""
+    storage = JsonFileSnapshotStorage()
+    result = storage._normalize_attrs({'id': 'login-btn#MdO'})
+    assert result['id'] == 'login-btn'
+
+
+def test_normalize_locator_key_keeps_css_id_selector():
+    """Hash stripping must never run over locator keys — '#' is a legal CSS id there."""
+    storage = JsonFileSnapshotStorage()
+    assert storage.normalize_locator_key('Submit::#submit') == 'Submit::#submit'

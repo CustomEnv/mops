@@ -10,7 +10,7 @@ from selenium.webdriver.common.by import By
 
 from mops.exceptions import NoSuchElementException
 from mops.selenium.core.core_element import _parse_healed_locator
-from mops.self_healing.config import configure, get_config
+from mops.self_healing.mixin import _MAX_VERIFY_MATCHES
 from mops.self_healing.healer import FailedHealingResult, Healer, SuccessHealingResult
 from mops.self_healing.mixin import HealingMixin
 from mops.self_healing.snapshot import ElementSnapshot
@@ -409,8 +409,6 @@ class _StubSeleniumElement(HealingMixin):
         self.name = 'fake element'
         self.driver = MagicMock()
         self.driver_wrapper = MagicMock()
-        self.scored = []
-        self._scores = list(scores or [])
         self.logs = []
 
     def log(self, message, *args, **kwargs):
@@ -428,9 +426,12 @@ class _StubSeleniumElement(HealingMixin):
     def _healing_parse_locator(self, locator):
         return _parse_healed_locator(locator)
 
-    def _healing_find_matches(self, base, selector):
-        limit = getattr(get_config(), 'max_verify_matches', 10)
-        return base.find_elements(*selector)[:limit]
+    def _healing_scan_matches(self, base, selector):
+        return base.scanned[:_MAX_VERIFY_MATCHES]
+
+    def _healing_resolve_match(self, base, selector, index):
+        matches = base.find_elements(*selector)
+        return matches[index] if index < len(matches) else None
 
     def _healing_try_original_locator(self, base):
         original = base.find_element(self.locator_type, self.locator)
@@ -441,9 +442,6 @@ class _StubSeleniumElement(HealingMixin):
         self.locator_type, self.locator = selector
         self._cached_element = element
 
-    def _healing_score_element(self, element, snapshot, config):
-        self.scored.append(element)
-        return self._scores.pop(0) if self._scores else 0.0
 
 
 def _healing_result(**overrides):
@@ -533,6 +531,7 @@ def test_try_healed_locators_fires_success_when_candidate_found():
     healed_element = MagicMock()
     base = MagicMock()
     base.find_element.side_effect = SeleniumNoSuchElementException
+    base.scanned = [_scan_dict()]
     base.find_elements.return_value = [healed_element]
     fake = _StubSeleniumElement(base)
 
@@ -607,18 +606,34 @@ def test_try_healed_locators_original_locator_works_no_metrics():
 # ---------------------------------------------------------------------------
 
 
+def _scan_dict(**overrides):
+    """Raw DOM snapshot dict as returned by the batched verification JS."""
+    data = {
+        'index': 0,
+        'tag': 'div',
+        'attrs': {'class': 'row'},
+        'text': '',
+        'parentTag': 'body',
+        'parentAttrs': {},
+        'siblings': [],
+    }
+    data.update(overrides)
+    return data
+
+
 def test_verify_accepts_unique_match_without_scoring():
     """A locator matching one element needs no similarity check."""
     healed_element = MagicMock()
     base = MagicMock()
+    base.scanned = [_scan_dict()]
     base.find_elements.return_value = [healed_element]
     fake = _StubSeleniumElement(base)
 
-    config = _config()
-    returned = fake._verify_healed_locators(base, _healing_result(), config)
+    with patch('mops.self_healing.mixin._score_snapshot') as score:
+        returned = fake._verify_healed_locators(base, _healing_result(), _config())
 
     assert returned is healed_element
-    assert fake.scored == []
+    score.assert_not_called()
     assert fake.locator == '//div'  # healed locator persisted
 
 
@@ -626,11 +641,13 @@ def test_verify_picks_best_scoring_match_of_non_unique_locator():
     """A broad locator must not silently resolve to the first (wrong) match."""
     wrong, right = MagicMock(name='wrong'), MagicMock(name='right')
     base = MagicMock()
+    base.scanned = [_scan_dict(), _scan_dict(attrs={'class': 'row active'})]
     base.find_elements.return_value = [wrong, right]
-    fake = _StubSeleniumElement(base, scores=[0.25, 0.95])
+    fake = _StubSeleniumElement(base)
     result = _healing_result(snapshot=MagicMock())
 
-    returned = fake._verify_healed_locators(base, result, _config())
+    with patch('mops.self_healing.mixin._score_snapshot', side_effect=[0.25, 0.95]):
+        returned = fake._verify_healed_locators(base, result, _config())
 
     assert returned is right
     assert result.score == 0.95
@@ -640,52 +657,59 @@ def test_verify_picks_best_scoring_match_of_non_unique_locator():
 def test_verify_rejects_non_unique_locator_below_verify_score():
     """When no match resembles the snapshot, the candidate is rejected (no lucky accept)."""
     base = MagicMock()
+    base.scanned = [_scan_dict(), _scan_dict()]
     base.find_elements.return_value = [MagicMock(), MagicMock()]
-    fake = _StubSeleniumElement(base, scores=[0.1, 0.3])
+    fake = _StubSeleniumElement(base)
     result = _healing_result(snapshot=MagicMock())
 
-    assert fake._verify_healed_locators(base, result, _config()) is None
+    with patch('mops.self_healing.mixin._score_snapshot', side_effect=[0.1, 0.3]):
+        assert fake._verify_healed_locators(base, result, _config()) is None
+
     assert fake.locator == '.original'  # nothing was persisted
+    base.find_elements.assert_not_called()  # no resolve for a rejected candidate
 
 
-def test_verify_honours_min_verify_score_override():
-    """min_verify_score overrides score_threshold for the live-node check."""
+def test_verify_rejects_non_unique_locator_without_snapshot():
+    """Without a reference snapshot a non-unique locator cannot be verified."""
     base = MagicMock()
-    base.find_elements.return_value = [MagicMock(), MagicMock()]
-    fake = _StubSeleniumElement(base, scores=[0.8, 0.85])
+    base.scanned = [_scan_dict(), _scan_dict()]
+    fake = _StubSeleniumElement(base)
 
-    assert fake._verify_healed_locators(base, _healing_result(snapshot=MagicMock()), _config(min_verify_score=0.9)) is None
+    assert fake._verify_healed_locators(base, _healing_result(), _config()) is None
 
 
-def test_verify_respects_max_verify_matches():
-    """Only the first max_verify_matches matches are scored (capped in the backend hook)."""
+def test_verify_skips_candidate_when_match_index_is_gone():
+    """A candidate whose match vanished between scan and resolve is skipped."""
     base = MagicMock()
-    base.find_elements.return_value = [MagicMock() for _ in range(20)]
-    fake = _StubSeleniumElement(base, scores=[0.75] * 3)
+    base.scanned = [_scan_dict()]
+    base.find_elements.return_value = []  # index 0 no longer exists
+    fake = _StubSeleniumElement(base)
 
-    configure(max_verify_matches=3)
-    try:
-        fake._verify_healed_locators(base, _healing_result(snapshot=MagicMock()), _config())
-    finally:
-        configure(max_verify_matches=10)
-
-    assert len(fake.scored) == 3
+    assert fake._verify_healed_locators(base, _healing_result(), _config()) is None
 
 
-def test_snapshot_similarity_scores_live_element_against_reference():
-    """_healing_score_element turns a live element into a snapshot and scores it."""
-    from mops.selenium.core.core_element import CoreElement
+def test_verify_costs_one_scan_and_one_resolve():
+    """Verification is batched: one scan call per candidate, one resolve for the winner."""
+    base = MagicMock()
+    base.scanned = [_scan_dict() for _ in range(10)]
+    matches = [MagicMock(name=f'match {i}') for i in range(10)]
+    base.find_elements.return_value = matches
+    fake = _StubSeleniumElement(base)
+    result = _healing_result(snapshot=MagicMock())
+
+    scores = [0.5] * 4 + [0.9] + [0.5] * 5
+    with patch('mops.self_healing.mixin._score_snapshot', side_effect=scores):
+        returned = fake._verify_healed_locators(base, result, _config())
+
+    assert returned is matches[4]  # best-scoring match
+    base.find_elements.assert_called_once()  # one resolve, not one per match
+    assert result.score == 0.9
+
+
+def test_score_snapshot_scores_raw_dom_snapshot():
+    """_score_snapshot scores a raw DOM dict against the reference without extra round-trips."""
+    from mops.self_healing.mixin import _score_snapshot
     from mops.self_healing.snapshot import ElementSnapshot
-
-    target = {
-        'tag': 'input',
-        'attrs': {'name': 'email', 'type': 'text'},
-        'text': '',
-        'parentTag': 'form',
-        'parentAttrs': {'class': 'login-form'},
-        'siblings': [],
-    }
-    other = {**target, 'attrs': {'name': 'username', 'type': 'text'}}
 
     snapshot = ElementSnapshot(
         tag='input',
@@ -695,15 +719,17 @@ def test_snapshot_similarity_scores_live_element_against_reference():
         parent_attributes={'class': 'login-form'},
         siblings=[],
     )
+    target = _scan_dict(
+        tag='input',
+        attrs={'name': 'email', 'type': 'text'},
+        parentTag='form',
+        parentAttrs={'class': 'login-form'},
+    )
+    other = _scan_dict(tag='input', attrs={'name': 'username', 'type': 'text'}, parentTag='form')
+
     config = SimpleNamespace(storage=None)
-
-    def _score_for(raw):
-        fake = SimpleNamespace(driver=MagicMock())
-        fake.driver.execute_script.return_value = raw
-        return CoreElement._healing_score_element(fake, MagicMock(), snapshot, config)
-
-    assert _score_for(target) >= 0.9  # the scored element itself verifies
-    assert _score_for(other) < 0.7  # a sibling input does not
+    assert _score_snapshot(target, snapshot, config) >= 0.9
+    assert _score_snapshot(other, snapshot, config) < 0.7
 
 
 # ---------------------------------------------------------------------------
@@ -724,8 +750,6 @@ class _StubPlaywrightElement(HealingMixin):
         self.name = 'fake element'
         self.driver = MagicMock()
         self.driver_wrapper = MagicMock()
-        self.scored = []
-        self._scores = list(scores or [])
         self.logs = []
 
     def log(self, message, *args, **kwargs):
@@ -737,10 +761,11 @@ class _StubPlaywrightElement(HealingMixin):
     def _healing_parse_locator(self, locator):
         return locator[len('xpath=') :] if locator.startswith('xpath=') else locator
 
-    def _healing_find_matches(self, base, selector):
-        candidate = base.locator(selector)
-        limit = min(candidate.count(), getattr(get_config(), 'max_verify_matches', 10))
-        return [candidate.nth(index) for index in range(limit)]
+    def _healing_scan_matches(self, base, selector):
+        return base.scanned[:_MAX_VERIFY_MATCHES]
+
+    def _healing_resolve_match(self, base, selector, index):
+        return base.locator(selector).nth(index)
 
     def _healing_try_original_locator(self, base):
         original = base.locator(self.locator)
@@ -753,48 +778,42 @@ class _StubPlaywrightElement(HealingMixin):
         self.locator = selector
         self._element = element
 
-    def _healing_score_element(self, element, snapshot, config):
-        self.scored.append(element)
-        return self._scores.pop(0) if self._scores else 0.0
-
-
 def test_playwright_verify_accepts_unique_match_without_scoring():
     """Playwright: a locator matching one element needs no similarity check."""
     base = MagicMock()
-    locator_obj = base.locator.return_value
-    locator_obj.count.return_value = 1
+    base.scanned = [_scan_dict()]
     fake = _StubPlaywrightElement(base)
 
-    with patch('mops.self_healing.mixin.get_config', return_value=_config()):
-        returned = fake._verify_healed_locators(base, _healing_result(), _config())
+    returned = fake._verify_healed_locators(base, _healing_result(), _config())
 
-    assert returned is locator_obj.nth.return_value
+    assert returned is base.locator.return_value.nth.return_value
     assert fake.locator == '//div'
 
 
 def test_playwright_verify_picks_best_scoring_match_of_non_unique_locator():
     """Playwright: a broad locator must not silently resolve to the first match."""
     base = MagicMock()
-    locator_obj = base.locator.return_value
-    locator_obj.count.return_value = 3
-    fake = _StubPlaywrightElement(base, scores=[0.25, 0.95, 0.5])
+    base.scanned = [_scan_dict(), _scan_dict(), _scan_dict()]
+    fake = _StubPlaywrightElement(base)
     result = _healing_result(snapshot=MagicMock())
 
-    returned = fake._verify_healed_locators(base, result, _config())
+    with patch('mops.self_healing.mixin._score_snapshot', side_effect=[0.25, 0.95, 0.5]):
+        returned = fake._verify_healed_locators(base, result, _config())
 
-    assert returned is fake._element
+    assert returned is base.locator.return_value.nth.return_value
     assert result.score == 0.95
-    locator_obj.nth.assert_any_call(1)  # the best-scoring match, not the first
+    base.locator.return_value.nth.assert_any_call(1)  # best-scoring match, not the first
 
 
 def test_playwright_verify_rejects_non_unique_locator_below_verify_score():
     """Playwright: no match resembling the snapshot means the candidate is rejected."""
     base = MagicMock()
-    base.locator.return_value.count.return_value = 2
-    fake = _StubPlaywrightElement(base, scores=[0.1, 0.3])
+    base.scanned = [_scan_dict(), _scan_dict()]
+    fake = _StubPlaywrightElement(base)
     result = _healing_result(snapshot=MagicMock())
 
-    assert fake._verify_healed_locators(base, result, _config()) is None
+    with patch('mops.self_healing.mixin._score_snapshot', side_effect=[0.1, 0.3]):
+        assert fake._verify_healed_locators(base, result, _config()) is None
     assert fake.locator == '.original'  # nothing was persisted
 
 
@@ -860,6 +879,7 @@ def test_missing_parent_heals_ancestor_chain_first():
     parent_base = MagicMock()
     parent_base.find_element.side_effect = SeleniumNoSuchElementException
     parent_base.find_elements.return_value = [MagicMock(name='healed child')]
+    parent_base.scanned = [_scan_dict()]
 
     grandparent = _StubSeleniumElement(grandparent_base)
     parent = _StubSeleniumElement(parent_base, locator='.parent', scores=[])
@@ -896,6 +916,7 @@ def test_nested_element_verifies_inside_parent_context():
     parent_base = MagicMock()
     parent_base.find_element.side_effect = SeleniumNoSuchElementException
     parent_base.find_elements.return_value = [MagicMock(name='nested input')]
+    parent_base.scanned = [_scan_dict()]
     fake = _StubSeleniumElement(parent_base, locator='.nested')
 
     base, _error = fake._resolve_base(0)
@@ -911,21 +932,21 @@ def test_nested_element_verifies_inside_parent_context():
 
 def test_healer_scopes_candidate_scan_to_given_scope():
     """Healer passes the parent scope as the second JS argument of the candidate scan."""
-    from mops.self_healing.healer import _GET_CANDIDATES_JS
+    from mops.self_healing.healer import _GET_CANDIDATES_JS, _MAX_CANDIDATES
 
     healer = Healer(MagicMock(), 0.7)
-    dw = _make_driver_wrapper()
+    dw = _make_driver_wrapper(candidates=[_make_candidate()])
     scope = MagicMock(name='parent element')
 
     healer._collect_candidates(dw, 'input', 'name', 'key', 'locator', scope)
 
-    dw.execute_script.assert_called_once_with(_GET_CANDIDATES_JS, 'input', scope)
+    dw.execute_script.assert_called_once_with(_GET_CANDIDATES_JS, 'input', scope, _MAX_CANDIDATES)
 
 
 def test_healer_scan_defaults_to_document_without_scope():
     """Without a parent the scan receives ``None`` → the JS falls back to ``document``."""
     healer = Healer(MagicMock(), 0.7)
-    dw = _make_driver_wrapper()
+    dw = _make_driver_wrapper(candidates=[_make_candidate()])
 
     healer._collect_candidates(dw, 'input', 'name', 'key', 'locator')
 
@@ -999,3 +1020,106 @@ def test_playwright_find_elements_by_tag_is_parent_scoped():
     PlayElement._healing_find_elements_by_tag(None, 'input', base)
 
     base.locator.assert_called_once_with('input')
+
+
+# ---------------------------------------------------------------------------
+# candidate generation: generated-value filtering, escaping, combos
+# ---------------------------------------------------------------------------
+
+
+def test_generator_drops_build_time_hash_suffix_from_class():
+    """A class token like 'some-element#Tep' must not produce a hash-dependent locator."""
+    from mops.self_healing.locator_generator import _build_providers
+
+    providers = _build_providers('div', {'class': 'some-element#Tep button'}, '')
+
+    assert 'xpath=//div[contains(@class, "some-element") and contains(@class, "button")]' in providers
+    assert not any('#Tep' in provider for provider in providers)
+
+
+def test_generator_drops_generated_ids():
+    """Build-time generated ids (React, Angular, random blobs) are not used at all."""
+    from mops.self_healing.locator_generator import _build_providers
+
+    for generated_id in (':r1a:', '_ngcontent-abc', 'MdO', 'Tep', 'a1b2c3d4e5f6g7'):
+        providers = _build_providers('input', {'id': generated_id, 'name': 'email'}, '')
+        assert not any('@id=' in provider for provider in providers), generated_id
+        assert 'xpath=//input[@name="email"]' in providers
+
+
+def test_generator_keeps_semantic_ids():
+    """Semantic ids (kebab, camelCase, PascalCase) still produce the most stable locator."""
+    from mops.self_healing.locator_generator import _build_providers
+
+    assert _build_providers('input', {'id': 'user-email'}, '')[0] == 'xpath=//*[@id="user-email"]'
+    assert _build_providers('input', {'id': 'userEmail'}, '')[0] == 'xpath=//*[@id="userEmail"]'
+    assert _build_providers('input', {'id': 'SubmitButton'}, '')[0] == 'xpath=//*[@id="SubmitButton"]'
+
+
+def test_generator_escapes_quotes_in_xpath_literals():
+    """Values with quotes must yield valid XPath (no backslash escaping)."""
+    from mops.self_healing.locator_generator import _build_providers
+
+    providers = _build_providers('span', {'aria-label': 'say "hi"'}, '')
+    assert 'xpath=//*[@aria-label="say "hi""]' not in providers
+    assert any('\'say "hi"\'' in provider for provider in providers)
+
+    # both quote kinds → XPath 1.0 needs concat()
+    both = _build_providers('span', {'aria-label': 'it\'s "ok"'}, '')
+    assert any('concat(' in provider for provider in both)
+
+
+def test_generator_adds_name_and_type_combination():
+    """name+type is more specific than either attribute alone."""
+    from mops.self_healing.locator_generator import _build_providers
+
+    providers = _build_providers('input', {'name': 'email', 'type': 'text'}, '')
+
+    assert 'xpath=//input[@name="email" and @type="text"]' in providers
+    assert providers.index('xpath=//input[@name="email"]') < providers.index(
+        'xpath=//input[@name="email" and @type="text"]'
+    )
+
+
+def test_generator_providers_are_unique():
+    """No duplicated candidates regardless of the attribute combination."""
+    from mops.self_healing.locator_generator import _build_providers
+
+    providers = _build_providers('input', {'name': 'email', 'type': 'text'}, '')
+
+    assert len(providers) == len(set(providers))
+
+
+# ---------------------------------------------------------------------------
+# tag-agnostic fallback scan
+# ---------------------------------------------------------------------------
+
+
+def test_healer_falls_back_to_any_tag_when_snapshot_tag_is_gone():
+    """A redesign may change the tag (div → button) — the scan must still find it."""
+    from mops.self_healing.healer import _FALLBACK_TAG
+
+    storage = _make_storage()
+    storage.load.return_value = _make_snapshot(tag='div')
+    driver = _make_driver_wrapper(candidates=[], elements=[MagicMock()])
+    # first scan (tag) → empty, second scan ('*') → the renamed element
+    driver.execute_script.side_effect = [[], [_make_candidate(tag='button')]]
+
+    healer = Healer(storage, 0.7)
+    result = _heal(healer, 'btn', 'key', '#submit', driver)
+
+    assert result is not None
+    assert driver.execute_script.call_args[0][1] == _FALLBACK_TAG
+
+
+def test_healer_reports_no_candidates_when_both_scans_are_empty():
+    """Empty tag scan and empty fallback scan → no-candidates failure."""
+    callback = MagicMock()
+    storage = _make_storage()
+    storage.load.return_value = _make_snapshot()
+    driver = _make_driver_wrapper(candidates=[])
+    driver.execute_script.side_effect = [[], []]
+
+    healer = Healer(storage, 0.7, on_healing_failure=callback)
+    assert _heal(healer, 'btn', 'key', '#submit', driver) is None
+    assert callback.call_args[0][0].reason == 'no-candidates'

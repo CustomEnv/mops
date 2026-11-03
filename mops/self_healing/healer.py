@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import logging
 import re
+import time
 from typing import TYPE_CHECKING, Any
 
 from selenium.common.exceptions import WebDriverException
@@ -16,6 +17,12 @@ if TYPE_CHECKING:
     from mops.self_healing.snapshot import SnapshotStorage
 
 _MIN_SUBSTRING_LENGTH = 3
+
+#: Scanned when no candidate with the snapshot's tag exists (e.g. the tag itself changed in a redesign).
+_FALLBACK_TAG = '*'
+
+#: Upper bound on scored DOM candidates, keeping a '*'-scan on a large page cheap.
+_MAX_CANDIDATES = 5000
 _CAMEL_BOUNDARY_RE = re.compile(r'([a-z0-9])([A-Z])')
 _NON_WORD_RE = re.compile(r'[^a-zA-Z0-9]+')
 
@@ -50,13 +57,15 @@ return (function(tag) {
         return siblings;
     }
     var root = arguments[1] || document;
+    var maxNodes = arguments[2] || 5000;
     var elements = root.getElementsByTagName(tag);
     var result = [];
-    for (var i = 0; i < elements.length; i++) {
+    for (var i = 0; i < elements.length && result.length < maxNodes; i++) {
         var el = elements[i];
         var parent = el.parentElement;
         result.push({
             index: i,
+            tag: el.tagName.toLowerCase(),
             attrs: getAttrs(el),
             text: (el.textContent || '').trim().substring(0, 100),
             parentTag: parent ? parent.tagName.toLowerCase() : null,
@@ -66,6 +75,64 @@ return (function(tag) {
     }
     return result;
 })(arguments[0], arguments[1]);
+"""
+
+_GET_MATCHES_JS = """
+return (function(selectorType, selectorValue, root, maxNodes) {
+    var scope = root || document;
+    var nodes = [];
+    if (selectorType === 'xpath') {
+        var found = document.evaluate(
+            selectorValue, scope, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null
+        );
+        for (var i = 0; i < found.snapshotLength && nodes.length < maxNodes; i++) {
+            nodes.push(found.snapshotItem(i));
+        }
+    } else {
+        var matched = scope.querySelectorAll(selectorValue);
+        for (var i = 0; i < matched.length && nodes.length < maxNodes; i++) {
+            nodes.push(matched[i]);
+        }
+    }
+    function getAttrs(node) {
+        var attrs = {};
+        for (var i = 0; i < node.attributes.length; i++) {
+            attrs[node.attributes[i].name] = node.attributes[i].value;
+        }
+        return attrs;
+    }
+    function getSiblings(el) {
+        var parent = el.parentElement;
+        if (!parent) return [];
+        var children = parent.children;
+        var siblings = [];
+        for (var i = 0; i < children.length && siblings.length < 5; i++) {
+            if (children[i] !== el) {
+                siblings.push({
+                    tag: children[i].tagName.toLowerCase(),
+                    text: (children[i].textContent || '').trim().substring(0, 50),
+                    attrs: getAttrs(children[i])
+                });
+            }
+        }
+        return siblings;
+    }
+    var result = [];
+    for (var j = 0; j < nodes.length; j++) {
+        var el = nodes[j];
+        var parent = el.parentElement;
+        result.push({
+            index: j,
+            tag: el.tagName.toLowerCase(),
+            attrs: getAttrs(el),
+            text: (el.textContent || '').trim().substring(0, 100),
+            parentTag: parent ? parent.tagName.toLowerCase() : null,
+            parentAttrs: parent ? getAttrs(parent) : {},
+            siblings: getSiblings(el)
+        });
+    }
+    return result;
+})(arguments[0], arguments[1], arguments[2], arguments[3]);
 """
 
 
@@ -332,20 +399,36 @@ class Healer:
             logger.info('Self-healing: no snapshot for "%s", skipping', element_name)
             return self._fail('no-snapshot', element_name, locator_key, locator)
 
-        candidates = self._collect_candidates(driver_wrapper, snapshot.tag, element_name, locator_key, locator, scope)
-        if candidates is None:
+        started = time.perf_counter()
+        collected = self._collect_candidates(driver_wrapper, snapshot.tag, element_name, locator_key, locator, scope)
+        if collected is None:
             return None
 
+        candidates, scan_tag = collected
+        scan_elapsed = time.perf_counter() - started
+
+        logger.info(
+            'Self-healing: scanned %d "%s" candidates for "%s" in %.2fs',
+            len(candidates),
+            scan_tag,
+            element_name,
+            scan_elapsed,
+        )
+
+        started = time.perf_counter()
         scored = self._score_candidates(candidates, snapshot, element_name, locator_key, locator)
         if scored is None:
             return None
 
+        logger.info('Self-healing: scored candidates for "%s" in %.2fs', element_name, time.perf_counter() - started)
+
+        started = time.perf_counter()
         best_score, best_index, best_breakdown = scored
         healed_locators = self._resolve_element(
             driver_wrapper,
             find_elements_fn,
             generate_locator_fn,
-            snapshot.tag,
+            scan_tag,
             best_index,
             best_score,
             best_breakdown,
@@ -354,6 +437,12 @@ class Healer:
             locator_key,
             locator,
         )
+        logger.info(
+            'Self-healing: resolved locators for "%s" in %.2fs',
+            element_name,
+            time.perf_counter() - started,
+        )
+
         if healed_locators is None:
             return None
 
@@ -387,18 +476,35 @@ class Healer:
         locator_key: str,
         locator: str,
         scope: Any = None,
-    ) -> list[dict] | None:
-        """Collect DOM candidates of the same tag, scoped to *scope* when given."""
+    ) -> tuple[list[dict], str] | None:
+        """Collect DOM candidates of the same tag, scoped to *scope* when given.
+
+        Falls back to a tag-agnostic scan of the same scope when the snapshot's tag
+        matches nothing — a redesign may change the tag itself (``div`` → ``button``),
+        which a tag-restricted scan could never heal.
+
+        :return: ``(candidates, tag_used)`` — *tag_used* must be reused for the
+            element lookup so candidate indices stay consistent — or ``None`` on failure.
+        """
         try:
-            candidates: list[dict] = driver_wrapper.execute_script(_GET_CANDIDATES_JS, tag, scope)
+            candidates: list[dict] = driver_wrapper.execute_script(_GET_CANDIDATES_JS, tag, scope, _MAX_CANDIDATES)
         except WebDriverException as exc:
             logger.info('Self-healing: failed to get candidates for "%s": %s', element_name, exc)
             return self._fail('candidates-script-error', element_name, locator_key, locator, exc=exc)
 
         if not candidates:
+            logger.info('Self-healing: no "%s" elements for "%s", scanning all tags', tag, element_name)
+            try:
+                candidates = driver_wrapper.execute_script(_GET_CANDIDATES_JS, _FALLBACK_TAG, scope, _MAX_CANDIDATES)
+            except WebDriverException as exc:
+                logger.info('Self-healing: failed to scan all tags for "%s": %s', element_name, exc)
+                return self._fail('candidates-script-error', element_name, locator_key, locator, exc=exc)
+            tag = _FALLBACK_TAG
+
+        if not candidates:
             return self._fail('no-candidates', element_name, locator_key, locator, candidates_count=0)
 
-        return candidates
+        return candidates, tag
 
     def _score_candidates(
         self,
@@ -510,7 +616,7 @@ class Healer:
 def _candidate_to_snapshot(candidate: dict[str, Any], tag: str) -> ElementSnapshot:
     """Convert a raw DOM candidate dict (from the candidates JS) into an ElementSnapshot."""
     return ElementSnapshot(
-        tag=tag,
+        tag=candidate.get('tag') or tag,
         attributes=candidate.get('attrs', {}),
         text=candidate.get('text', ''),
         parent_tag=candidate.get('parentTag'),

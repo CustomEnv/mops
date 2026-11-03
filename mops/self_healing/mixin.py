@@ -9,9 +9,9 @@ Backends must override the ``_healing_*`` hooks:
 * :meth:`_healing_find_elements_by_tag` — all elements with a given tag
 * :meth:`_healing_generate_locator` — locator candidates for a live element
 * :meth:`_healing_parse_locator` — turn a candidate string into a backend selector
-* :meth:`_healing_find_matches` — resolve a selector to individual elements
+* :meth:`_healing_scan_matches` — DOM snapshots of a selector's matches (one round-trip)
+* :meth:`_healing_resolve_match` — the element at a given match index
 * :meth:`_healing_try_original_locator` — re-check the original locator
-* :meth:`_healing_score_element` — similarity of a live element to the snapshot
 * :meth:`_healing_apply_locator` — persist a verified locator on the element
 
 and may set :attr:`_healing_lookup_exceptions` to the exceptions that mean
@@ -20,18 +20,47 @@ and may set :attr:`_healing_lookup_exceptions` to the exceptions that mean
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from mops.exceptions import NoSuchElementException, NoSuchParentException
 from mops.self_healing.config import get_config
-from mops.self_healing.healer import MAX_HEALING_DEPTH, FailedHealingResult, SuccessHealingResult
+from mops.self_healing.healer import (
+    MAX_HEALING_DEPTH,
+    FailedHealingResult,
+    SuccessHealingResult,
+    _compute_similarity_breakdown,
+)
 from mops.self_healing.healer_factory import get_healer
+from mops.self_healing.snapshot import ElementSnapshot
 
-if TYPE_CHECKING:
-    from mops.self_healing.snapshot import ElementSnapshot
+
+def _score_snapshot(raw: dict[str, Any], snapshot: ElementSnapshot, config: Any) -> float:
+    """Score a raw DOM snapshot (as returned by the verification JS) against the reference.
+
+    Scoring runs locally on data already fetched from the browser, so verifying a
+    non-unique locator costs one round-trip instead of one per matched element.
+    """
+    candidate = ElementSnapshot(
+        tag=raw.get('tag') or snapshot.tag,
+        attributes=raw.get('attrs', {}),
+        text=raw.get('text', ''),
+        parent_tag=raw.get('parentTag'),
+        parent_attributes=raw.get('parentAttrs', {}),
+        siblings=raw.get('siblings', []),
+    )
+
+    storage = getattr(config, 'storage', None)
+    if storage is not None:
+        candidate = storage.normalize_snapshot(candidate)
+
+    breakdown = _compute_similarity_breakdown(candidate, snapshot, getattr(config, 'scoring_weights', None))
+    return breakdown.score
 
 
 _UNRESOLVED = object()
+
+#: Upper bound on how many matches of one healed locator are scored during verification.
+_MAX_VERIFY_MATCHES = 10
 
 
 class HealingMixin:
@@ -58,16 +87,20 @@ class HealingMixin:
         """Turn a generated locator (``xpath=//...``) into a backend selector."""
         raise NotImplementedError
 
-    def _healing_find_matches(self, base: Any, selector: Any) -> list[Any]:
-        """Resolve a selector to individual element handles (bounded by ``max_verify_matches``)."""
+    def _healing_scan_matches(self, base: Any, selector: Any) -> list[dict[str, Any]]:
+        """Return raw DOM snapshots of the matches of *selector* (bounded by ``_MAX_VERIFY_MATCHES``).
+
+        One round-trip: both the match count and the data needed to score them come
+        from a single script call.
+        """
+        raise NotImplementedError
+
+    def _healing_resolve_match(self, base: Any, selector: Any, index: int) -> Any:
+        """Return the element at *index* among the matches of *selector* under *base*."""
         raise NotImplementedError
 
     def _healing_try_original_locator(self, base: Any) -> Any:
         """Return the resolved element when the current locator works again, else :obj:`None`."""
-        raise NotImplementedError
-
-    def _healing_score_element(self, element: Any, snapshot: ElementSnapshot, config: Any) -> float | None:
-        """Return the similarity of a live element to the reference snapshot."""
         raise NotImplementedError
 
     def _healing_apply_locator(self, selector: Any, element: Any) -> None:
@@ -213,20 +246,24 @@ class HealingMixin:
         Generated locators are frequently not unique (e.g. ``//input[@type="text"]``),
         so a locator resolving is not proof that it resolved to the element the healer
         scored. A locator matching exactly one element is accepted as-is; when it matches
-        several, only the match whose live snapshot is most similar to the reference
-        snapshot is accepted, and only above ``min_verify_score``.
+        several, every match is scored (from a single batched DOM snapshot) and only the
+        best one above ``score_threshold`` is accepted.
         """
         for locator in result.healed_locators_candidates:
             selector = self._healing_parse_locator(locator)
             try:
-                matches = self._healing_find_matches(base, selector)
+                snapshots = self._healing_scan_matches(base, selector)
             except self._healing_lookup_exceptions:
                 continue
 
-            if not matches:
+            if not snapshots:
                 continue
 
-            healed = matches[0] if len(matches) == 1 else self._pick_verified_healed(matches, result, config)
+            index = self._pick_verified_index(snapshots, result, config)
+            if index is None:
+                continue
+
+            healed = self._healing_resolve_match(base, selector, index)
             if healed is None:
                 continue
 
@@ -239,31 +276,37 @@ class HealingMixin:
             return healed
         return None
 
-    def _pick_verified_healed(self, matches: list[Any], result: SuccessHealingResult, config: Any) -> Any:
-        """Return the match most similar to the reference snapshot, or :obj:`None`.
+    def _pick_verified_index(
+        self,
+        snapshots: list[dict[str, Any]],
+        result: SuccessHealingResult,
+        config: Any,
+    ) -> int | None:
+        """Return the index of the best verified match, or :obj:`None`.
 
-        Used when a healed locator is not unique: picking the first match would risk
-        acting on a different element than the one that was scored.
+        A single match needs no scoring — a unique locator already identifies the element.
+        With several matches, picking the first would risk acting on a different element
+        than the one that was scored, so all of them are scored locally.
         """
+        if len(snapshots) == 1:
+            return 0
+
         if result.snapshot is None:
             return None
 
-        threshold = getattr(config, 'min_verify_score', None)
-        if threshold is None:
-            threshold = config.score_threshold
-
-        best_element: Any = None
+        threshold = config.score_threshold
+        best_index: int | None = None
         best_score = 0.0
-        for element in matches:
-            score = self._healing_score_element(element, result.snapshot, config)
-            if score and score > best_score:
-                best_element, best_score = element, score
+        for index, raw in enumerate(snapshots):
+            score = _score_snapshot(raw, result.snapshot, config)
+            if score > best_score:
+                best_index, best_score = index, score
 
-        if best_element is None or best_score < threshold:
+        if best_index is None or best_score < threshold:
             return None
 
         result.score = best_score
-        return best_element
+        return best_index
 
     def _apply_healing(self, depth: int = 0) -> bool:
         """Attempt healing and persist the first verified locator.

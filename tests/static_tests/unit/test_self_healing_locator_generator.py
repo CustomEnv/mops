@@ -76,3 +76,11 @@ def test_generate_locator_pw_uses_physical_type():
 
     assert any('@type="checkbox"' in loc for loc in locators)
     assert any('@name="agree"' in loc for loc in locators)
+
+
+def test_stable_class_tokens_drops_hash_and_dynamic_tokens():
+    """Class tokens used in locators exclude build hashes and state/js helpers."""
+    from mops.self_healing.locator_generator import _stable_class_tokens
+
+    assert _stable_class_tokens('some-element#Tep button js-toggle is-open') == ['some-element', 'button']
+    assert _stable_class_tokens('btn btn') == ['btn']  # de-duplicated

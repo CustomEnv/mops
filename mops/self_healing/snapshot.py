@@ -43,6 +43,9 @@ class ElementSnapshot:
     siblings: list[dict[str, Any]]
 
 
+#: Build-time generated suffixes inside a class/id value: 'some-element#Tep' -> 'some-element'.
+_HASH_SUFFIX_RE = re.compile(r'#\w{1,12}')
+
 _MAX_FILENAME_LENGTH = 200
 _FILENAME_HASH_SUFFIX_LENGTH = 12
 
@@ -97,6 +100,18 @@ _DEFAULT_NORMALIZATION_RULES: list[tuple[str | None, re.Pattern, str | None]] = 
     # Dynamic/state classes aligned with locator_generator._DYNAMIC_CLASS_PREFIXES
     ('class', re.compile(r'^(js-|is-|has-|active|disabled|selected|open|closed)$'), None),
 ]
+
+
+def _strip_generated_suffix(attribute: str, value: str) -> str:
+    """Drop build-time hash suffixes (``#Tep``) from a ``class``/``id`` value.
+
+    Kept out of :meth:`SnapshotStorage.set_normalization_rules` on purpose: those
+    rules also run over locator keys, where ``#`` is a legitimate CSS id selector.
+    """
+    if attribute not in ('class', 'id') or '#' not in value:
+        return value
+    stripped = _HASH_SUFFIX_RE.sub('', value)
+    return ' '.join(stripped.split()) if attribute == 'class' else stripped
 
 
 class SnapshotStorage(ABC):
@@ -233,6 +248,8 @@ class SnapshotStorage(ABC):
                     normalized = pattern.sub(replacement, normalized)
                     if not normalized:
                         break
+
+            normalized = _strip_generated_suffix(key, normalized)
 
             if normalized:
                 result[key] = normalized

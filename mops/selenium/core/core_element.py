@@ -30,10 +30,9 @@ from mops.mixins.objects.location import Location
 from mops.mixins.objects.size import Size
 from mops.selenium.sel_utils import ActionChains
 from mops.self_healing.config import get_config
-from mops.self_healing.healer import _compute_similarity_breakdown
+from mops.self_healing.healer import _GET_MATCHES_JS
 from mops.self_healing.locator_generator import generate_locator
-from mops.self_healing.mixin import HealingMixin
-from mops.self_healing.snapshot import _GET_ELEMENT_SNAPSHOT_JS, ElementSnapshot
+from mops.self_healing.mixin import _MAX_VERIFY_MATCHES, HealingMixin
 from mops.shared_utils import _scaled_screenshot, cut_log_data
 from mops.utils.decorators import healing, retry
 from mops.utils.internal_utils import WAIT_EL, get_dict, is_group, safe_call
@@ -567,37 +566,22 @@ class CoreElement(HealingMixin, ElementABC, ABC):
         """Convert a ``xpath=//...`` prefixed locator into a ``(By, value)`` tuple."""
         return _parse_healed_locator(locator)
 
-    def _healing_find_matches(self, base: Any, selector: tuple[str, str]) -> list[Any]:
-        """Resolve a locator to individual elements, bounded by ``max_verify_matches``."""
-        limit = getattr(get_config(), 'max_verify_matches', 10)
-        return base.find_elements(*selector)[:limit]
+    def _healing_scan_matches(self, base: Any, selector: tuple[str, str]) -> list[dict[str, Any]]:
+        """Return DOM snapshots of the selector's matches (count + data in one round-trip)."""
+        return self.driver.execute_script(
+            _GET_MATCHES_JS, selector[0], selector[1], self._healing_scope(base), _MAX_VERIFY_MATCHES
+        )
+
+    def _healing_resolve_match(self, base: Any, selector: tuple[str, str], index: int) -> Any:
+        """Return the element at *index* among the selector's matches."""
+        matches = base.find_elements(*selector)
+        return matches[index] if index < len(matches) else None
 
     def _healing_try_original_locator(self, base: Any) -> Any:
         """Return the element when the current locator works again, else :obj:`None`."""
         original = base.find_element(self.locator_type, self.locator)
         self._cached_element = original
         return original
-
-    def _healing_score_element(self, element: Any, snapshot: Any, config: Any) -> float | None:
-        """Score a live element against the reference snapshot with the healer's rules."""
-        try:
-            raw = self.driver.execute_script(_GET_ELEMENT_SNAPSHOT_JS, element)
-        except SeleniumWebDriverException:
-            return None
-
-        candidate = ElementSnapshot(
-            tag=raw['tag'],
-            attributes=raw['attrs'],
-            text=raw['text'],
-            parent_tag=raw['parentTag'],
-            parent_attributes=raw['parentAttrs'],
-            siblings=raw['siblings'],
-        )
-        storage = getattr(config, 'storage', None)
-        if storage is not None:
-            candidate = storage.normalize_snapshot(candidate)
-
-        return _compute_similarity_breakdown(candidate, snapshot, getattr(config, 'scoring_weights', None)).score
 
     def _healing_apply_locator(self, selector: tuple[str, str], element: Any) -> None:
         """Persist the verified locator and the resolved element."""
