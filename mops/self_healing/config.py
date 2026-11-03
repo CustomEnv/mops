@@ -20,6 +20,13 @@ class SelfHealingConfig:
     :param heal_locators: When :obj:`True`, the system attempts to heal broken locators
         by loading saved snapshots and searching for matching elements.
     :param score_threshold: Minimum similarity score (0-1) to accept a healed locator.
+    :param min_verify_score: Minimum similarity score (0-1) required from the element
+        a healed locator resolves to. Generated locators are often not unique (e.g.
+        ``//input[@type="text"]``); when such a locator matches several elements, only
+        a match scoring at least this value is accepted. When not set,
+        ``score_threshold`` is used.
+    :param max_verify_matches: Maximum number of matches of a single healed locator
+        that are scored during verification.
     :param scoring_weights: Tunable :class:`ScoringWeights` for element similarity scoring.
         Controls per-attribute, text, parent, and sibling contributions.
         When not set, built-in defaults are used.
@@ -35,6 +42,8 @@ class SelfHealingConfig:
     save_snapshots: bool = False
     heal_locators: bool = False
     score_threshold: float = 0.7
+    min_verify_score: float | None = None
+    max_verify_matches: int = 10
     scoring_weights: ScoringWeights | None = None
     storage: SnapshotStorage | None = None
     on_healing_success: Callable[[SuccessHealingResult], None] | None = None

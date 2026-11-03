@@ -230,8 +230,11 @@ Temporarily disables `heal_locators` on the global config.
 2. **Healing trigger** — when an action method raises `NoSuchElementException`, `@healing` catches it,
    or when `@healing_after_wait` catches a wait timeout.
 
-3. **Candidate search** — JS script collects all elements with the same tag, extracts their attributes,
-   text, parent, and up to 5 siblings.
+3. **Candidate search** — the search context is resolved first: the element's parent container
+   when nested (a root-level element scans the whole document). A missing parent is healed
+   first, recursively, so a chain of missing ancestors is healed top-down (element → parent →
+   grandparent, bounded by `MAX_HEALING_DEPTH`). JS then collects all elements with the same
+   tag *inside that context*, extracting their attributes, text, parent, and up to 5 siblings.
 
 4. **Similarity scoring** — each candidate is scored against the saved snapshot.
    Attributes (`id`, `name`, `class`, `aria-label`, etc.) have per-key weights.
@@ -244,22 +247,28 @@ Temporarily disables `heal_locators` on the global config.
    contribute additional weighted scores. The best candidate must exceed
    `score_threshold` (default `0.7`).
 
-   After a candidate is picked, the resolved DOM element is re-snapshotted and
-   compared against the best candidate — protecting against DOM changes (e.g.
-   React re-renders) that shift element indices between the candidate scan and
-   element resolution. If they differ, healing fails with
-   `dom-changed-during-healing` instead of silently healing the wrong element.
-
 5. **Locator generation** — stable XPath locators are generated for the best candidate:
    `@id` → `data-testid` → `@name` → `@aria-label` → `@type` → stable `@class` → visible text → positional XPath.
    The caller tries each in order until one resolves.
 
-6. **Locator persistence** — the first working locator is written to the element's `locator` attribute.
+6. **Verification** — a generated locator resolving is **not** proof that it resolved to the
+   scored element: `//input[@type="text"]` or a broad class match can hit a different node.
+   A locator matching exactly one element is accepted as-is; when it matches several, every
+   match (up to `max_verify_matches`, default `10`) is snapshotted and scored against the saved
+   snapshot, and only the best match is accepted — and only if it reaches `min_verify_score`
+   (defaults to `score_threshold`). Candidates that fail verification are skipped, so the
+   unique positional XPath at the end of the list wins over a broad one.
+
+7. **Locator persistence** — the first verified locator is written to the element's `locator` attribute.
    Subsequent lookups use the healed locator directly.
 
 ### Key Classes
 
 ```{eval-rst}
+.. autoclass:: mops.self_healing.mixin.HealingMixin
+   :members: _apply_healing, _attempt_healing, _try_healed_locators, _verify_healed_locators
+   :undoc-members:
+
 .. autoclass:: mops.self_healing.healer.Healer
    :members: heal
    :undoc-members:

@@ -49,7 +49,8 @@ return (function(tag) {
         }
         return siblings;
     }
-    var elements = document.getElementsByTagName(tag);
+    var root = arguments[1] || document;
+    var elements = root.getElementsByTagName(tag);
     var result = [];
     for (var i = 0; i < elements.length; i++) {
         var el = elements[i];
@@ -64,7 +65,7 @@ return (function(tag) {
         });
     }
     return result;
-})(arguments[0]);
+})(arguments[0], arguments[1]);
 """
 
 
@@ -168,6 +169,7 @@ class SuccessHealingResult:
     candidates_count: int | None = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     breakdown: SimilarityBreakdown | None = None
+    snapshot: ElementSnapshot | None = None
 
 
 @dataclass
@@ -306,6 +308,7 @@ class Healer:
         driver_wrapper: Any,
         find_elements_fn: Callable[[str], list[Any]],
         generate_locator_fn: Callable[[Any, Any], list[str]],
+        scope: Any = None,
     ) -> SuccessHealingResult | None:
         """Try to find a healed locator for a failed element lookup.
 
@@ -317,6 +320,9 @@ class Healer:
             elements with a given tag name (backend-specific).
         :param generate_locator_fn: Callback ``(element, driver_wrapper) -> list[str]``
             to generate candidate locators from a live element (backend-specific).
+        :param scope: Optional container (parent element) limiting the candidate scan.
+            ``find_elements_fn`` must be scoped to the same container so that indices
+            stay consistent — when not set, the whole document is scanned.
         :return: :class:`SuccessHealingResult` if healed, ``None`` otherwise.
         """
         _record_attempt()
@@ -326,7 +332,7 @@ class Healer:
             logger.info('Self-healing: no snapshot for "%s", skipping', element_name)
             return self._fail('no-snapshot', element_name, locator_key, locator)
 
-        candidates = self._collect_candidates(driver_wrapper, snapshot.tag, element_name, locator_key, locator)
+        candidates = self._collect_candidates(driver_wrapper, snapshot.tag, element_name, locator_key, locator, scope)
         if candidates is None:
             return None
 
@@ -361,6 +367,7 @@ class Healer:
             locator_key=locator_key,
             candidates_count=len(candidates),
             breakdown=best_breakdown,
+            snapshot=snapshot,
         )
 
         logger.info(
@@ -379,10 +386,11 @@ class Healer:
         element_name: str,
         locator_key: str,
         locator: str,
+        scope: Any = None,
     ) -> list[dict] | None:
-        """Collect DOM candidates of the same tag; returns ``None`` on failure."""
+        """Collect DOM candidates of the same tag, scoped to *scope* when given."""
         try:
-            candidates: list[dict] = driver_wrapper.execute_script(_GET_CANDIDATES_JS, tag)
+            candidates: list[dict] = driver_wrapper.execute_script(_GET_CANDIDATES_JS, tag, scope)
         except WebDriverException as exc:
             logger.info('Self-healing: failed to get candidates for "%s": %s', element_name, exc)
             return self._fail('candidates-script-error', element_name, locator_key, locator, exc=exc)
