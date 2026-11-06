@@ -152,3 +152,20 @@ def test_stats_avg_best_score_over_multiple_healed(monkeypatch):
     assert stats.healed == 2
     first_score = stats.avg_best_score * 2  # sum of both scores
     assert 0.0 < first_score < 2.0
+
+
+def test_success_result_carries_driver_wrapper(monkeypatch):
+    """A successful heal() reports the driver wrapper the healing was done in."""
+    _fresh_stats(monkeypatch)
+    storage = _make_storage()
+    storage.load.return_value = _make_snapshot()
+    driver = MagicMock()
+    driver.driver = MagicMock()
+    driver.execute_script.return_value = [_make_candidate()]
+    driver.driver.find_elements.return_value = [MagicMock()]
+    healer = healer_module.Healer(storage, 0.7)
+
+    result = _heal(healer, 'btn', 'key', '#submit', driver)
+
+    assert result is not None
+    assert result.driver_wrapper is driver

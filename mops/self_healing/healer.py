@@ -14,6 +14,7 @@ from mops.self_healing.snapshot import ElementSnapshot
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from mops.base.driver_wrapper import DriverWrapper
     from mops.self_healing.snapshot import SnapshotStorage
 
 _MIN_SUBSTRING_LENGTH = 3
@@ -237,6 +238,7 @@ class SuccessHealingResult:
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     breakdown: SimilarityBreakdown | None = None
     snapshot: ElementSnapshot | None = None
+    driver_wrapper: DriverWrapper | None = field(default=None, repr=False)
 
 
 @dataclass
@@ -457,6 +459,7 @@ class Healer:
             candidates_count=len(candidates),
             breakdown=best_breakdown,
             snapshot=snapshot,
+            driver_wrapper=driver_wrapper,
         )
 
         logger.info(

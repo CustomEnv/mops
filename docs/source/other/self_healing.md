@@ -374,7 +374,8 @@ Healing failures are non-fatal — the original exception is re-raised if healin
 | Candidate passes DOM verification | — | `on_healing_success` |
 
 `FailedHealingResult` exposes diagnostics for external monitoring
-(`SuccessHealingResult` also carries a `timestamp`):
+(`SuccessHealingResult` also carries a `timestamp` and the `driver_wrapper` the healing was done in,
+so multi-driver runs can tell results apart):
 
 * `best_score` — highest similarity score found before the failure
   (`below-threshold`, `index-out-of-bounds`, `generate-locator-error`,
