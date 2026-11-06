@@ -23,6 +23,70 @@ types are active, preventing cross-driver method overwrites on shared Element/Pa
 
 ---
 
+## v4.0.0rc2
+
+*Release date: 2026-xx-xx*
+
+### Fixed
+- **Generated locators are verified, not trusted** — healing previously accepted the first
+  generated XPath that resolved. Generated locators are frequently not unique
+  (`//input[@type="text"]`, `contains(@class, ...)`), so a heal could silently act on a different
+  element than the one that was scored. A locator matching a single element is still accepted
+  as-is; when it matches several, every match is snapshotted and scored against the saved
+  snapshot, and only the best verified match is accepted (verification uses the single
+  `score_threshold`, with the number of scored matches capped at `_MAX_VERIFY_MATCHES` = 10). Failing candidates are skipped, so the unique
+  positional XPath wins over a broad one. Implemented for both Selenium/Appium and Playwright.
+  Verification is batched: a single script call returns the match count *and* the snapshots
+  of the matches, so scoring runs locally instead of costing one round-trip per matched element.
+- **Self-healing is now scoped to the parent container** — the candidate scan and the healed
+  locator lookup run against the element's resolved base (parent element) instead of always
+  scanning the whole document, mirroring how MOPS resolves a regular locator. When the parent is
+  missing it is healed first, recursively through its own ancestors (`MAX_HEALING_DEPTH`).
+- **Candidate search is no longer tag-restricted** — when no element with the snapshot's tag
+  exists, the scan retries tag-agnostically inside the same context, so a redesign that changes
+  the tag (`div` → `button`) can still be healed. Scan size is capped (`_MAX_CANDIDATES`).
+- **Locator generation hardening** — build-time generated values are no longer used:
+  hash suffixes inside a token (`some-element#Tep`), React `:r1a:`, Angular `_ngcontent-*`,
+  short mixed-case blobs (`Tep`, `MdO`) and long alphanumeric hashes are dropped for `id`,
+  and stripped from `class` tokens (both in the generator and in snapshot normalization).
+  Also: valid XPath escaping via `_xpath_literal()` (with `concat()` when both quote kinds
+  occur — the previous backslash escape produced invalid XPath), `@name + @type` combination
+  and multi-token `@class` matching, and de-duplicated candidates.
+
+---
+
+## v4.0.0rc1
+
+*Release date: 2026-07-14*
+
+### Added
+- **Self-healing locators** — automatic recovery of broken element locators at runtime
+  - `mops/self_healing/` package with config, healer, locator generator, and snapshot storage
+  - `@healing` decorator — applied to action methods (`click`, `type_text`, `get_attribute`, `text`, etc.),
+    catches `NoSuchElementException`, heals the locator via similarity scoring, and retries the method
+  - `@healing_after_wait` decorator — applied to `wait_visibility` and `wait_availability`;
+    triggers healing after the wait condition times out
+  - `@no_healing` decorator — temporarily disables healing for specific methods (`is_displayed`, `wait_hidden`)
+  - `SelfHealingConfig` with `configure()` / `get_config()` for global configuration
+  - Snapshot capture on successful element lookup (tag, attributes, text, parent, up to 5 siblings)
+  - Candidate search — JS script collects all same-tag elements, scores each against the saved snapshot
+  - Similarity scoring with tunable per-attribute weights (`ScoringWeights`)
+  - Locator generation pipeline
+  - `SnapshotStorage` ABC for pluggable backends (Redis, S3, PostgreSQL, etc.)
+  - `JsonFileSnapshotStorage` — default JSON file-based backend
+  - Snapshot normalization rules to strip dynamic data (CSS hashes, state classes, etc.)
+  - Callbacks: `on_healing_success` / `on_healing_failure` for external integrations (metrics, alerting)
+  - Full documentation in `docs/source/other/self_healing.md`
+
+### Changed
+- Selenium & Playwright action methods now decorated with `@healing` for transparent self-healing
+- `wait_visibility` refactored into `_wait_visibility_base` to properly stack `@healing_after_wait` with `@wait_condition` / `@wait_continuous`
+- `wait_availability` decorated with `@healing_after_wait` for wait-timeout healing
+- Playwright element methods (`click`, `type_text`, `type_slowly`, `clear_text`, `hover`) now convert `playwright.Error` to `NoSuchElementException` for consistent healing trigger
+- `wait_visibility_without_error` — corrected log message from "hidden" to "visible" for non-continuous mode
+
+---
+
 ### v3.5.2
 
 #### Added

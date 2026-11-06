@@ -11,6 +11,8 @@ from selenium.common.exceptions import (
     StaleElementReferenceException as SeleniumStaleElementReferenceException,
     WebDriverException as SeleniumWebDriverException,
 )
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement as _SeleniumWebElement
 from selenium.webdriver.support.wait import WebDriverWait
 
 from mops.abstraction.element_abc import ElementABC
@@ -27,8 +29,12 @@ from mops.mixins.internal_mixin import get_element_info
 from mops.mixins.objects.location import Location
 from mops.mixins.objects.size import Size
 from mops.selenium.sel_utils import ActionChains
+from mops.self_healing.config import get_config
+from mops.self_healing.healer import _GET_MATCHES_JS
+from mops.self_healing.locator_generator import generate_locator
+from mops.self_healing.mixin import _MAX_VERIFY_MATCHES, HealingMixin
 from mops.shared_utils import _scaled_screenshot, cut_log_data
-from mops.utils.decorators import retry
+from mops.utils.decorators import healing, retry
 from mops.utils.internal_utils import WAIT_EL, get_dict, is_group, safe_call
 
 if TYPE_CHECKING:
@@ -43,8 +49,17 @@ if TYPE_CHECKING:
     from mops.keyboard_keys import KeyboardKeys
 
 
-class CoreElement(ElementABC, ABC):
+def _parse_healed_locator(healed_locator: str) -> tuple[str, str]:
+    """Convert a ``xpath=//...`` prefixed locator into a ``(By, value)`` tuple."""
+    if healed_locator.startswith('xpath='):
+        return By.XPATH, healed_locator[len('xpath=') :]
+    # Default fallback: treat as XPath
+    return By.XPATH, healed_locator
+
+
+class CoreElement(HealingMixin, ElementABC, ABC):
     parent: Element | CoreElement
+    _healing_lookup_exceptions = (SeleniumNoSuchElementException,)
 
     _initialized: bool
     _element: None | SeleniumWebElement | AppiumWebElement = None
@@ -88,6 +103,7 @@ class CoreElement(ElementABC, ABC):
 
     # Element interaction
 
+    @healing
     @retry(ElementNotInteractableException)
     def click(self, *, force_wait: bool = True, **kwargs: Any) -> CoreElement:
         """
@@ -123,6 +139,7 @@ class CoreElement(ElementABC, ABC):
         msg = f'Element "{self.name}" not interactable. {self.get_element_info()}. Original error: {selenium_exc_msg}'
         raise ElementNotInteractableException(msg)
 
+    @healing
     def type_text(self, text: str | KeyboardKeys, silent: bool = False) -> CoreElement:
         """
         Types text into the element.
@@ -142,6 +159,7 @@ class CoreElement(ElementABC, ABC):
 
         return self
 
+    @healing
     def type_slowly(self, text: str, sleep_gap: float = 0.05, silent: bool = False) -> CoreElement:
         """
         Types text into the element slowly with a delay between keystrokes.
@@ -166,6 +184,7 @@ class CoreElement(ElementABC, ABC):
 
         return self
 
+    @healing
     def clear_text(self, silent: bool = False) -> CoreElement:
         """
         Clear the text of the element.
@@ -181,6 +200,7 @@ class CoreElement(ElementABC, ABC):
 
         return self
 
+    @healing
     def check(self) -> CoreElement:
         """
         Check the checkbox element.
@@ -197,6 +217,7 @@ class CoreElement(ElementABC, ABC):
 
         return self
 
+    @healing
     def uncheck(self) -> CoreElement:
         """
         Unchecks the checkbox element.
@@ -215,6 +236,7 @@ class CoreElement(ElementABC, ABC):
 
     # Element state
 
+    @healing
     def screenshot_image(self, screenshot_base: bytes | None = None) -> Image:
         """
         Return a :class:`PIL.Image.Image` object representing the screenshot of the web element.
@@ -230,6 +252,7 @@ class CoreElement(ElementABC, ABC):
         return _scaled_screenshot(screenshot_base, element_size)
 
     @property
+    @healing
     def screenshot_base(self) -> bytes:
         """
         Returns the binary screenshot data of the element.
@@ -241,6 +264,7 @@ class CoreElement(ElementABC, ABC):
         return self.element.screenshot_as_png
 
     @property
+    @healing
     @retry(SeleniumStaleElementReferenceException)
     def text(self) -> str:
         """
@@ -324,6 +348,7 @@ class CoreElement(ElementABC, ABC):
 
         return status
 
+    @healing
     @retry(SeleniumStaleElementReferenceException)
     def get_attribute(self, attribute: str, silent: bool = False) -> str:
         """
@@ -397,6 +422,7 @@ class CoreElement(ElementABC, ABC):
         """
         return Location(**self.execute_script(get_element_position_on_screen_js))
 
+    @healing
     def is_enabled(self, silent: bool = False) -> bool:
         """
         Check if the current element is enabled.
@@ -410,6 +436,7 @@ class CoreElement(ElementABC, ABC):
 
         return self.element.is_enabled()
 
+    @healing
     def is_checked(self) -> bool:
         """
         Check if a checkbox or radio button is selected.
@@ -479,6 +506,8 @@ class CoreElement(ElementABC, ABC):
         """
         Get driver with depends on parent element if available
 
+        :param wait_strategy: wait strategy for the parent element before it is used
+            as a base for the sub-element lookup. ``True`` waits for the parent to be visible.
         :return: driver
         """
         base = self.driver
@@ -508,12 +537,56 @@ class CoreElement(ElementABC, ABC):
         try:
             element = base.find_element(self.locator_type, self.locator)
             self._cached_element = element
+            # Save snapshot for future healing
+            config = get_config()
+            if config.save_snapshots and config.storage:
+                config.storage.save_from_element(self, element, self.driver)
         except (SeleniumInvalidArgumentException, SeleniumInvalidSelectorException) as exc:
             self._raise_invalid_selector_exception(exc)
         except SeleniumNoSuchElementException as exc:
             raise NoSuchElementException(exc.msg) from exc
         else:
             return element
+
+    # Self-healing backend hooks (orchestration lives in mops.self_healing.mixin)
+
+    def _healing_find_elements_by_tag(self, tag: str, base: Any) -> list[Any]:
+        """Return all elements with the given tag name inside *base*."""
+        return base.find_elements(By.TAG_NAME, tag)
+
+    def _healing_scope(self, base: Any) -> Any:
+        """Use the parent element as the JS scan scope; the root driver scans the document."""
+        return base if isinstance(base, _SeleniumWebElement) else None
+
+    def _healing_generate_locator(self, element: Any, driver_wrapper: Any) -> list[str]:
+        """Generate ordered locator candidates for a live element."""
+        return generate_locator(element, driver_wrapper)
+
+    def _healing_parse_locator(self, locator: str) -> tuple[str, str]:
+        """Convert a ``xpath=//...`` prefixed locator into a ``(By, value)`` tuple."""
+        return _parse_healed_locator(locator)
+
+    def _healing_scan_matches(self, base: Any, selector: tuple[str, str]) -> list[dict[str, Any]]:
+        """Return DOM snapshots of the selector's matches (count + data in one round-trip)."""
+        return self.driver.execute_script(
+            _GET_MATCHES_JS, selector[0], selector[1], self._healing_scope(base), _MAX_VERIFY_MATCHES
+        )
+
+    def _healing_resolve_match(self, base: Any, selector: tuple[str, str], index: int) -> Any:
+        """Return the element at *index* among the selector's matches."""
+        matches = base.find_elements(*selector)
+        return matches[index] if index < len(matches) else None
+
+    def _healing_try_original_locator(self, base: Any) -> Any:
+        """Return the element when the current locator works again, else :obj:`None`."""
+        original = base.find_element(self.locator_type, self.locator)
+        self._cached_element = original
+        return original
+
+    def _healing_apply_locator(self, selector: tuple[str, str], element: Any) -> None:
+        """Persist the verified locator and the resolved element."""
+        self.locator_type, self.locator = selector
+        self._cached_element = element
 
     def _find_elements(self, wait_parent: bool = False) -> list[SeleniumWebElement | AppiumWebElement]:
         """

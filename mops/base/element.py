@@ -31,7 +31,7 @@ from mops.mixins.objects.wait_result import Result
 from mops.playwright.play_element import PlayElement
 from mops.selenium.elements.mobile_element import MobileElement
 from mops.selenium.elements.web_element import WebElement
-from mops.utils.decorators import wait_condition, wait_continuous
+from mops.utils.decorators import healing, healing_after_wait, wait_condition, wait_continuous
 from mops.utils.internal_utils import (
     QUARTER_WAIT_EL,
     WAIT_EL,
@@ -263,8 +263,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
     # Elements waits
 
-    @wait_continuous
-    @wait_condition
+    @healing_after_wait
     def wait_visibility(
         self,
         *,
@@ -299,11 +298,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         :type continuous: typing.Union[int, float, bool]
         :return: :class:`Element`
         """
-        return Result(
-            execution_result=self.is_displayed(silent=True),
-            log=f'Wait until "{self.name}" becomes visible',
-            exc=TimeoutException(f'"{self.name}" not visible', info=self),
-        )
+        return self._wait_visibility_base(timeout=timeout, silent=silent, continuous=continuous)
 
     def wait_visibility_without_error(
         self,
@@ -340,11 +335,11 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         :return: :class:`Element`
         """
         if not silent:
-            strategy = 'continuous visible' if continuous else 'hidden'
+            strategy = 'continuous visible' if continuous else 'visible'
             self.log(f'Wait until "{self.name}" becomes {strategy} without error exception')
 
         try:
-            self.wait_visibility(timeout=timeout, silent=True, continuous=continuous)
+            self._wait_visibility_base(timeout=timeout, silent=True, continuous=continuous)
         except (TimeoutException, WebDriverException, ContinuousWaitException) as exception:
             if not silent:
                 self.log(f'Ignored exception: "{exception.msg}"')
@@ -437,6 +432,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
                 self.log(f'Ignored exception: "{exception.msg}"')
         return self
 
+    @healing_after_wait
     @wait_condition
     def wait_availability(self, *, timeout: int = WAIT_EL, silent: bool = False) -> Element:
         r"""
@@ -766,6 +762,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
         return is_visible
 
+    @healing
     def scroll_into_view(
         self,
         block: ScrollTo = ScrollTo.CENTER,
@@ -834,6 +831,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
 
         return image_object
 
+    @healing
     def hide(self, silent: bool = False) -> Element:
         """
         Make the element invisible by setting its opacity to 0.
@@ -848,6 +846,7 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         self.execute_script('arguments[0].style.opacity = "0";')
         return self
 
+    @healing
     def show(self, silent: bool = False) -> Element:
         """
         Make the element visible by setting its opacity to 1.
@@ -1072,3 +1071,26 @@ class Element(DriverMixin, InternalMixin, Logging, ElementABC, metaclass=Element
         :return: :obj:`typing.Type` [:class:`Element`]
         """
         return Element
+
+    def _wait_visibility_base(
+        self, *, timeout: int = WAIT_EL, silent: bool = False, continuous: bool | float = False
+    ) -> Element:
+        """Wait for element visibility with polling, used by wait_visibility."""
+
+        def _visibility_check(
+            self: Element,
+            *,
+            timeout: int = WAIT_EL,  # noqa: ARG001
+            silent: bool = False,  # noqa: ARG001
+            continuous: bool | float = False,  # noqa: ARG001
+        ) -> Element:
+            return Result(
+                execution_result=self.is_displayed(silent=True),
+                log=f'Wait until "{self.name}" becomes visible',
+                exc=TimeoutException(f'"{self.name}" not visible', info=self),
+            )
+
+        # Give the check a stable name so decorators report "wait_visibility"
+        _visibility_check.__name__ = 'wait_visibility'
+        _check = wait_continuous(wait_condition(_visibility_check))
+        return _check(self, timeout=timeout, silent=silent, continuous=continuous)

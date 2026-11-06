@@ -85,6 +85,7 @@ license-files = []
 [tool.ruff]
 line-length = 120
 include = ["**/mops/**"]
+extend-exclude = ["*.md"]
 target-version = "py310"
 
 [tool.ruff.lint]
